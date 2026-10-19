@@ -18,10 +18,10 @@ final class FeishuModule: NookModule {
         self.context = context
         let args = ProcessInfo.processInfo.arguments
         let demo = args.contains("--feishu-demo")
-        store = FeishuStore(defaults: demo ? UserDefaults(suiteName: "local.youzi.island.demo")! : context.defaults,
-                            live: Bundle.main.bundleIdentifier == "local.youzi.island" && !args.contains("--self-test") && !demo)
+        store = FeishuStore(defaults: demo ? UserDefaults(suiteName: "local.zaizhi.feishu-island.preview.demo." + UUID().uuidString)! : context.defaults,
+                            live: Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview" && !args.contains("--self-test") && !demo, receivingDefault: demo, headlessRenderer: false)
         if demo { store.loadDemo() }
-        if Bundle.main.bundleIdentifier == "local.youzi.island", !args.contains("--self-test") { SettingsServer.shared.start(store: store) }
+        if Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview", !args.contains("--self-test") { SettingsServer.shared.start(store: store) }
     }
     func makeConfiguration() -> NookConfiguration {
         var config = IslandHost.baseConfiguration(title: "飞书消息", symbol: "paperplane.fill")

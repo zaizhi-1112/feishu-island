@@ -9,9 +9,10 @@ struct FeishuDirectoryPage: Sendable {
 /// On-demand, read-only lookup. Credentials stay owned by the existing CLI.
 final class FeishuDirectory: @unchecked Sendable {
     private let cli: URL
+    private let profile: String
     private let queue = DispatchQueue(label: "island.settings.directory", qos: .userInitiated, attributes: .concurrent)
     private let slots = DispatchSemaphore(value: 2)
-    init(cli: URL = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".local/bin/lark-cli")) { self.cli = cli }
+    init(connection: FeishuConnection = .init()) { self.cli = URL(fileURLWithPath: connection.cliPath); self.profile = connection.profile }
 
     func search(kind: String, query: String, pageToken: String) async throws -> FeishuDirectoryPage {
         try await withCheckedThrowingContinuation { continuation in
@@ -53,7 +54,7 @@ final class FeishuDirectory: @unchecked Sendable {
         }
     }
     private func call(_ args: [String]) throws -> [String: Any] {
-        let process = Process(); process.executableURL = cli; process.arguments = args
+        let process = Process(); process.executableURL = cli; process.arguments = (profile.isEmpty ? [] : ["--profile",profile]) + args
         var env = ProcessInfo.processInfo.environment
         env["LARKSUITE_CLI_NO_UPDATE_NOTIFIER"] = "1"; env["LARKSUITE_CLI_NO_SKILLS_NOTIFIER"] = "1"
         process.environment = env; process.standardInput = FileHandle.nullDevice

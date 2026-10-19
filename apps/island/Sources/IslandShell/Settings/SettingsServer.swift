@@ -7,16 +7,33 @@ final class SettingsServer {
     static let shared = SettingsServer()
     private var listener: NWListener?
     private weak var store: FeishuStore?
-    private let directory = FeishuDirectory()
+    private let agent = AppearanceMCP()
+    private let assetsRoot: URL?
+    init(assetsRoot: URL? = nil) { self.assetsRoot = assetsRoot }
+    var address: String? { ready ? "http://127.0.0.1:\(port)" : nil }
+    private var lockObserver: NSObjectProtocol?
+    private var unlockObserver: NSObjectProtocol?
+    private var sessionLocked = false
     private var port: UInt16 = 18766
     private var ready = false
     private var openWhenReady = false
     private var connections: [UUID: SettingsConnection] = [:]
 
-    func start(store: FeishuStore) {
+    func start(store: FeishuStore, listen: Bool = true, preferredPort: UInt16 = 18766) {
         self.store = store
+        agent.appearance = store.appearance
+        agent.onChange = { [weak self, weak store] value in
+            if store?.updateAppearance(value) == true { self?.agent.savedRevision = self?.agent.revision ?? 0 }
+        }
+        if lockObserver == nil {
+            lockObserver = NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.sessionDidResignActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.sessionLocked = true; self?.agent.revoke() } }
+        }
+        if unlockObserver == nil {
+            unlockObserver = NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.sessionDidBecomeActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.sessionLocked = false } }
+        }
+        guard listen else { return }
         guard listener == nil else { return }
-        listen(port: 18766)
+        self.listen(port: preferredPort)
     }
     private func listen(port: UInt16) {
         do {
@@ -67,7 +84,10 @@ final class SettingsServer {
     private func snapshot(_ store: FeishuStore) -> SettingsResponse {
         let ruleData = try! JSONEncoder().encode(store.rules)
         return .json([
-            "revision": store.settingsRevision, "enabled": store.enabled,
+            "revision": store.settingsRevision, "enabled": store.enabled, "synthetic": !store.allowsDirectoryLookup,
+            "danmu": try! JSONSerialization.jsonObject(with: JSONEncoder().encode(store.danmu)),
+            "connection": try! JSONSerialization.jsonObject(with: JSONEncoder().encode(store.connection)),
+            "appearance": store.appearance,
             "rules": try! JSONSerialization.jsonObject(with: ruleData),
             "customRules": try! JSONSerialization.jsonObject(with: JSONEncoder().encode(store.customRules)),
             "account": store.account, "status": store.status,
@@ -76,14 +96,38 @@ final class SettingsServer {
             "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "开发版"
         ])
     }
-    private func respond(method: String, path: String, headers: [String: String], body: Data) async -> SettingsResponse {
+    func respond(method: String, path: String, headers: [String: String], body: Data) async -> SettingsResponse {
         let host = "127.0.0.1:\(port)"
         guard headers["host"] == host else { return .error(403, "仅接受本机地址") }
         if let origin = headers["origin"], origin != "http://\(host)" { return .error(403, "来源不匹配") }
         if let site = headers["sec-fetch-site"], site == "cross-site" { return .error(403, "来源不匹配") }
         guard let url = URLComponents(string: path) else { return .error(400, "地址不正确") }
+        if url.path == "/mcp" {
+            guard headers["origin"] == nil, !sessionLocked, agent.active, headers["authorization"] == "Bearer " + (agent.token ?? "") else { return .error(403,"仅接受有效的个人外观连接") }
+            guard method == "POST" else { return .error(405,"不支持的操作") }
+            guard headers["content-type"]?.hasPrefix("application/json") == true,
+                  let object = try? JSONSerialization.jsonObject(with:body) as? [String:Any] else { return .error(400,"格式不正确") }
+            if let result = agent.rpc(object) { return .json(result) }
+            return SettingsResponse(status:202,contentType:"application/json",body:Data())
+        }
+        if ["/api/agent","/api/appearance","/api/demo"].contains(url.path) {
+            guard let store else { return .error(503,"应用未就绪") }
+            guard method == "POST", headers["origin"] == "http://\(host)", headers["x-island-settings"] == "1", headers["content-type"]?.hasPrefix("application/json") == true else { return .error(403,"请从本机设置页操作") }
+            if url.path == "/api/agent" {
+                guard !sessionLocked else { return .error(403,"锁屏期间不创建连接") }
+                agent.appearance = store.appearance
+                return .json(["endpoint":"http://\(host)/mcp","token":agent.authorize()])
+            }
+            if url.path == "/api/appearance" {
+                guard let value = try? JSONSerialization.jsonObject(with:body) as? [String:Any], store.updateAppearance(value) else { return .error(400,"仅接受有效的个人外观配置") }
+                agent.appearance = store.appearance
+            } else { store.playSynthetic() }
+            return snapshot(store)
+        }
         if url.path == "/api/directory" {
             guard method == "GET" else { return .error(405, "不支持的操作") }
+            guard let store, store.allowsDirectoryLookup else { return .error(403,"合成模式不查询真实联系人或群聊") }
+            let directory = FeishuDirectory(connection:store.connection)
             let items = url.queryItems ?? []
             guard Set(items.map(\.name)).count == items.count else { return .error(400, "查询参数重复") }
             let query = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value ?? "") })
@@ -107,14 +151,28 @@ final class SettingsServer {
             guard let input = try? JSONDecoder().decode(SettingsUpdate.self, from: body) else { return .error(400, "设置格式不正确") }
             guard input.revision == store.settingsRevision else { return .error(409, "设置已在其他位置改变，请重新载入后再保存。") }
             if let error = input.customRules?.validationError { return .error(400, error) }
-            store.updateSettings(enabled: input.enabled, rules: input.rules, custom: input.customRules)
+            if input.enabled, !store.enabled, let conflict = store.receiveConflict { return .error(409,conflict) }
+            let raw = (try? JSONSerialization.jsonObject(with:body)) as? [String:Any] ?? [:]
+            var appearance: [String:Any]?
+            if let rawStyle = raw["appearance"] {
+                guard let style = rawStyle as? [String:Any], let valid = AppearanceMCP.validate(style) else { return .error(400,"外观配置无效，只允许外观白名单") }
+                appearance = valid
+            }
+            let connection = input.connection ?? store.connection
+            guard connection.valid else { return .error(400,"请填写绝对路径和有效的账号配置名") }
+            let switching = connection != store.connection
+            if switching && input.enabled { return .error(400,"切换账号配置前，请关闭接收并保存；授权后再开启") }
+            if switching { _ = store.updateConnection(connection) }
+            store.updateSettings(enabled: input.enabled, rules: input.rules, custom: switching ? .init() : input.customRules)
+            if let value = input.danmu { store.updateDanmu(value) }
+            if let appearance { _ = store.updateAppearance(appearance); agent.appearance = store.appearance }
             return snapshot(store)
         }
         guard method == "GET" else { return .error(405, "不支持的操作") }
         let files = ["/": ("index.html", "text/html; charset=utf-8"), "/index.html": ("index.html", "text/html; charset=utf-8"),
                      "/app.js": ("app.js", "application/javascript; charset=utf-8"), "/style.css": ("style.css", "text/css; charset=utf-8")]
-        guard let file = files[url.path], let root = Bundle.main.resourceURL,
-              let data = try? Data(contentsOf: root.appendingPathComponent("SettingsWeb/\(file.0)")) else { return .error(404, "页面不存在") }
+        guard let file = files[url.path], let root = assetsRoot ?? Bundle.main.resourceURL?.appendingPathComponent("SettingsWeb"),
+              let data = try? Data(contentsOf: root.appendingPathComponent(file.0)) else { return .error(404, "页面不存在") }
         return SettingsResponse(status: 200, contentType: file.1, body: data)
     }
 }
@@ -124,9 +182,11 @@ private struct SettingsUpdate: Decodable {
     let enabled: Bool
     let rules: FeishuReminderRules
     let customRules: FeishuCustomRules?
+    let danmu: DanmuOptions?
+    let connection: FeishuConnection?
 }
 
-private struct SettingsResponse {
+struct SettingsResponse {
     let status: Int
     let contentType: String
     let body: Data

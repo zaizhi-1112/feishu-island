@@ -1,5 +1,5 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-SDK="${ISLAND_SDK:-/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk}"
+SDK="${ISLAND_SDK:-$(xcrun --sdk macosx --show-sdk-path)}"
 swift run --sdk "$SDK" IslandChecks

@@ -42,6 +42,7 @@ final class AccountReader {
     private var gray: [String] = []
     private var hidden: [String] = []
     private let cli: URL
+    private let profile: String
     private var pollDelay: TimeInterval
     private let pageDelay: TimeInterval
     private let concurrency: Int
@@ -62,7 +63,8 @@ final class AccountReader {
             self.post(token) { completion(unread) }
         }
     }
-    init(cli: URL? = nil, pollDelay: TimeInterval = 3, pageDelay: TimeInterval = 0.3, concurrency: Int = 3, catalogInterval: TimeInterval = 60, requestTimeout: TimeInterval = 8, clock: ServerClock = ServerClock()) {
+    init(cli: URL? = nil, profile: String = "", pollDelay: TimeInterval = 3, pageDelay: TimeInterval = 0.3, concurrency: Int = 3, catalogInterval: TimeInterval = 60, requestTimeout: TimeInterval = 8, clock: ServerClock = ServerClock()) {
+        self.profile = profile
         self.cli = cli ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".local/bin/lark-cli")
         self.pollDelay = pollDelay; self.pageDelay = pageDelay
         self.concurrency = max(2, concurrency); self.catalogInterval = catalogInterval
@@ -112,7 +114,7 @@ final class AccountReader {
         requestSlots.wait(); defer { requestSlots.signal() }
         guard alive(token) else { throw AccountFailure(detail: "接收已停止") }
         let p = Process(); p.executableURL = cli
-        p.arguments = args
+        p.arguments = (profile.isEmpty ? [] : ["--profile", profile]) + args
         var env = ProcessInfo.processInfo.environment
         env["LARKSUITE_CLI_NO_UPDATE_NOTIFIER"] = "1"; env["LARKSUITE_CLI_NO_SKILLS_NOTIFIER"] = "1"
         p.environment = env; p.standardInput = FileHandle.nullDevice

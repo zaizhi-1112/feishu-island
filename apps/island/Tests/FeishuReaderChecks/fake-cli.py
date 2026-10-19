@@ -5,10 +5,14 @@ import sys, json, os, fcntl, time
 state_lock = open(os.environ["DANMU_TEST_STATE"] + ".lock", "w")
 fcntl.flock(state_lock, fcntl.LOCK_EX)
 args=sys.argv[1:]
+profile = ""
+if args[:1] == ["--profile"]:
+    profile = args[1]; args=args[2:]
 path=os.environ['DANMU_TEST_STATE']
 try:
     with open(path) as f: state=json.load(f)
 except FileNotFoundError: state={'attempts':{},'read':[],'bad':[],'statusChecks':{}}
+if profile != "synthetic-island": state['bad'].append("profile mismatch")
 def save():
     with open(path,'w') as f: json.dump(state,f)
 def out(data):
