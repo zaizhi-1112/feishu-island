@@ -1,0 +1,7 @@
+f6bd28263dfc4a4d6c2581657efa6af8e8f92eba22394c9c4d840d4ad1fae65e  lark-cli-1.0.96-darwin-amd64.tar.gz
+124acdf380f72fa4b1b1e8307a0b00ee93217cf9558baca5bc40091304f2adcd  lark-cli-1.0.96-darwin-arm64.tar.gz
+5d1fa96832307b13298fdb11c477ab3f31c3e98026fec585b4b2eb7f63960c36  lark-cli-1.0.96-linux-amd64.tar.gz
+a83124bad70ddb5a42c8d10a80e8d52f49913b1cb397c7a0a835bd0ddb65f3e2  lark-cli-1.0.96-linux-arm64.tar.gz
+b8f86cedf82634b1ad27c207d3dba40112f407cba9d690a092c3c80818bdd6c7  lark-cli-1.0.96-linux-riscv64.tar.gz
+efd31a894c8b427d209727cb9e140a8b62c7955f404a6e7004e623fc687d42fa  lark-cli-1.0.96-windows-amd64.zip
+8ee926bb77f3718dd6d3c657de1cc3ad970180ed74d2f7ee00d3e9247f362dbb  lark-cli-1.0.96-windows-arm64.zip

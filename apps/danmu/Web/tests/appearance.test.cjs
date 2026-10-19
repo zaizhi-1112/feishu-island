@@ -1,0 +1,9 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');const {validate,defaults}=require('../public/appearance-schema.js');
+test('appearance allows display choices and rejects executable or core configuration',()=>{assert.equal(validate({...defaults,fontSize:36,layout:'reading'}).fontSize,36);for(const payload of [{...defaults,poll:1},{...defaults,css:'body{}'},{...defaults,background:'url(https://example.test)'},{...defaults,fontSize:200},{...defaults,background:'#ffffff',foreground:'#eeeeee'}])assert.throws(()=>validate(payload));assert.deepEqual(validate(defaults),defaults);});
+test('server saves personal appearance and rejects core fields without changing receiving',async()=>{
+ const fs=require('node:fs'),path=require('node:path'),{EventEmitter}=require('node:events'),{createApp}=require('../server.cjs');const dir=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'danmu-theme-test-'));
+ class R extends EventEmitter{constructor(){super();this.enabled=false;}stop(){this.enabled=false;}start(){this.enabled=true;}}
+ const server=createApp({dataDir:dir,makeCLI:()=>({call:async()=>({}),cancel(){}}),makeReader:()=>new R()});await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
+ const req=(user,body)=>fetch(base+'/api/appearance',{method:body?'POST':'GET',headers:{'x-auth-user-id':user,origin:base,'content-type':'application/json'},body:body?JSON.stringify(body):undefined});
+ try{assert.equal((await req('a',{...defaults,name:'个人皮肤',fontSize:36})).status,200);assert.equal((await(await req('a')).json()).appearance.fontSize,36);assert.equal((await(await req('b')).json()).appearance.fontSize,28);assert.equal((await req('a',{...defaults,poll:1})).status,400);assert.equal((await(await req('a')).json()).appearance.fontSize,36);}finally{await new Promise(r=>server.close(r));}
+});

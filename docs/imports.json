@@ -1,0 +1,973 @@
+{
+  "importDate": "2026-10-19",
+  "colleagueVersion": "0.5.0",
+  "danmuWebVersion": "0.7.1",
+  "notes": "原始引入文件校验值。原始双方文件保留；个人数据、依赖缓存和二进制安装包不导入。",
+  "colleagueArchiveSHA256": "18349612b99e8c3c39b2d359c5fc9fd32d4f6733ae2224c9996dc00777d969ce",
+  "files": [
+    {
+      "path": "apps/island/.gitignore",
+      "sha256": "31ac4f0c7e3e35a38cff8a999647efd7b9108616f211a0425a7f366ab0f4ee6e"
+    },
+    {
+      "path": "apps/island/Examples/MyModule.swift",
+      "sha256": "aa4953f3155373458fe69dd6f544837e22194c8c598db87becd965f966f14fa7"
+    },
+    {
+      "path": "apps/island/HANDOFF.md",
+      "sha256": "480a4bb9e1d8b14b8027d1b7b50d681d0d595799c50dab1cc16bb61f462a1419"
+    },
+    {
+      "path": "apps/island/PACKAGE-MANIFEST.sha256",
+      "sha256": "2ca802cb96cac6ee5adc32dc5a8259ecc61488d64e05faa6de4beea4f9aec518"
+    },
+    {
+      "path": "apps/island/PACKAGING-CHECKS.md",
+      "sha256": "588762d844bd44d5ad3b258f53d3af3f9bf54c7121c518b33064a5057677518f"
+    },
+    {
+      "path": "apps/island/Package.swift",
+      "sha256": "ff505f0d5cf751318354890bca9756bd929be1c5c2d14e853f842b9e5a88fd55"
+    },
+    {
+      "path": "apps/island/README.md",
+      "sha256": "792311700828e0b3c4f5b1c28ef585887035ef33b96726d57d319959fe185035"
+    },
+    {
+      "path": "apps/island/Resources/Info.plist",
+      "sha256": "f7fbfdc5e1d760d05e63ad4c8aac771f95d0a648590058667b54346058f5596b"
+    },
+    {
+      "path": "apps/island/SettingsWeb/dist/app.js",
+      "sha256": "4cc0377fa80fe7cf7c50bd278da363fd1735cf0294ffc488465d434d1acc19b9"
+    },
+    {
+      "path": "apps/island/SettingsWeb/dist/index.html",
+      "sha256": "b103e1b49c683f58eb3dae80b61aeea835a2624e6564879f27a32894eb37e1d2"
+    },
+    {
+      "path": "apps/island/SettingsWeb/dist/style.css",
+      "sha256": "910c169907a1f067ed74ee53fdfffe6e6ff0b2ee8c1fb4f4fff7fa58a173b707"
+    },
+    {
+      "path": "apps/island/Sources/IslandShell/Feishu/AccountReader.swift",
+      "sha256": "9ed26d7ffe5bd4d7a5ce2203417837a53a512ce5e16a7bbeae978c5b91351796"
+    },
+    {
+      "path": "apps/island/Sources/IslandShell/Feishu/FeishuMessage.swift",
+      "sha256": "ea4887b292311a4f60e25dc6840449c2d373c9034f6b6a60497d4ae64323f079"
+    },
+    {
+      "path": "apps/island/Sources/IslandShell/Feishu/FeishuModule.swift",
+      "sha256": "fc011f1d64dc50b6a32e3465b6643310627aaac66b196ddc3fe7bdaf08dff65d"
+    },
+    {
+      "path": "apps/island/Sources/IslandShell/Feishu/FeishuStore.swift",
+      "sha256": "917f06bdeb759fca3a0cc0993a8dd3bd1f4a5e13dd87efdfd6964a07bff326e7"
+    },
+    {
+      "path": "apps/island/Sources/IslandShell/Feishu/FeishuView.swift",
+      "sha256": "607150e264445570973405c69c7e310b8e2ebe21ca1b25300a53ceee9878490f"
+    },
+    {
+      "path": "apps/island/Sources/IslandShell/Feishu/SOURCE.md",
+      "sha256": "17c54d0c8f7d3e491042ba1d485536c2f24c94af8a22e4a15850ba698c6ef4c6"
+    },
+    {
+      "path": "apps/island/Sources/IslandShell/Feishu/ServerClock.swift",
+      "sha256": "f06fa870603f158c87b1a7ce584d2efc5c7935001d9f907180a5ffd4f6e56c41"
+    },
+    {
+      "path": "apps/island/Sources/IslandShell/IslandDesign.swift",
+      "sha256": "8f1fc9e8b27e90f0d5e7967465823283c572d6b2b24e689174ab15a2e816ab94"
+    },
+    {
+      "path": "apps/island/Sources/IslandShell/IslandHost.swift",
+      "sha256": "3529ef9f5bf648ae6b7bea993baedfff32894e17448ad605038577d7ce001305"
+    },
+    {
+      "path": "apps/island/Sources/IslandShell/IslandLabels.swift",
+      "sha256": "04e53ab5efc2e8acaaca5fd8e7451f0c4c2de62232bd0b89b378a54ad77087a9"
+    },
+    {
+      "path": "apps/island/Sources/IslandShell/IslandViews.swift",
+      "sha256": "dbc7f7631604e3e3b087063b051efcfb7b0af0fd1891482cb4f177d70e9fd418"
+    },
+    {
+      "path": "apps/island/Sources/IslandShell/RuntimeVerification.swift",
+      "sha256": "4d655a8fbefdd407cf2370e65d7c903f8f3b8c84d13c5dd5c207a5ce09cbb009"
+    },
+    {
+      "path": "apps/island/Sources/IslandShell/Settings/FeishuDirectory.swift",
+      "sha256": "e09a7c62f0858a98be8bd198ad7e78ac96ea90528bd0a5e1fd25511d056f90d2"
+    },
+    {
+      "path": "apps/island/Sources/IslandShell/Settings/SettingsServer.swift",
+      "sha256": "82e256b761a77ebeb0a5fdf54f79117a000c5cd4f17a3287cc1dcbf7a24832e9"
+    },
+    {
+      "path": "apps/island/Sources/YuIsland/main.swift",
+      "sha256": "dd7731468b5e05a76be2fec4cd0853f0b4defcac9c1747526f808a67f9869c1c"
+    },
+    {
+      "path": "apps/island/Tests/FeishuReaderChecks/fake-cli.py",
+      "sha256": "fc4a0f636139009ccd3896922695d82b0857ca7eeaf898087da6ccb042cff1c9"
+    },
+    {
+      "path": "apps/island/Tests/FeishuReaderChecks/main.swift",
+      "sha256": "3ef0f6c53a7dc7b27bcbad2f4d6684d85d27fd9f03b1f0f96f99bf9b95b50d20"
+    },
+    {
+      "path": "apps/island/Tests/IslandChecks/main.swift",
+      "sha256": "d476658daf0abb98130053784fbfea28905dc2e7eb6c75e44c50aaa889ff6387"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/LICENSE-MIT-NOOKSURFACE",
+      "sha256": "6784d1e055b7cb62d96c00c75e52894e793ca27a38942d9aabf0c72c78596c84"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/NOTICE.md",
+      "sha256": "db8dbb25db57318cd736f22da5b7817186535f16cede38200894c4a9f4b4aca3"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Package.swift",
+      "sha256": "07e7ad4b2e3e0af3de378be3585b9587c1fa68983cb4f0b41ef4701873633c10"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookApp/NookApp.swift",
+      "sha256": "c0b1ce062c303b0b4337c4f755a766330d0fa9ac9beb8ca16c3f0635738c9a1d"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookApp/NookLaunchSmoke.swift",
+      "sha256": "2e5427077dabf7d8005bf1d2a3d0aced220a0199bdc66c413647baeb5ca630a9"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Activities/NookActivityCenter.swift",
+      "sha256": "cc57f41fdd9c2d8fd5d9fd4e300265135301d87c4f0c74ef50f638a4fb1306b9"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Activities/NookLiveActivity.swift",
+      "sha256": "5c893bee52c68dda19f1614fe4b3777cc07b503c5eaac0f0b4d3a7a40a2f0487"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/AppCoordinator+Activities.swift",
+      "sha256": "4af75fbf52bfc62e92d7f88340a2755bde4ff537f914341cd26ffcb2ec126b13"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/AppCoordinator+SmokeTest.swift",
+      "sha256": "e2e76320622579eb0ff377184c147175594711e36232aeff3a6670d4151082af"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/AppCoordinator+Sound.swift",
+      "sha256": "1f9f4ce257c0da53539f4f79a6bb51ef08a80d993785f2e5e2a32ae5c246b4c1"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/AppCoordinator+Theme.swift",
+      "sha256": "d42ada77bd98d4acf5cc923067b3ee5f10d5acfa9eca5690560508412414a4eb"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/AppCoordinator.swift",
+      "sha256": "3e568d7694c6d6ad41b93c4307f286f1329a9ff7146bbd8ce53b8d55e3aac297"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/AppServices.swift",
+      "sha256": "9bf3e8a3059d1f09c7b43eb324dc88cf76fa0252ec162bdfb1a8e2563b4b1b7d"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/AppState.swift",
+      "sha256": "313415420d808b2ab40d404c4281f5d9759c9f35024269f1b0d4697921e663ec"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/ModuleHost.swift",
+      "sha256": "2af5f400c657d47b15a8bbc3ce97e9ffe26ba08493615745731fd0fcafc9620a"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Modules/NookHostBranding.swift",
+      "sha256": "c854d57fad134e5fbe17f61e6c99d3ed68cfaf4e5ca22d3210c41131e5d77baa"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Modules/NookHostConfiguration.swift",
+      "sha256": "08c3c9868c29f15b619402aa6d21fa19033f8cacad3f84947d53001a527a6089"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Modules/NookModule.swift",
+      "sha256": "ca8e575c7d7f63a5022bf267615ccc9a4b34482752fff1a924b04499c3dece78"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Modules/NookModuleContext.swift",
+      "sha256": "b99cf4e7d85fd68e31f4b1a31c8854b3874157a37fac0cf6e5cf32b7cc2ee36b"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Modules/NookModuleDescriptor.swift",
+      "sha256": "b3a2d6b758a32e58683911cd61896e128cdeb5673b245ca1366e3bc247db9024"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Modules/NookModuleRegistry.swift",
+      "sha256": "a2a69c477cb2e4846c486a419d09ec0883a350df3af001e4ed40a1c51f9e5f6c"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Modules/NookModuleSwitcher.swift",
+      "sha256": "48ecb47ed72946b6367103fb4532bfc8edc4d2c1cecc05a95aebedc6f362d1ec"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookAccentPreset.swift",
+      "sha256": "e64541e26eab369858069e0b0edba14c7753370098430a99d13ddca419f4b7e5"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookAppearancePreferences.swift",
+      "sha256": "0e9c7723e9b66afbfc7947bb81c0b93c3011a2359b80a3f1dde59a8701c3969f"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookBackdropContext.swift",
+      "sha256": "e7334e316b4e3e16fefb8800b1e2b9f4edbb87524d48714e94ca9e92539b3d4c"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookBackdropMapping.swift",
+      "sha256": "e716178b09092e2527c2a1e8b0391953be885c80fbed98a5023aa3ce49ea07f9"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookChromeActions.swift",
+      "sha256": "5944f98258a7fc516406ef95285281a8360018266eb1589d71001fb228f86d06"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookChromeBehavior.swift",
+      "sha256": "47df49bb144c66b934b7802a2564358cb2fa7cdca52b589d6de22104b5e75a65"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookChromeColors.swift",
+      "sha256": "e08d5c3d366ecfafb9199646a4eec55541e919266ba2adac3e0fc9f808a459d8"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookChromeLabelGroups.swift",
+      "sha256": "1a282216dd91e8c39dd2cc9ced389fcfca83f01c099084e6b6765ba9e2a3cee6"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookChromeLabels.swift",
+      "sha256": "7eca4bf96a18f0107df755a10f626eb7db058aeaccdee7e78f3a73d51e87088f"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookChromeMetrics.swift",
+      "sha256": "01750da20b92f90e6512aefbe081627571dbb23c91a12b370aeefafda7ddd452"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookChromeMotion.swift",
+      "sha256": "2ef386a76d81e493bf769e330af0843cf0ce9c0d0dfca5663176c809150919f7"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookChromeSymbols.swift",
+      "sha256": "3771c23052f7ece7aeb7736bc1d369ac2ca84ed967fb18f0badd1260d1636d36"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookChromeTypography.swift",
+      "sha256": "f52618a2bc59d9047afc7d02e4b8b5fa7fce5e57f59ea4c76970bda9dbfd6a6a"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookCompanion.swift",
+      "sha256": "b5392fdbe7bbe1d64b31b29991746afb47863dc6dc8a664931d77f798bb2a860"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookCompanionSource.swift",
+      "sha256": "dd5d5ab4c5f1688e812ab2f6bcac9652597d8823b9fe4d4c977ad2c5ebf566a9"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookConfiguration.swift",
+      "sha256": "fa60a2c9addcd2f6ecf8dca33db47b51cad9d5201efbac5a32423f4b1dc6682b"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookDisplayPreference.swift",
+      "sha256": "4dfa8d7c6b17393c5888f59745a1896f13c4f33ba5e7ca1f4c4a6003c56d69f2"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookFilePicker.swift",
+      "sha256": "e95b0034f845ea61527d51ce1a61f866be11ec5090a52957a64434b2b22da993"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookGlyphButtonStyle.swift",
+      "sha256": "9598ea3f3df96971791fcabda49927c473ec470923366b683f7b37f3169d961d"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookHaptics.swift",
+      "sha256": "a324b2afd2075461c0fa35497787aa479d72802680ac27c7457da199ebb37c51"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookHotkeyIDs.swift",
+      "sha256": "403191ec6f8b95b88496ee450a5f9b5f459bcec5949da6d23941c0110bbc3851"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookPreferenceDefaults.swift",
+      "sha256": "faed71a1ba7524eb8331e030bc097bad20c46cf44341eb37938af24685b734ee"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookPreferenceStorage.swift",
+      "sha256": "13edd64a0100855c45700446079952b453af1d8511e50d65481b00a822753983"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookPresentationPinning.swift",
+      "sha256": "d34249b11912b0990e16f1fe79ff1e7358d1d68375f7f39fe230808964a12db3"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookResolvedTheme.swift",
+      "sha256": "3fb8eed4bb8f84961d36996e2c31228a4ac30b1db66b8eec13f14aa1f5219cff"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookSoundPlayer.swift",
+      "sha256": "7e9a1bdf0b392f490d91dd5535eea6eb6f080bdcdb009f35947fdf7b7c707b90"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookStatus.swift",
+      "sha256": "824d1b2a232193b9fa53bb064f10bd59d144f37757f3cbcf2758587cce7bb57d"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookSurfaceDriving.swift",
+      "sha256": "3544c8aa962a45b9e1fc515a8e747b3dd9eb800b13346923818878e038dd6d9d"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookSurfacePresenting.swift",
+      "sha256": "091b58ff34db3ea4d3d82c878b37aa63653fec84e5e0dcee312ea1d26b490b07"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/NookTopBarContext.swift",
+      "sha256": "ff458cc24b027b86b1d0c0818aff0e5d296afe3713361b791a89931087d6fdc1"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/SurfaceArbiter.swift",
+      "sha256": "9251ecbfae4b892ce0d7e4003f950b74a449c107f74a79cecc06d6e7929a4bda"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Compact/CompactViews.swift",
+      "sha256": "ad656e4474513d1409d54e9271dea04af3d212d36fe74757dfa39eba1051b288"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Layout/NookContentColumn.swift",
+      "sha256": "ea9b6637160ef636060097d0f9cce7f59eb9bc4f242930108c681f54fa07dbf2"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Layout/NookLayout.swift",
+      "sha256": "01b52f4472ca739cb0d7249dff91d7eec23f07a8b430e1519c885702d36d0d95"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Layout/NookNotchClearance.swift",
+      "sha256": "59668a6888938da5733601f5afe9a5d31c597357d6b01e9f459711f91e165859"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Layout/NookNotchRow.swift",
+      "sha256": "a1d9843ddafc267c8c6d3dc37238599d429aec54e3f6d962fb3172ee0e7c17f5"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/ModuleRouterViews.swift",
+      "sha256": "706472f5c477d7efcde04273f105780753ecdc8d72999d8751f7749e2161edfa"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/NookEntranceModifier.swift",
+      "sha256": "4019098dd2f49efec119005b1d817c441c4b95827972812c773b0dfd976bda11"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/NookExpandedView.swift",
+      "sha256": "12b8527d0d9d70127e695633978966554f76f591bb01c520e5f2fa4c2268b6d1"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/NookHomeAmbience.swift",
+      "sha256": "2d2b575bd2f8c090b6fdf3ff71c15d17a0a25f18dbb05e6c7db79541b6de1724"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/NookKeepsExpandedModifier.swift",
+      "sha256": "53c1a2da937616f141fd191f65c0fc47ed36546b4b8c373792c2756cdfc9c4d4"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/NookModuleScope.swift",
+      "sha256": "5119338953fd675f95be1afa23cedd4873fa8a60462e201af0fd1167f979b371"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/NookPlaceholderHomeView.swift",
+      "sha256": "c7a942a74bca52e95954c1117c4040eecf815cb907c34cc3ee3faf7cd45aa6bf"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/NookTopBar.swift",
+      "sha256": "767f828180d1e032221bf7a5a8c19a498833796c2ca0a331959120feedaf806f"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Settings/AppearanceSettingsView.swift",
+      "sha256": "cbb8ebe480b5657b7130c5b4898b5365f70504ae8f63b7b186d0570feddcb46f"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Settings/DisplaySettingsView.swift",
+      "sha256": "1a92f74ef46c557e063cad9240bc7081e32812d253c0967e8641f69038e40f8c"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Settings/HotkeySettingsView.swift",
+      "sha256": "1414094a73b12f65e6928dc3fe258523bb3f7315f19400ca38347dcf0ebedb80"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Settings/NookSettingsSection.swift",
+      "sha256": "047eb7883c107e832fa08ce88949e94ec01a777fe0a7597c80d9e43581f1f007"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Settings/OpeningSettingsView.swift",
+      "sha256": "22a60dbb77f0135f1e61a6fb116ad7bf68e112c5831d7b9aa6f1e0c3bfaba83c"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Settings/SettingsCommonViews.swift",
+      "sha256": "d707a5cbe5348d846fab6f1292d66d89a2368609ce2ed0d3418f7159f7e47edf"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Settings/SettingsDataCommandRow.swift",
+      "sha256": "447c71566916fb56a9677921be3215f064daf505bc0b5e07398e8eb189a14fb2"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Settings/SettingsView.swift",
+      "sha256": "fa8cfe7d274d1ef8ff76d86670bfa0015150485477dc021bbae59c25eebdd754"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Shared/HeaderIcon.swift",
+      "sha256": "35af15cda053f13d3bf0d8eba4dffc415cf9eaeddd8bd611f5b463d76e56aa2c"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Shared/NookMark.swift",
+      "sha256": "7f892756600fa73a562f0f853353702c89b8a17abeaef9234dd0905dad902aaf"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Shared/NookTransientStatusBanner.swift",
+      "sha256": "0b8726db99d329b2c7e827cda8aa52d1973beacf8590ec7866dc51be3e4ea4d5"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Views/Shared/SettingActionLine.swift",
+      "sha256": "a6b3483893362d8314098d878ac16f017163a7bbf191ab1509221186fa16e0e5"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Widgets/NookBoard.swift",
+      "sha256": "ede22da5d47790027ec30ce594cde2325979a2eadbd48ddfaa3054620e2d9ae6"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Widgets/NookWidget.swift",
+      "sha256": "d4fa22a5cc1b9a044a7c802ea6e058e2d4a32128b49aea897f7d693990858b0d"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Widgets/NookWidgetCatalog.swift",
+      "sha256": "8722f61037d1e6952f418aadc157e28ceda567ff0b325143badc8c8665bec6c4"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Widgets/NookWidgetGrid.swift",
+      "sha256": "68d9e3ed656365a779f3e9168851c20fb26ef3387f356e15325dc00ed78069a1"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Widgets/NookWidgetLayout.swift",
+      "sha256": "701d846a2b95907e1348671855ada42abf599867a43234bf526793429521fdaf"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/App/Widgets/NookWidgetSource.swift",
+      "sha256": "34a226e809f54e8eeef33ace017330e45406fe5e055892bf4446e8080e1628d4"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/System/HotkeyController.swift",
+      "sha256": "d71b30e2a4b9da28a01a3d5426bd7e4c6d59bafe1f25dd8d02adaf7e7b7320be"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/System/NookEditMenu.swift",
+      "sha256": "3ab84d4d8bef2e5d1c082f9b932b08901a13b46170a7fe03aa045036e17e632f"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/System/NookHotkey.swift",
+      "sha256": "f2fa1cfe827428d1f4a9cf1e1cce0dc81ad0db2820dfefd5ca9214d98b8f88fd"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/System/NookScreenLocator.swift",
+      "sha256": "aa48119f454a1b2c9c072101b383791277da40abcbb15ebaa9662791c387e508"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookAnimationSpec.swift",
+      "sha256": "9f0f811cf4007709a314fe9195a01b6655acad4dd4c6d0a8d2fb70e15ec282a0"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookBackdropDescription.swift",
+      "sha256": "cabb397c26b8e067d2fe18c67502535ac82744043ebeea39a6abd05b3a92860a"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookColorValue.swift",
+      "sha256": "eab00ded1395de16373226fbc2fb9be9d70a8e972e391ee82d60f5bb8918855b"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookFontSpec.swift",
+      "sha256": "85b29a5068efcba3ee47115f7178e1c1a25af3ef0ffa0d85d5ce6915a7512182"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookTheme.swift",
+      "sha256": "9c6f7badb766312da46d8db61de5e970e6f4c8a1723009a03d5e715fd4038e02"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookThemeBackdropMapping.swift",
+      "sha256": "d4ec26b10a55469144ff8c2c035eaf81bb28752ab7fa789630a2cf3067988fdb"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookThemeCoder.swift",
+      "sha256": "5928bf30d3171fcee8850baf2af3ad6c40d220da9570b4edf3c7003b5bb6b036"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookThemeEnvironment.swift",
+      "sha256": "ff775906eb99c1b8b90ef3be1ba1d17f7235705a78bdd2f17fc3a5160c3debc2"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookThemeResolver.swift",
+      "sha256": "d7c495c557ebe0ab24164debfca77e452a4ab294e86d57306263693439e356bf"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookThemeSource.swift",
+      "sha256": "ef6cbf31534a9d3e805294f0c635c303fce86738db681f02dee250b2e04f1f66"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookThemeValues.swift",
+      "sha256": "a54cc69d7db4b29cf3ccba33d587aa217c21370b9e8b19963b242b300671e303"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookTokenCatalog.swift",
+      "sha256": "b479b593c676b39e63ad63ae5533c060504430e2db0145e2852c0d498cbc7166"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookTokenDescriptor.swift",
+      "sha256": "16a625f5e98a79f5a4c63ff3c77c6bc90ac57c1b396c8bd20a1f5442153da25f"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookTokenIdentifiers.swift",
+      "sha256": "a50b5b128e2aee9fa4e99dd733272b592ac87dcf96e84bfbcda25812f60464b3"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookTokenRegistry.swift",
+      "sha256": "1a90840a052471e24c8a7c25725617105ff8f2e73a0f668cc4977c561346b02c"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookKit/Theme/NookTokenTables.swift",
+      "sha256": "86d1755b3bb0b4db09385133139bbba02d88de45b6dc472e1a4d4715964ad39b"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Internal/BlurModifier.swift",
+      "sha256": "4692558e9af8509847362b1bec695052783b47499d29ff4207843ae53bdc478d"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Internal/NSScreen+Extensions.swift",
+      "sha256": "df3734d6dd0f28f104424f13a3e9aa159c78fa392685c2a6f6c334412f8a926c"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Internal/Nook+Companions.swift",
+      "sha256": "e2b9ef8e1065c7518f44893199d27f4008184445be73ee0583d861f7d89191a0"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Internal/Nook+Drag.swift",
+      "sha256": "8dcd73efa252f6547bceb37002b188728d3059938ef71803139fda9049922f48"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Internal/NookBackdropFill.swift",
+      "sha256": "e7ae92a32c5d275e4184c06d684217aaf88046af3e1ac2a1d93d869ef5248bdb"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Internal/NookCompanionLayer.swift",
+      "sha256": "6ed9515ba2583f1de297ca69903772cbaee2d19a3e2859ae2c999ca3640ebe92"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Internal/NookDragDestination.swift",
+      "sha256": "7fc2cb1f99f86ad0074e470835b08d5aaa54a7306c5a4747375228a99fa13a89"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Internal/NookFeedbackEvent.swift",
+      "sha256": "a7020cdd10de679494df1ec9f8daa1cf4eff3f4586b8989832b554f06183837e"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Internal/NookFeedbackOverlay.swift",
+      "sha256": "cfa0c8cf6343d7243136d8d7ea7542407d51a40d1047d5a3f081e5888d18551d"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Internal/NookPanel.swift",
+      "sha256": "a14f9bc651f37fde6ab4ccf43cd5e8b8272db632a40d99a05bcdbade7881c2ae"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Internal/NookRimGlowViews.swift",
+      "sha256": "c4b7a093e985926bda90ec09013d98788be459b0b3eb56ae0ceed01b5461ea1a"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Internal/NookView.swift",
+      "sha256": "1ec77e492dbe68afcaa8f3606711334d705782271a101e0940f573acbbf5e142"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Internal/VisualEffectView.swift",
+      "sha256": "28e23a763dc200fb09ec99fa5bb96b6e85116cd4c49136475172aca8eb46bcf3"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Nook+Peek.swift",
+      "sha256": "32723d7e0bc66eba6b3dc3c5765406cc7190bdca15dd129cf8be419c8c07e33c"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/Nook.swift",
+      "sha256": "c1fd3850b2fbd748c2cd271c3988838306de5cfa6ad748ed50a88e786be69370"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookBackdrop.swift",
+      "sha256": "4d3433a2a72d84baca7580bbb4420e65a6476192362b18ec4f480b017935bb27"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookChromeShadow.swift",
+      "sha256": "bcc2fdfe6a498b02b1d2b8ce6fcc82b568405a17561202de0ce1965acc9d07f1"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookCompanionPresence.swift",
+      "sha256": "d62b812e181de76e9a9fa96adcf5df53f00bdca2f8f340f8722289e36486148b"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookCompanionSize.swift",
+      "sha256": "a3c4968cc3ae0c867e116191806cd45869acd369963f481afcf98cf4cc4781ad"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookCompanionStyle.swift",
+      "sha256": "186e271060dd802f346b8cf5128b0c654b9fa2a7c7cd7444669c182c743c8e41"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookCompanionSurface.swift",
+      "sha256": "2e4984e60298d0077d6da25a2545f27b2e541f18cec28732a03b4325c29e1a51"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookContentInsets.swift",
+      "sha256": "b641518496ce153ec41b11fefcff38e78b678e491bc1237c3c1c2c8c427cafec"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookControllable.swift",
+      "sha256": "dc60c3329d797032772a8c3c675a0b29bd726066ffa086f9433132528dca93b9"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookEdgeDockLayout.swift",
+      "sha256": "9b7c3c985f5aed8e34e8431ec41f2fecd71ab6fc72497bed4521f4e5e9bf5c16"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookFeedback.swift",
+      "sha256": "33f5d8183a830f36b97044ddeb10ffa17ee834cfbea9a18004bf2759d8a93b98"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookHoverBehavior.swift",
+      "sha256": "1c7bd3cce8324847e50a936b1e285b4a6138e70c9c073a275157577b2669e1b7"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookHoverIntent.swift",
+      "sha256": "fa5d3d372de2b69a8dde55efe8aede0f3b8daa1a7b3eff2f0af265af48672362"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookKeyboardFocusEnvironment.swift",
+      "sha256": "dc9eabea4034ec921d0c38ccee53087a1b3d22cfe8877a2300784ffd60261310"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookNotchCutout.swift",
+      "sha256": "1ea0a15dc5aaf2c26ab1ab83cb4d4b985a101ab7f952865536944a4c5f26a4e0"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookNotchDockLayout.swift",
+      "sha256": "5165a0bed44310a77ada044091b7eae1989f02f97cd49679e9b7c7f0430b9ac1"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookPresentation.swift",
+      "sha256": "35cdd3b662634ad2d51a988347a720d1cda4582ad997537d0ab115276eb39fb4"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookRimGlow.swift",
+      "sha256": "01df8671e64c7d08d5cb3d6ea4b0b6de1a96256806872f623310cf669d5aa59f"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookScrollEdgeFade.swift",
+      "sha256": "68c4562a8a26e84743c04f5ac8652488ccbc757af881a4c3f32401054823984c"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookShape.swift",
+      "sha256": "e0bddd12408c25924ebd308ab53ba689c228922993aa70f5da1e072edfc30c4b"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookSharedElement.swift",
+      "sha256": "48454050aa9e041548b61c6b0e695b4cf3faacec647dcbddffd7530dfd2fbf85"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookState.swift",
+      "sha256": "395cbacc1702238dd679e88d289379e188eaba67049a730e1b6bd3fd477f2344"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookStyle.swift",
+      "sha256": "db2ff67b9c6844c0db648df2a779ab5a6f4d50d98aabaa789761f28c8313cbb4"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookSurfaceAmbience.swift",
+      "sha256": "e2ab13c9f3833cc67e8c6d1f01a293103401bcfce3a71ac2f7d1c8e4647d93b1"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/Sources/NookSurface/NookTransitionConfiguration.swift",
+      "sha256": "9a51b4fbd7a5b10846c4bb62f124c515739c2b4c8324ffbb8075919a79abe735"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/ThirdPartyLicenses/DynamicNotchKit.txt",
+      "sha256": "d088c595b3233ee06b79dc1e6d719146341fae748d1d9a22b02c65e75fa9afed"
+    },
+    {
+      "path": "apps/island/Vendor/OpenNook/UPSTREAM.md",
+      "sha256": "74e869288e9f4b3945517bd3587f1a98918fafafc33f1c949313d352838f1524"
+    },
+    {
+      "path": "apps/island/scripts/build.sh",
+      "sha256": "dd0995d012eb41f33b2f7a453253e6cbf1cec53d735682a2193fd0e07674c0ad"
+    },
+    {
+      "path": "apps/island/scripts/check-feishu.sh",
+      "sha256": "b8361fef41256088a786fe9a7b6b9a53d5f9fd7048f475d46b86ccd85850a0ab"
+    },
+    {
+      "path": "apps/island/scripts/check.sh",
+      "sha256": "f32a491541e1ba286bc475e79f3e69760d913a83eb4ee536772d448d8446ed7f"
+    },
+    {
+      "path": "apps/danmu/Sources/AccountReader.swift",
+      "sha256": "8076bb80a0d12c96cd940f02a70f1f6adb546a4731c370a41d57a7ff90226ac2"
+    },
+    {
+      "path": "apps/danmu/Sources/App.swift",
+      "sha256": "2b79f1e21a6cf0690c84f87ae9922f0c56ab7082c2a8f06c6ed18ccb3f2e854a"
+    },
+    {
+      "path": "apps/danmu/Sources/Message.swift",
+      "sha256": "b959246a115aa9859ee55a6c401013ca1e85cf1bb91a77e97f5c40843cdf931f"
+    },
+    {
+      "path": "apps/danmu/Sources/Overlay.swift",
+      "sha256": "464eb35ce49a802888ab50f7ceb176a16272c83536c0ce99d97b5d64ea466215"
+    },
+    {
+      "path": "apps/danmu/Sources/ServerClock.swift",
+      "sha256": "00036a036abe9fa0bcebcc7ee46aa0495befe317893ab7c7726366f52432820b"
+    },
+    {
+      "path": "apps/danmu/Sources/Settings.swift",
+      "sha256": "3a83f4e3e1419710bbaf3287ebe9895dac72e106894d0a73aaa315568d38b397"
+    },
+    {
+      "path": "apps/danmu/Tests/AppearanceMCPTests.swift",
+      "sha256": "158e6f50648aca2e81bf34cdf1a349aeadc1bb38e63e3e3cbb2256451785ce5a"
+    },
+    {
+      "path": "apps/danmu/Tests/account/fake-cli.py",
+      "sha256": "d06a369b7742ff479e62ca1c050f17d4460e0fe6b4297e2edcb01fd752fabf40"
+    },
+    {
+      "path": "apps/danmu/Tests/account/main.swift",
+      "sha256": "7a5a64fa147a53df36992f207e8d840951bda61f209866c95359a4bd23f9942d"
+    },
+    {
+      "path": "apps/danmu/Tests/latency/fake-cli.py",
+      "sha256": "4158681a6f0ab0d927419e0dd7e61465ebda6f23de0f9601b48e084cb37c237c"
+    },
+    {
+      "path": "apps/danmu/Tests/latency/main.swift",
+      "sha256": "f36c34e212075a71286cde2eee71cbdb1d128a14404f12afdff8b0696a7b0c8d"
+    },
+    {
+      "path": "apps/danmu/Tests/main.swift",
+      "sha256": "ef7b19b2790b3d1029455b23a5a575ec30f93f2fd50c4f601914ff5a086cac67"
+    },
+    {
+      "path": "apps/danmu/Tests/stability/fake-cli.py",
+      "sha256": "579414dac36c093b212239440d8d7327aa834c524ec74b5ef5b56b556cd8ed8a"
+    },
+    {
+      "path": "apps/danmu/Tests/stability/main.swift",
+      "sha256": "2636031fbb528cdf8c57b1e607bc2c958550d48a87529013af0618b266274ef0"
+    },
+    {
+      "path": "apps/danmu/scripts/AppearanceMCP.swift",
+      "sha256": "d7dba52975113b81b2776341a4969c4f69a42c8a21c74581e2efb1907b51bf04"
+    },
+    {
+      "path": "apps/danmu/scripts/build.sh",
+      "sha256": "36f7177ccd8ac3f63925e5fdef109d1816745ee89bb0d4613c52786cd30a9e05"
+    },
+    {
+      "path": "apps/danmu/scripts/diagnose-latency.py",
+      "sha256": "7985008018235e9134908ab03cb3aad07419e20b047b13d205a025e97bbd4e17"
+    },
+    {
+      "path": "apps/danmu/scripts/icon.swift",
+      "sha256": "c76ac86b37514c4d0e44d70e6f1296f749a86785fee635f249389a6e28b59c3b"
+    },
+    {
+      "path": "apps/danmu/scripts/probe-account.mjs",
+      "sha256": "992182d5a183f7cbea725d3b917bd28174a2518b72ef62e195889952a2d8ea4c"
+    },
+    {
+      "path": "apps/danmu/scripts/release/fetch-cli.py",
+      "sha256": "c0afaf02955db7e45853b65bbec294b0ea68972e2648271f68c3916fb038ac3c"
+    },
+    {
+      "path": "apps/danmu/scripts/test.sh",
+      "sha256": "d0e822b1b8a6a07e48ba4f5b42084e13ccf563390bfa9c38563b5231e5e66d35"
+    },
+    {
+      "path": "apps/danmu/scripts/web-autostart.sh",
+      "sha256": "79253d15ac5de5493ca80de8e8cfeac7346b534f08b8eea0b48f0e00267dcec5"
+    },
+    {
+      "path": "apps/danmu/scripts/web-autostart.swift",
+      "sha256": "887b0b0432bfaaa8827c2ccbde55b41e65d8d91d72fddd1551550151d7a0afe5"
+    },
+    {
+      "path": "apps/danmu/Assets/dazai-dossier.png",
+      "sha256": "e13ad8650be8af981f3a74b91f5e359968f4d25aded9f5f2854226612d570a7b"
+    },
+    {
+      "path": "apps/danmu/Assets/illustration-notes.md",
+      "sha256": "3c092e4752aa859ee70edc3ce0b01ee8bea6ad9131ac80d39f9419d23ee76ad0"
+    },
+    {
+      "path": "apps/danmu/Web/.dockerignore",
+      "sha256": "403d84c48f4e76c7c6f524548310dbcbf09ebaa391b77a9789bbe1f53896f066"
+    },
+    {
+      "path": "apps/danmu/Web/AGENTS.md",
+      "sha256": "da5de33b5e81a95a3132c1456bd5097ab2ab33e4912b5e1c1044a55044ad20cc"
+    },
+    {
+      "path": "apps/danmu/Web/Dockerfile",
+      "sha256": "8dd3710f45fb2dab4b9680af4a20df440b671f39f7370411425a0b8a150c0df5"
+    },
+    {
+      "path": "apps/danmu/Web/core/presentation.cjs",
+      "sha256": "e582f203e95d16490959e40ae75b0009c26c125cca78120fb95dc0cd571e734b"
+    },
+    {
+      "path": "apps/danmu/Web/core/reader.cjs",
+      "sha256": "e86711d1eeb8b03a00708685fc80468452ba8e880b47f40d521bbc43073c90d9"
+    },
+    {
+      "path": "apps/danmu/Web/package.json",
+      "sha256": "a717808c4f5486b00acd3633762d085644584afe0270a52358bb20ee3cdf90d3"
+    },
+    {
+      "path": "apps/danmu/Web/public/app-icon.svg",
+      "sha256": "cb3815d0b115007067a70b7e8c62568e1f57be9cce94d456825b0ae36a5f1a66"
+    },
+    {
+      "path": "apps/danmu/Web/public/app.css",
+      "sha256": "6533287fde1f27415a80dab4771d6e37b231db8b7e35b05154c8e825750c2d70"
+    },
+    {
+      "path": "apps/danmu/Web/public/app.js",
+      "sha256": "17c1358022dd8203b318f1057f0dacb976bcd6b39a8b7c54d1362f0968e53843"
+    },
+    {
+      "path": "apps/danmu/Web/public/appearance-schema.js",
+      "sha256": "e53f5f5cd1f75393ec5ac0a7ed32357c67affe8e5cf2c95d38291ea6229b4601"
+    },
+    {
+      "path": "apps/danmu/Web/public/appearance.js",
+      "sha256": "ca1aafab3d3f1070bda0d09a4c33236462074464f4e39ae68825a4b9e3cab48c"
+    },
+    {
+      "path": "apps/danmu/Web/public/brand/favicon.svg",
+      "sha256": "28318cb4c49e48ce03f43c65b480ab99cbd4ab298d38b15746b2ffed15abf74f"
+    },
+    {
+      "path": "apps/danmu/Web/public/desktop.js",
+      "sha256": "3afdbfb6b3450d9ae5aaf4881cd6ae8b0a6a948d7a2c2cc2a9da220da33960ef"
+    },
+    {
+      "path": "apps/danmu/Web/public/index.html",
+      "sha256": "bba021b4de664e18b07d0e5c043fd74a17253158867e6b37a034fcd3b96171e0"
+    },
+    {
+      "path": "apps/danmu/Web/public/virxact-ui.css",
+      "sha256": "b4cf980e7d226ff20080f85be2d102340dbf8ad717025934a7d82a65274ecc30"
+    },
+    {
+      "path": "apps/danmu/Web/public/vx.js",
+      "sha256": "4a7f6f404ffac37e7827d3333c860ae22a5b5fd7624f04ce59679da244f320f6"
+    },
+    {
+      "path": "apps/danmu/Web/server.cjs",
+      "sha256": "0b1f3777506222d060f07d5d5ee501f6514fed8da953fcfa3348b609049874f6"
+    },
+    {
+      "path": "apps/danmu/Web/tests/appearance.test.cjs",
+      "sha256": "96e99d0b5b5ff042e6e70d7a201d0124120bf14ee22a522fafc899d78bc28877"
+    },
+    {
+      "path": "apps/danmu/Web/tests/core.test.cjs",
+      "sha256": "61d001bc95882a2d394d6a2b07db6b55e18d4393237fbc9aafcb6b4d96d927ec"
+    },
+    {
+      "path": "apps/danmu/Web/tests/server.test.cjs",
+      "sha256": "daffc742d8d5a777859dd670066fa89574eeca053f9830c322a0412efc1472b7"
+    },
+    {
+      "path": "apps/danmu/Web/virxact.json",
+      "sha256": "fb6afd3a3ecf832612525d8093875fdcdc5e585ea4399fdb5e28c76612a1d4ea"
+    },
+    {
+      "path": "apps/danmu/Desktop/AGENTS.md",
+      "sha256": "fa3b17cc47dbfc6d3025bcdf29ef68af4b2a538298356e0d76a48f9fb2404444"
+    },
+    {
+      "path": "apps/danmu/Desktop/build/entitlements.mac.plist",
+      "sha256": "165669100e28706bea01674255f3f3855a559896df501c0fcf8cc3a7defef90d"
+    },
+    {
+      "path": "apps/danmu/Desktop/core/presentation.cjs",
+      "sha256": "e582f203e95d16490959e40ae75b0009c26c125cca78120fb95dc0cd571e734b"
+    },
+    {
+      "path": "apps/danmu/Desktop/core/reader.cjs",
+      "sha256": "b957041f98e8eb82f1446a0183ef852edb3a24110c6a20b87261699fed3d1ee6"
+    },
+    {
+      "path": "apps/danmu/Desktop/main.cjs",
+      "sha256": "2d72aa58deb5db9b1ff885703f64177c12054770cd24e846b7261a30495d7e4f"
+    },
+    {
+      "path": "apps/danmu/Desktop/package-lock.json",
+      "sha256": "d06d90a3a6d47f5ff657b1c19bf30ceded55937108add306f81b374174edadfe"
+    },
+    {
+      "path": "apps/danmu/Desktop/package.json",
+      "sha256": "884a124685549ae098cf42f1dfc2f1584c505a3eec82ac88867adea0abc850d8"
+    },
+    {
+      "path": "apps/danmu/Desktop/preload.cjs",
+      "sha256": "44925b869c392d0326c4701f8d3997050caaf7c7b3cfa0519a30a670021eb38a"
+    },
+    {
+      "path": "apps/danmu/Desktop/tests/core.test.cjs",
+      "sha256": "61d001bc95882a2d394d6a2b07db6b55e18d4393237fbc9aafcb6b4d96d927ec"
+    },
+    {
+      "path": "apps/danmu/Desktop/ui/app-icon.png",
+      "sha256": "7fa146d37ad580fb6168a963ad8a49461f8a11edd0c089e2a6d866c26cf19e18"
+    },
+    {
+      "path": "apps/danmu/Desktop/ui/dazai-dossier.png",
+      "sha256": "e13ad8650be8af981f3a74b91f5e359968f4d25aded9f5f2854226612d570a7b"
+    },
+    {
+      "path": "apps/danmu/Desktop/ui/index.html",
+      "sha256": "dda7202f345927de63927cc97030fd623d245e742540d25a6c8d192d8aae4feb"
+    },
+    {
+      "path": "apps/danmu/Desktop/ui/overlay.css",
+      "sha256": "8d497b108b04d96ce981f03ce9e4d288b499350d3cfa9574f72b3b6fc37f45cb"
+    },
+    {
+      "path": "apps/danmu/Desktop/ui/overlay.html",
+      "sha256": "46ab870c9579dede1e9b2574d68d0e4752d4baceb8d4610b84741979b02f1af7"
+    },
+    {
+      "path": "apps/danmu/Desktop/ui/overlay.js",
+      "sha256": "cdd839432468d13b51aa29acdf6014bc611ebec4455feb393118bd216dff81ce"
+    },
+    {
+      "path": "apps/danmu/Desktop/ui/panel.css",
+      "sha256": "8a0e57aed662e71cc6035add911d8495b72acd496882e9bc8900c2f6415d128c"
+    },
+    {
+      "path": "apps/danmu/Desktop/ui/panel.js",
+      "sha256": "8ac3d0466f830f8fe7a3c0791a5aac5e2841537e9ba0bc5252e8f597db0c2bff"
+    }
+  ]
+}

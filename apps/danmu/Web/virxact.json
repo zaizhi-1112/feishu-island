@@ -1,0 +1,1 @@
+{"kind":"service","port":8080,"start":"node server.cjs"}

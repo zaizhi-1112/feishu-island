@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: MIT
+// Local OpenNook extension for YuIsland.
+
+import Foundation
+
+/// Geometry for a retracted edge, a revealed compact pill, and an expanded panel.
+/// Coordinates start at the screen's top edge and increase downwards.
+public struct NookEdgeDockLayout: Equatable, Sendable {
+    public static let edgeHeight: CGFloat = 4
+    public static let revealGap: CGFloat = 4
+    public let isRetracted: Bool
+    public let contentOffset: CGFloat
+    public let containerHeight: CGFloat
+    public let visibleTop: CGFloat
+    public let visibleHeight: CGFloat
+
+    public init(
+        state: NookState,
+        hovering: Bool,
+        peeking: Bool = false,
+        contentHeight: CGFloat,
+        shownTopInset: CGFloat,
+        physicalNotchHeight: CGFloat
+    ) {
+        let height = max(contentHeight, Self.edgeHeight)
+        let notch = max(physicalNotchHeight, 0)
+        isRetracted = state == .compact && !hovering && !peeking
+        if isRetracted {
+            // A hardware notch cannot be hidden. Leave the lip immediately below it.
+            visibleTop = notch
+            visibleHeight = Self.edgeHeight
+            containerHeight = notch + Self.edgeHeight
+            contentOffset = containerHeight - height
+        } else {
+            contentOffset = max(shownTopInset, 0)
+            containerHeight = max(contentOffset + height, notch + Self.edgeHeight)
+            visibleTop = 0
+            visibleHeight = containerHeight
+        }
+    }
+
+    /// The revealed hit region bridges the edge and pill, so the pointer can travel
+    /// down to click without losing hover as the pill slides away from the edge.
+    public func hitRect(width: CGFloat) -> CGRect {
+        CGRect(x: 0, y: visibleTop, width: max(width, 0), height: visibleHeight)
+    }
+}

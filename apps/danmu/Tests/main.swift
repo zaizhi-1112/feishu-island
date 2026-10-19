@@ -1,0 +1,11 @@
+import Foundation
+var tracker = NotificationTracker()
+assert(tracker.update(["old"]).isEmpty, "Initial notifications must not replay")
+assert(tracker.update(["old", "new"]) == ["new"])
+assert(tracker.update(["old", "new"]).isEmpty, "Visible notification must not repeat")
+assert(tracker.update([]).isEmpty)
+assert(tracker.update(["different-id-same-body"]) == ["different-id-same-body"])
+tracker.reset()
+assert(tracker.update(["stale-after-restart"]).isEmpty)
+assert(cleanMessage("  同事：\n文档  发你了 \t") == "同事： 文档 发你了")
+print("PASS: initial baseline, new arrivals, dedupe, disappearance, distinct identity, restart baseline, text normalization")

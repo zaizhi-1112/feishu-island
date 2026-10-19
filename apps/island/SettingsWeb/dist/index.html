@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>柚子岛 · 设置</title><meta name="description" content="在一个地方，管理柚子岛的消息提醒和功能模块。"><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body>
+<svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+<symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h7m5 0h4M4 17h3m5 0h8"/><circle cx="13" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+<symbol id="i-plane" viewBox="0 0 24 24"><path d="m21 3-7 18-4-7-7-4 18-7ZM10 14 21 3"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><path d="M14 17h6m-3-3v6"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8 12h4"/></symbol>
+<symbol id="i-person" viewBox="0 0 24 24"><circle cx="12" cy="7" r="3.5"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></symbol>
+<symbol id="i-group" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 21v-2a7 7 0 0 1 14 0v2m0-16a3 3 0 0 1 0 6m4 10v-3a6 6 0 0 0-3-5"/></symbol>
+<symbol id="i-block" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 11v6m0-11v1"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.3A8.5 8.5 0 0 1 9.7 4 8.5 8.5 0 1 0 20 14.3Z"/></symbol><symbol id="i-display" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></symbol><symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol></defs></svg>
+<div class="shell">
+<aside class="sidebar">
+  <a class="brand" href="#feishu" aria-label="柚子岛设置首页"><span class="brand-mark"><i></i><b></b></span><span>柚子岛<small>DESKTOP COMPANION</small></span></a>
+  <div class="nav-label">设置</div>
+  <nav aria-label="设置分类">
+    <button class="nav-item" data-page="general"><svg><use href="#i-sliders"/></svg>通用设置<span class="nav-note">预留</span></button>
+    <button class="nav-item active" data-page="feishu" aria-current="page"><svg><use href="#i-plane"/></svg>飞书消息<span class="nav-dot"></span></button>
+    <button class="nav-item" data-page="modules"><svg><use href="#i-grid"/></svg>功能模块</button>
+  </nav>
+  <div class="sidebar-note"><span class="mini-label">常用功能，抬手即达。</span><p>消息与工具，留在桌面顶边。</p></div>
+  <div class="sidebar-bottom"><div class="local-status"><span class="status-dot" id="local-dot"></span><span id="local-state">正在连接本机</span></div><div class="theme-switch" role="group" aria-label="页面外观"><button data-theme-mode="dark" aria-label="深色外观" aria-pressed="false" title="深色"><svg><use href="#i-moon"/></svg></button><button data-theme-mode="system" aria-label="跟随系统外观" aria-pressed="true" title="跟随系统"><svg><use href="#i-display"/></svg></button><button data-theme-mode="light" aria-label="浅色外观" aria-pressed="false" title="浅色"><svg><use href="#i-sun"/></svg></button></div><div class="version">柚子岛 <span id="version">—</span><span>设置面板</span></div></div>
+</aside>
+<main>
+  <header class="topbar"><span>设置<span class="crumb">/</span><span id="breadcrumb">飞书消息</span></span><span class="local-chip"><span></span>仅在这台Mac上生效</span></header>
+  <div id="connection-error" class="connection-error" role="alert" hidden><span id="connection-error-message">无法连接柚子岛。请先打开应用，再重新连接。</span><button id="reload">重新连接</button></div>
+  <section class="page" id="page-feishu">
+    <div class="page-title"><div><div class="eyebrow">少一点打扰，多一点专注</div><h1>飞书消息</h1><p>选择需要提醒的消息，为联系人和群聊设置例外。</p></div><span class="module-badge"><svg><use href="#i-plane"/></svg>已接入</span></div>
+    <div class="tab-bar" role="tablist" aria-label="飞书提醒规则">
+      <button class="tab active" role="tab" aria-selected="true" data-tab="defaults">默认规则</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="people">指定联系人<span id="people-count">0</span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="groups">指定群聊<span id="groups-count">0</span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="blocks">屏蔽规则<span id="blocks-count">0</span></button>
+    </div>
+    <div class="columns">
+      <div class="main-column">
+        <div id="defaults-panel" role="tabpanel">
+          <section class="receiving-card"><div class="icon-box"><svg><use href="#i-bell"/></svg></div><div class="receiving-copy"><h2>接收飞书消息</h2><p>在柚子岛中查看新消息，按下方规则提醒。</p></div><button class="switch" role="switch" aria-checked="true" aria-label="接收飞书消息" data-setting="enabled" disabled><span></span></button></section>
+          <section class="card rules-card"><div class="section-heading"><div><h2>默认提醒范围</h2><p>开启后，消息进入“重要”并触发岛上提示。</p></div><span class="pill" id="rules-count">4类消息</span></div>
+            <div class="rule"><span class="rule-symbol">@</span><div><h3>@我的消息</h3><p>有人在群里直接提到你。</p></div><button class="switch" role="switch" aria-checked="true" aria-label="@我的消息" data-setting="mentionsMe" disabled><span></span></button></div>
+            <div class="rule"><span class="rule-symbol"><svg><use href="#i-group"/></svg></span><div><h3>@所有人的消息<span class="new-label">已支持</span></h3><p>群内面向全员发布的通知。</p></div><button class="switch" role="switch" aria-checked="true" aria-label="@所有人的消息" data-setting="mentionsAll" disabled><span></span></button></div>
+            <div class="rule"><span class="rule-symbol"><svg><use href="#i-person"/></svg></span><div><h3>私聊消息</h3><p>一对一发给你的新消息。</p></div><button class="switch" role="switch" aria-checked="true" aria-label="私聊消息" data-setting="directMessages" disabled><span></span></button></div>
+            <div class="rule"><span class="rule-symbol star">☆</span><div><h3>已关注的会话</h3><p>在岛内消息详情点亮星标，关注后续消息。</p></div><button class="switch" role="switch" aria-checked="true" aria-label="已关注的会话" data-setting="followedChats" disabled><span></span></button></div>
+            <div class="rule-foot"><svg><use href="#i-info"/></svg>其他已接收消息仍可在“最近”查看。</div>
+          </section>
+          <div class="quiet-note"><svg><use href="#i-check"/></svg><div><strong>免打扰与静音始终保留</strong><p>继续遵守飞书会话免打扰和岛内“静音1小时”。修改规则不会补弹历史消息。</p></div></div>
+        </div>
+        <section id="custom-panel" role="tabpanel" hidden>
+          <div class="custom-heading"><div><h2 id="custom-title">指定联系人</h2><p id="custom-description"></p></div></div>
+          <div class="custom-actions"><button class="primary" id="add-people"><svg><use href="#i-person"/></svg>从飞书选人</button><button class="primary" id="add-groups"><svg><use href="#i-group"/></svg>从飞书选群</button></div>
+          <div class="card custom-list" id="custom-list"></div>
+          <div class="custom-empty card" id="custom-empty"><div class="reserved-icon"><svg><use id="empty-icon" href="#i-person"/></svg></div><h3 id="empty-title"></h3><p id="empty-description"></p></div>
+          <div class="quiet-note"><svg><use href="#i-info"/></svg><p id="custom-foot"></p></div>
+        </section>
+        <div class="save-bar"><span id="save-status" role="status" aria-live="polite">正在读取设置…</span><div><button id="reset" class="secondary" disabled>恢复默认规则</button><button id="save" class="primary" disabled>保存设置<svg><use href="#i-check"/></svg></button></div></div>
+      </div>
+      <aside class="right-column">
+        <section class="preview-card"><div class="preview-heading"><h2>默认规则预览</h2><span>示意</span></div><div class="island-stage"><div class="preview-line"></div><div class="preview-island"><div class="preview-island-top"><svg><use href="#i-plane"/></svg><span>飞书消息</span><b id="preview-count">1条</b></div><div class="preview-message" id="preview-message"><span>项目讨论群 <em>@所有人</em></span><p>@所有人 明天的会议时间已更新。</p></div><div class="preview-quiet" id="preview-quiet" hidden>这类消息不弹出提醒</div></div></div><p class="preview-caption" id="preview-caption">示例：群内@所有人的新消息</p><div class="preview-select" aria-label="预览消息类型"><button class="active" data-preview="mentionsAll">@所有人</button><button data-preview="directMessages">私聊</button><button data-preview="mentionsMe">@我</button></div><p class="preview-disclaimer">示意只反映默认规则，单独设置与屏蔽优先。</p></section>
+        <section class="status-card"><div class="rail-title">当前状态<span class="status-dot" id="reader-dot"></span></div><dl><div><dt>连接账号</dt><dd id="account">读取中</dd></div><div><dt>消息接收</dt><dd id="receive-state">—</dd></div><div><dt>岛内提醒</dt><dd id="mute-state">—</dd></div><div><dt>关注会话</dt><dd id="follow-count">—</dd></div></dl><p id="reader-status" class="reader-status"></p></section>
+        <section class="next-card"><svg><use href="#i-grid"/></svg><h3>规则如何生效？</h3><p>屏蔽优先，其次是联系人、群聊，最后是默认规则。<br>单独提醒也遵守飞书免打扰与岛内静音。</p><button class="text-button" data-page="modules">查看功能模块<svg><use href="#i-arrow"/></svg></button></section>
+      </aside>
+    </div>
+  </section>
+  <section class="page alternate-page" id="page-general" hidden><div class="eyebrow">让柚子岛适合你的习惯</div><h1>通用设置</h1><p class="page-description">统一入口已留好，后续逐步接入显示、外观与快捷键。</p><div class="card general-list"><div><svg><use href="#i-sliders"/></svg><section><h2>显示与外观</h2><p>目前可在岛内齿轮设置中调整。</p></section><span class="outline-tag">待接入网页</span></div><div><span class="keyboard-icon">⌘</span><section><h2>快捷键与交互</h2><p>现有边缘隐藏、悬停露出、点击展开的交互保持不变。</p></section><span class="outline-tag">待接入网页</span></div></div><div class="quiet-note"><svg><use href="#i-info"/></svg><p>这个页面先承载设置结构；可操作的功能目前在“飞书消息”中。</p></div></section>
+  <section class="page alternate-page" id="page-modules" hidden><div class="eyebrow">从常用的一件事开始</div><h1>功能模块</h1><p class="page-description">管理已接入的功能，查看各模块的设置。</p><div class="modules-grid"><section class="card module-card"><span class="large-module-icon"><svg><use href="#i-plane"/></svg></span><span class="pill">已接入</span><h2>飞书消息</h2><p>把@我、@所有人、私聊和关注会话，带到桌面顶边。</p><button class="text-button" data-page="feishu">管理提醒规则<svg><use href="#i-arrow"/></svg></button></section><section class="card module-card upcoming"><span class="large-module-icon"><svg><use href="#i-grid"/></svg></span><span class="outline-tag">后续扩展</span><h2>更多功能</h2><p>新功能接入后，会在这里出现独立的入口。</p><span class="upcoming-label">模块位置已预留</span></section></div></section>
+  <dialog id="picker" aria-labelledby="picker-title">
+    <div class="picker-heading"><div><span class="eyebrow">从飞书选择</span><h2 id="picker-title">选择联系人</h2></div><button class="close-button" id="picker-close" aria-label="关闭选择窗口">×</button></div>
+    <form class="picker-search" id="picker-search-form"><label class="sr-only" for="picker-query">搜索姓名或群名</label><input id="picker-query" maxlength="50" autocomplete="off" placeholder="输入姓名搜索"><button class="secondary" id="picker-search-button" type="submit">搜索</button></form>
+    <div class="picker-source" id="picker-source" role="status" aria-live="polite">正在读取飞书…</div>
+    <div class="picker-results" id="picker-results"></div>
+    <div class="picker-more"><button class="text-button" id="picker-more" hidden>加载更多群聊</button><span id="picker-hint"></span></div>
+    <div class="picker-mode" id="picker-mode-row"><label for="picker-mode">提醒方式</label><select id="picker-mode"><option value="all">全部提醒</option><option value="mentions">仅@我或@所有人时提醒</option><option value="quiet">仅收录，不提醒</option></select></div>
+    <div class="picker-footer"><span id="picker-summary">尚未选择</span><div><button class="secondary" id="picker-cancel">取消</button><button class="primary" id="picker-add" disabled>加入设置</button></div></div>
+    <p class="picker-note">只读取你在飞书中可见的对象；加入后，点击页面“保存设置”生效。</p>
+  </dialog>
+  <footer class="page-footer">柚子岛<span>常用功能，抬手即达。</span><span>本机设置 · 随应用运行</span></footer>
+</main></div>
+</body></html>

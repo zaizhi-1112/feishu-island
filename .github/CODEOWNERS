@@ -1,0 +1,14 @@
+# Core and access changes require the maintainer's review when GitHub enforcement is available.
+/apps/island/Sources/IslandShell/Feishu/AccountReader.swift @zaizhi-1112
+/apps/island/Sources/IslandShell/Feishu/ServerClock.swift @zaizhi-1112
+/apps/island/Sources/IslandShell/Feishu/FeishuMessage.swift @zaizhi-1112
+/apps/island/Sources/IslandShell/Feishu/FeishuStore.swift @zaizhi-1112
+/apps/island/Sources/IslandShell/Settings/SettingsServer.swift @zaizhi-1112
+/apps/danmu/Sources/AccountReader.swift @zaizhi-1112
+/apps/danmu/Sources/ServerClock.swift @zaizhi-1112
+/apps/danmu/Web/server.cjs @zaizhi-1112
+/apps/danmu/Web/core/ @zaizhi-1112
+/apps/danmu/Desktop/core/ @zaizhi-1112
+/apps/danmu/scripts/AppearanceMCP.swift @zaizhi-1112
+/apps/danmu/scripts/web-autostart.swift @zaizhi-1112
+/.github/ @zaizhi-1112

@@ -1,0 +1,186 @@
+import AppKit
+import NookApp
+import SwiftUI
+
+@MainActor
+public final class FeishuStore: ObservableObject {
+    @Published public private(set) var messages: [FeishuMessage] = []
+    @Published public private(set) var status = "正在连接飞书…"
+    @Published public private(set) var account = "本机账号"
+    @Published public private(set) var enabled: Bool
+    @Published public private(set) var mutedUntil: Date?
+    @Published public private(set) var followed: Set<String>
+    @Published var actionError: String?
+    @Published public private(set) var rules: FeishuReminderRules
+    @Published public private(set) var customRules: FeishuCustomRules
+    public private(set) var settingsRevision: Int
+    private let defaults: UserDefaults
+    private let reader: AccountReader
+    private var activities: NookLiveActivities?
+    private var timer: Timer?
+    private var pendingAlert: Task<Void, Never>?
+    private var lastAlert = Date.distantPast
+    private var pendingCount = 0
+    var canAlert: () -> Bool = { true }
+    private let live: Bool
+    private var started = false
+
+    public init(defaults: UserDefaults, live: Bool = false) {
+        self.defaults = defaults; self.live = live
+        rules = defaults.data(forKey: "reminderRules").flatMap { try? JSONDecoder().decode(FeishuReminderRules.self, from: $0) } ?? .init()
+        customRules = defaults.data(forKey: "customRules").flatMap { try? JSONDecoder().decode(FeishuCustomRules.self, from: $0) } ?? .init()
+        settingsRevision = defaults.integer(forKey: "settingsRevision")
+        enabled = defaults.object(forKey: "enabled") as? Bool ?? true
+        followed = Set(defaults.stringArray(forKey: "followed") ?? [])
+        let mute = defaults.double(forKey: "mutedUntil")
+        mutedUntil = mute > Date().timeIntervalSince1970 ? Date(timeIntervalSince1970: mute) : nil
+        reader = AccountReader()
+        reader.onMessage = { [weak self] in self?.receive($0) }
+        reader.onStatus = { [weak self] in self?.status = $0 }
+        reader.onAccount = { [weak self] in self?.account = $0 }
+        if !enabled { status = "接收已停止" }
+    }
+
+    func start(activities: NookLiveActivities) {
+        self.activities = activities
+        guard !started else { return }; started = true
+        if live && enabled { reader.start() }
+        timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
+        }
+        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reader.stop() }
+        }
+    }
+    public var isMuted: Bool { (mutedUntil ?? .distantPast) > Date() }
+    public var visibleMessages: [FeishuMessage] { messages.filter { !customRules.blocks($0) } }
+    public var important: [FeishuMessage] { messages.filter { $0.isImportant(followed: followed, rules: rules, custom: customRules) } }
+    public var waitingCount: Int { important.filter { !$0.viewed && $0.remindAt == nil }.count }
+
+    public func receive(_ message: FeishuMessage) {
+        guard enabled, !customRules.blocks(message), !messages.contains(where: { $0.id == message.id }) else { return }
+        messages.append(message)
+        messages.sort { $0.created > $1.created }
+        if messages.count > 100 {
+            // A burst of new messages must not discard a reminder the user set.
+            let reminders = messages.filter { $0.remindAt != nil }
+            let recent = messages.filter { $0.remindAt == nil }.prefix(max(0, 100 - reminders.count))
+            messages = (reminders + recent).sorted { $0.created > $1.created }
+        }
+        if message.isImportant(followed: followed, rules: rules, custom: customRules) { queueAlert() }
+    }
+    public func markViewed(_ id: String) {
+        guard let i = messages.firstIndex(where: { $0.id == id }) else { return }
+        messages[i].viewed = true
+    }
+    public func toggleFollow(_ chatID: String) {
+        if followed.contains(chatID) { followed.remove(chatID) } else { followed.insert(chatID) }
+        defaults.set(Array(followed), forKey: "followed")
+    }
+    public func toggleMute() {
+        mutedUntil = isMuted ? nil : Date().addingTimeInterval(3600)
+        defaults.set(mutedUntil?.timeIntervalSince1970 ?? 0, forKey: "mutedUntil")
+        pendingAlert?.cancel(); pendingAlert = nil; pendingCount = 0
+        activities?.end("messages")
+    }
+    public func toggleReceiving() {
+        enabled.toggle(); defaults.set(enabled, forKey: "enabled")
+        bumpSettingsRevision()
+        pendingAlert?.cancel(); pendingAlert = nil; pendingCount = 0
+        if enabled {
+            if live { reader.start() } else { status = "测试模式" }
+        } else {
+            reader.stop(); activities?.end("messages")
+        }
+    }
+    private func bumpSettingsRevision() {
+        settingsRevision += 1; defaults.set(settingsRevision, forKey: "settingsRevision")
+    }
+    public func updateSettings(enabled: Bool, rules: FeishuReminderRules, custom: FeishuCustomRules? = nil) {
+        let nextCustom = custom ?? customRules
+        guard nextCustom.validationError == nil else { return }
+        if self.enabled != enabled { toggleReceiving() }
+        guard self.rules != rules || customRules != nextCustom else { return }
+        self.rules = rules
+        customRules = nextCustom
+        defaults.set(try? JSONEncoder().encode(nextCustom), forKey: "customRules")
+        defaults.set(try? JSONEncoder().encode(rules), forKey: "reminderRules")
+        bumpSettingsRevision()
+        // A pending batch was selected using the old rules. Only future messages alert.
+        pendingAlert?.cancel(); pendingAlert = nil; pendingCount = 0
+        activities?.end("messages")
+    }
+    public func reconnect() {
+        reader.stop()
+        if enabled && live { reader.start() }
+    }
+    public func remindLater(_ id: String, now: Date = Date()) {
+        guard let i = messages.firstIndex(where: { $0.id == id }) else { return }
+        messages[i].remindAt = now.addingTimeInterval(600)
+        messages[i].viewed = true
+    }
+    public func tick(now: Date = Date()) {
+        if let until = mutedUntil, until <= now {
+            mutedUntil = nil; defaults.removeObject(forKey: "mutedUntil")
+            if waitingCount > 0 { queueAlert() }
+        }
+        for i in messages.indices where messages[i].remindAt.map({ $0 <= now }) == true {
+            messages[i].remindAt = nil; messages[i].viewed = false; messages[i].reminded = true
+            if enabled, !customRules.blocks(messages[i]) { queueAlert() }
+        }
+    }
+    public func open(_ message: FeishuMessage) {
+        guard let url = message.chatURL else { actionError = "缺少有效会话地址"; return }
+        let targets = ["com.bytedance.macos.feishu", "com.bytedance.macos.lark", "com.electron.lark", "com.bytedance.Lark"]
+        guard let app = targets.compactMap({ NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }).first else {
+            actionError = "未找到飞书客户端，请先安装并登录飞书。"; return
+        }
+        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) { [weak self] _, error in
+            Task { @MainActor in
+                if error == nil { self?.markViewed(message.id) }
+                else { self?.actionError = "飞书未能打开会话，请在飞书中查找该会话。" }
+            }
+        }
+    }
+    private func queueAlert() {
+        guard enabled, !isMuted, canAlert() else { return }
+        pendingCount += 1
+        guard pendingAlert == nil else { return }
+        let wait = max(1, 12 - Date().timeIntervalSince(lastAlert))
+        pendingAlert = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(wait))
+            guard !Task.isCancelled, let self else { return }
+            self.pendingAlert = nil
+            guard self.enabled, !self.isMuted, self.canAlert() else { self.pendingCount = 0; return }
+            let count = self.pendingCount; self.pendingCount = 0
+            self.lastAlert = Date()
+            self.presentAlert(count: count)
+        }
+    }
+    private func presentAlert(count: Int) {
+        var activity = NookLiveActivity(id: "messages", priority: .high, lifetime: .transient(.seconds(8)),
+                                        alert: .peek(.seconds(4)), accessibilityLabel: "飞书消息") {
+            IslandCompactGlyph(symbol: "paperplane.fill")
+        } compactTrailing: {
+            IslandAlertLabel(count: count, expanded: false)
+        } minimal: {
+            IslandCompactGlyph(symbol: "paperplane.fill")
+        }
+        activity.setPeek {
+            IslandAlertLabel(count: count, expanded: true)
+        }
+        // Keep the activity alive once opened so the timed alert cannot remove a reading view.
+        activity.setExpanded {
+            FeishuView(store: self)
+                .onAppear { self.activities?.end("messages", after: .seconds(3600)) }
+                .onDisappear { self.activities?.end("messages") }
+        }
+        activities?.start(activity)
+    }
+    func loadDemo() {
+        status = "演示模式 · 未连接网络"; account = "示例账号"
+        for (i, kind, content, mentioned) in [(1, "group", "@_user_1 这版方案我看过了，请帮忙确认最终时间。", true), (2, "p2p", "资料已经整理好了，方便时看一下。", false), (3, "group", "今天的会议纪要已更新。", false)] {
+            receive(FeishuMessage(raw: ["message_id": "demo\(i)", "create_time": String(Int(Date().timeIntervalSince1970 * 1000) - i * 60000), "msg_type": "text", "sender": ["sender_name": i == 2 ? "小林" : "项目同事"], "body": ["content": "{\"text\":\"\(content)\"}"], "mentions": mentioned ? [["id": "demo_me", "name": "佑哥", "key": "@_user_1"]] : []], chatID: "demo_chat_\(i)", chatName: i == 2 ? "小林" : "项目讨论群", chatKind: kind, ownID: "demo_me"))
+        }
+    }
+}

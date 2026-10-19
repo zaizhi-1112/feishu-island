@@ -1,0 +1,18 @@
+.DS_Store
+.build/
+.swiftpm/
+# Only ignore the root build output. SettingsWeb/dist is maintained source.
+/dist/
+/releases/
+# Local research, screenshots, account-related test evidence and backups.
+/research/
+/verification/
+# Machine-local credentials and editor state.
+.env
+.env.*
+!.env.example
+auth.json
+*.pem
+*.key
+*.xcuserstate
+xcuserdata/
