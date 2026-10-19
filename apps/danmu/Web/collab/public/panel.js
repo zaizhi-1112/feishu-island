@@ -1,0 +1,39 @@
+'use strict';
+let state;const params=new URLSearchParams(location.search),actor=params.get('actor');
+const el=x=>document.getElementById(x),esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function notify(t){el('notice').textContent=t;el('notice').hidden=false;}
+async function api(path,data){const r=await fetch('/collab/api/'+path+(actor?'?actor='+encodeURIComponent(actor):''),{method:data?'POST':'GET',headers:data?{'Content-Type':'application/json'}:{},body:data?JSON.stringify(data):undefined});const v=await r.json();if(!r.ok){const e=Error(v.error);e.info=v;throw e;}return v;}
+const status={review:'等双方同意',queued:'双方已同意，等待构建',building:'正在构建和发布',published:'两种版本已发布',failed:'发布失败',changes:'等待修改后重审'};
+function card(title,body,id=''){return `<section class="vx-card" ${id?'id="'+id+'"':''}><header class="vx-card-head"><h2 class="vx-card-title">${title}</h2></header><div class="panel-body">${body}</div></section>`;}
+function date(s){return new Date(s).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+function draw(){
+ const s=state;el('who').textContent=s.me.name+' · '+(s.me.owner?'项目负责人':'项目伙伴');
+ const counts=Object.fromEntries(['待安排','开发中','待验收','已完成'].map(x=>[x,s.needs.filter(n=>n.status===x).length]));
+ const published=s.versions.filter(v=>v.state==='published'),pending=s.versions.filter(v=>!['published','failed'].includes(v.state));
+ const overview=card('现在到哪了',`<p class="summary">${s.needs.length?`记录了 ${s.needs.length} 个需求，${counts['开发中']} 个开发中，${counts['待验收']} 个待验收，${counts['已完成']} 个已完成。`:'把想做的功能写下来，双方都能看到。'}</p><p>${published.length?`已发布 ${published.length} 个版本。`:'目前还没有通过此面板发布的版本。'}${pending.length?`有 ${pending.length} 个版本等待处理。`:''}</p><p class="version-meta">${s.runner.online?'发布助手已连接，双方同意后自动处理。':'发布助手等待下一轮检查。双方同意会保存，助手连通后再处理。'}</p>`,'overview');
+ const needs=card('需求记录',`<div class="panel-list">${s.needs.map(n=>`<article class="panel-item"><h3>${esc(n.title)}</h3><p class="version-copy">${esc(n.detail)}</p><div class="vx-row"><span class="version-meta">${esc(n.by)} · ${date(n.at)}</span><select aria-label="${esc(n.title)}的状态" data-need="${n.id}">${Object.keys(counts).map(x=>`<option ${n.status===x?'selected':''}>${x}</option>`).join('')}</select><button class="vx-btn" data-copy="${n.id}">交给 Codex</button></div></article>`).join('')||'<div class="vx-empty">还没有需求</div>'}</div>`,'needs');
+ const form=card('写下一个需求',`<form id="need-form" class="panel-form"><label>想做什么<input name="title" maxlength="140" required placeholder="例如：灵动岛里的消息可以按群聊分组"></label><label>现在怎样，希望变成怎样<textarea name="detail" maxlength="6000" required placeholder="用日常语言描述。也可以写怎样才算做好。"></textarea></label><div><button class="vx-btn" type="submit">保存需求</button></div></form>`,'new-need');
+ const versions=card('版本与上线',`<div class="panel-list">${s.versions.map(v=>`<article class="panel-item"><div class="vx-row"><h3>${esc(v.title)}</h3><span class="vx-badge">${status[v.state]||esc(v.state)}</span></div><p class="version-copy">${esc(v.summary)}</p><details><summary>查看验证与限制</summary><p class="version-copy">${esc(v.tests)}</p><p class="version-meta">代码 ${v.sha.slice(0,8)} · ${v.checks?'自动检查通过':'自动检查未通过或未完成'}</p></details><div class="approval">${s.members.map(m=>`<span>${esc(m.name)}：${v.approvals[m.id]?.digest===v.digest?'已同意':'未同意'}</span>`).join('')}</div>${v.state==='published'?`<a class="vx-btn" href="${esc(v.url)}" target="_blank" rel="noopener">下载这个版本</a><p class="version-meta">网页版已更新；Mac 安装更新由本人操作。</p>`:['building','queued'].includes(v.state)?'<p>双方确认已记录，构建结果会显示在这里。</p>':`<div class="vx-row"><button class="vx-btn" data-vote="${v.id}" ${!v.checks||!v.open||!v.mergeable?'disabled':''}>${v.approvals[s.me.id]?'我已同意':'同意此版上线'}</button><button class="vx-btn vx-btn-ghost" data-reject="${v.id}">需要修改</button></div><p class="version-meta">双方同意后自动更新网页版、发布 Mac 下载包。内容变化会清空同意。${v.error?esc(v.error):''}</p>`}</article>`).join('')||'<div class="vx-empty">Codex 完成功能并同步后，这里会显示版本改动和待确认事项。</div>'}</div>`,'versions');
+ const summary=card('阶段归纳',`<p class="version-copy">${esc(summaryText(s))}</p><button class="vx-btn" id="copy-summary">复制阶段总结</button>`);
+ const history=card('开发过程',`<form id="note-form" class="panel-form"><label>补充讨论或阶段总结<textarea name="detail" maxlength="6000" required placeholder="今天决定了什么，遇到什么问题，下次要做什么"></textarea></label><div><button class="vx-btn">记录进展</button></div></form><ol class="timeline">${s.events.slice().reverse().slice(0,100).map(e=>`<li><p>${esc(e.detail)}</p><span class="version-meta">${esc(e.actor)} · ${date(e.at)}</span></li>`).join('')}</ol>`,'history');
+ const joins=s.me.owner&&s.requests.length?card('伙伴申请加入',s.requests.map(p=>`<p>${esc(p.name)} 申请加入。请与你的伙伴核对这是他刚提交的申请。</p><button class="vx-btn" data-join="${esc(p.id)}">确认是我的伙伴，允许加入</button>`).join('')):'';
+ el('app').innerHTML=joins+overview+'<div class="vx-grid">'+form+needs+'</div>'+versions+summary+history;
+ el('copy-summary').onclick=()=>copy(summaryText(state));
+ el('need-form').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target);await act({type:'need',title:f.get('title'),detail:f.get('detail')});};
+ el('note-form').onsubmit=async e=>{e.preventDefault();await act({type:'note',detail:new FormData(e.target).get('detail')});};
+ document.querySelectorAll('[data-need]').forEach(x=>x.onchange=()=>act({type:'need-status',id:x.dataset.need,status:x.value}));
+ document.querySelectorAll('[data-join]').forEach(x=>x.onclick=()=>act({type:'join',id:x.dataset.join}));
+ document.querySelectorAll('[data-copy]').forEach(x=>x.onclick=()=>copy(needPrompt(s.needs.find(n=>n.id===x.dataset.copy))));
+ document.querySelectorAll('[data-vote],[data-reject]').forEach(x=>x.onclick=async()=>{try{const id=x.dataset.vote||x.dataset.reject,v=state.versions.find(v=>v.id===id);x.disabled=true;await api('vote',{id,digest:v.digest,agree:!!x.dataset.vote});await load();notify(x.dataset.vote?'你的同意已经记录。':'已记录需要修改。');}catch(e){notify(e.message);x.disabled=false;}});
+}
+function summaryText(s){const done=s.needs.filter(x=>x.status==='已完成'),work=s.needs.filter(x=>x.status==='开发中'),todo=s.needs.filter(x=>x.status==='待安排');return `飞书工作岛 · 阶段总结\n已完成：${done.map(x=>x.title).join('、')||'暂无已标记完成的需求'}\n开发中：${work.map(x=>x.title).join('、')||'暂无'}\n接下来：${todo.map(x=>x.title).join('、')||'暂无待安排需求'}\n版本：${s.versions.map(v=>v.title+'（'+(status[v.state]||v.state)+'）').join('；')||'暂无'}\n最近记录：${s.events.slice(-3).map(e=>e.actor+'：'+e.detail).join('；')||'暂无'}`;}
+async function act(input){try{await api('action',input);await load();notify('已保存，伙伴也能看到。');}catch(e){notify(e.message);}}
+async function load(){try{state=await api('state');draw();}catch(e){notify(e.message);el('app').innerHTML=e.info?.canJoin?'<section class="vx-card panel-body"><p>请先申请加入，再由宰治确认。</p><button id="join" class="vx-btn">申请加入项目</button></section>':'';if(el('join'))el('join').onclick=async()=>{await api('join',{});notify('申请已提交，请宰治在面板里确认。');};}}
+function needPrompt(n){return `共同仓库：https://github.com/zaizhi-1112/feishu-island\n先读取 AGENTS.md，并同步最新进展；保留本地未提交内容。从最新主版本建立独立功能分支。\n需求：${n.title}\n${n.detail}\n需求编号：${n.id}\n完成修改和相关合成测试后，允许推送本次分支并创建 PR，中文说明变化、验证与限制。通过发布助手同步到协作面板，等待两位成员同意。不要自动安装、不读真实飞书消息、不遮挡桌面、不直接合并或发布。`;}
+async function copy(value){try{await navigator.clipboard.writeText(value);notify('已复制，粘贴给你的 Codex 即可。');}catch{notify('复制失败，请检查浏览器的剪贴板权限。');}}
+el('refresh').onclick=load;
+el('agent').onclick=async()=>{if(!state)return;await copy('请克隆 https://github.com/zaizhi-1112/feishu-island 并读取 AGENTS.md。先从协作面板领取需求，完成后推送功能分支、创建 PR，写清变化与测试结论。不要直接合并或发布，发布由面板的双人同意触发。');};
+load();
+
+// 双人同步需要及时看到审批与发布结果；正在输入时保留草稿，不重绘表单。
+setInterval(async()=>{if(document.hidden||/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))return;try{const latest=await api('state');if(state&&latest.revision!==state.revision){state=latest;draw();}}catch{}},15000);
