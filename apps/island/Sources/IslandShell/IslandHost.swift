@@ -2,14 +2,14 @@ import NookApp
 import SwiftUI
 
 public enum IslandHost {
-    public static let homeID = "local.youzi.island.home"
-    public static let feishuID = "local.youzi.island.feishu"
-    public static let sampleID = "local.youzi.island.sample"
+    public static let homeID = "local.zaizhi.feishu-island.preview.home"
+    public static let feishuID = "local.zaizhi.feishu-island.preview.feishu"
+    public static let sampleID = "local.zaizhi.feishu-island.preview.sample"
 
     public static func configuration() -> NookHostConfiguration {
         var host = NookHostConfiguration()
         host.branding = NookHostBranding(
-            hostName: "柚子岛", hostTagline: "常用功能，抬手即达。",
+            hostName: "飞书工作岛预览版", hostTagline: "常用功能，抬手即达。",
             mark: NookHostBranding.symbol("capsule.fill"),
             menuBarIcon: NookHostBranding.symbol("capsule")
         )

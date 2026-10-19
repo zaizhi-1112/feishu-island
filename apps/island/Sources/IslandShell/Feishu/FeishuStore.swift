@@ -15,7 +15,13 @@ public final class FeishuStore: ObservableObject {
     @Published public private(set) var customRules: FeishuCustomRules
     public private(set) var settingsRevision: Int
     private let defaults: UserDefaults
-    private let reader: AccountReader
+    private var reader: AccountReader
+    public let playback: DanmuPlayback
+    @Published public private(set) var danmu: DanmuOptions
+    @Published public private(set) var connection: FeishuConnection
+    var appearance: [String:Any]
+    var allowsDirectoryLookup: Bool { live }
+
     private var activities: NookLiveActivities?
     private var timer: Timer?
     private var pendingAlert: Task<Void, Never>?
@@ -25,26 +31,73 @@ public final class FeishuStore: ObservableObject {
     private let live: Bool
     private var started = false
 
-    public init(defaults: UserDefaults, live: Bool = false) {
+    public init(defaults: UserDefaults, live: Bool = false, receivingDefault: Bool = true, headlessRenderer: Bool? = nil) {
         self.defaults = defaults; self.live = live
         rules = defaults.data(forKey: "reminderRules").flatMap { try? JSONDecoder().decode(FeishuReminderRules.self, from: $0) } ?? .init()
         customRules = defaults.data(forKey: "customRules").flatMap { try? JSONDecoder().decode(FeishuCustomRules.self, from: $0) } ?? .init()
         settingsRevision = defaults.integer(forKey: "settingsRevision")
-        enabled = defaults.object(forKey: "enabled") as? Bool ?? true
+        enabled = defaults.object(forKey: "enabled") as? Bool ?? receivingDefault
+        danmu = defaults.data(forKey: "danmu").flatMap { try? JSONDecoder().decode(DanmuOptions.self,from:$0) } ?? .init()
+        let initialConnection = defaults.data(forKey:"connection").flatMap { try? JSONDecoder().decode(FeishuConnection.self,from:$0) }.flatMap { $0.valid ? $0 : nil } ?? .init()
+        connection = initialConnection
+        appearance = defaults.data(forKey:"danmuAppearance").flatMap { try? JSONSerialization.jsonObject(with:$0) as? [String:Any] }.flatMap(AppearanceMCP.validate) ?? AppearanceMCP.defaults
+        playback = DanmuPlayback(headless: headlessRenderer ?? !live)
         followed = Set(defaults.stringArray(forKey: "followed") ?? [])
         let mute = defaults.double(forKey: "mutedUntil")
         mutedUntil = mute > Date().timeIntervalSince1970 ? Date(timeIntervalSince1970: mute) : nil
-        reader = AccountReader()
-        reader.onMessage = { [weak self] in self?.receive($0) }
-        reader.onStatus = { [weak self] in self?.status = $0 }
-        reader.onAccount = { [weak self] in self?.account = $0 }
+        reader = AccountReader(cli:URL(fileURLWithPath:initialConnection.cliPath),profile:initialConnection.profile)
+        wireReader()
+        playback.configure(danmu,appearance:appearance)
         if !enabled { status = "接收已停止" }
     }
 
+    #if DEBUG
+    func startSyntheticReader(_ input: AccountReader) {
+        precondition(!live, "Synthetic checks must never replace a live account")
+        reader.stop(); reader = input; wireReader(); reader.start()
+    }
+    #endif
+    private func wireReader() {
+        reader.onMessage = { [weak self] in self?.receive($0) }
+        reader.onStatus = { [weak self] in self?.status = $0 }
+        reader.onAccount = { [weak self] in self?.account = $0 }
+        playback.checkUnread = { [weak self] id, completion in
+            guard let self, self.enabled else { completion(false); return }
+            if self.messages.first(where: { $0.id == id })?.viewed == true { completion(false); return }
+            if self.live { self.reader.checkUnread(id,completion:completion) } else { completion(true) }
+        }
+    }
+    @discardableResult
+    public func updateConnection(_ value: FeishuConnection) -> Bool {
+        guard value.valid else { return false }
+        if value == connection { return true }
+        reader.stop(); enabled = false; defaults.set(false,forKey:"enabled")
+        playback.resetAccount(); messages.removeAll(); pendingAlert?.cancel(); pendingAlert = nil; pendingCount = 0; activities?.end("messages")
+        // Session-specific rules must never follow a different account.
+        followed.removeAll(); customRules = .init(); defaults.removeObject(forKey:"followed"); defaults.removeObject(forKey:"customRules")
+        connection = value; defaults.set(try? JSONEncoder().encode(value),forKey:"connection")
+        reader = AccountReader(cli:URL(fileURLWithPath:value.cliPath),profile:value.profile); wireReader()
+        status = "连接配置已保存，请先完成本人只读授权，再开始接收"; account = "尚未连接"; bumpSettingsRevision(); return true
+    }
+    public func updateDanmu(_ value: DanmuOptions) {
+        guard value != danmu else { return }; danmu = value
+        defaults.set(try? JSONEncoder().encode(value),forKey:"danmu"); playback.configure(value,appearance:appearance); bumpSettingsRevision()
+    }
+    @discardableResult
+    func updateAppearance(_ input:[String:Any]) -> Bool {
+        guard let value = AppearanceMCP.validate(input) else { return false }
+        if NSDictionary(dictionary:appearance).isEqual(to:value) { return true }
+        appearance = value; defaults.set(try? JSONSerialization.data(withJSONObject:value),forKey:"danmuAppearance")
+        playback.configure(danmu,appearance:value); bumpSettingsRevision(); return true
+    }
+    public func playSynthetic() {
+        let message = FeishuMessage(raw:["message_id":"demo_" + UUID().uuidString,"sender":["id":"ou_demo","sender_name":"合成示例"],"msg_type":"text","body":["content":"{\"text\":\"透明试播\"}"]],chatID:"oc_demo",chatName:"演示",chatKind:"p2p",ownID:"")
+        playback.enqueue(message,demo:true)
+    }
     func start(activities: NookLiveActivities) {
         self.activities = activities
         guard !started else { return }; started = true
-        if live && enabled { reader.start() }
+        startReaderIfAllowed()
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
@@ -67,7 +120,11 @@ public final class FeishuStore: ObservableObject {
             let recent = messages.filter { $0.remindAt == nil }.prefix(max(0, 100 - reminders.count))
             messages = (reminders + recent).sorted { $0.created > $1.created }
         }
-        if message.isImportant(followed: followed, rules: rules, custom: customRules) { queueAlert() }
+        if message.isImportant(followed: followed, rules: rules, custom: customRules) {
+            // A message chooses one interruptive channel, while always remaining in the island list.
+            if !isMuted && !playback.suspended && canAlert() && playback.enqueue(message) { return }
+            queueAlert()
+        }
     }
     public func markViewed(_ id: String) {
         guard let i = messages.firstIndex(where: { $0.id == id }) else { return }
@@ -81,16 +138,30 @@ public final class FeishuStore: ObservableObject {
         mutedUntil = isMuted ? nil : Date().addingTimeInterval(3600)
         defaults.set(mutedUntil?.timeIntervalSince1970 ?? 0, forKey: "mutedUntil")
         pendingAlert?.cancel(); pendingAlert = nil; pendingCount = 0
-        activities?.end("messages")
+        playback.clear(); activities?.end("messages")
+    }
+    var receiveConflict: String? {
+        guard live else { return nil }
+        if legacyDanmuConflict(NSWorkspace.shared.runningApplications.compactMap { $0.executableURL?.path }) {
+            return "检测到旧弹幕仍在运行。预览版暂不开启真实接收；可继续使用旧版或先看合成演示。"
+        }
+        return nil
+    }
+    private func startReaderIfAllowed() {
+        guard live, enabled else { return }
+        if let conflict = receiveConflict {
+            reader.stop(); enabled = false; defaults.set(false,forKey:"enabled"); playback.clear(); status = conflict; actionError = conflict
+        } else { reader.start() }
     }
     public func toggleReceiving() {
+        if !enabled, let conflict = receiveConflict { actionError = conflict; status = conflict; return }
         enabled.toggle(); defaults.set(enabled, forKey: "enabled")
         bumpSettingsRevision()
         pendingAlert?.cancel(); pendingAlert = nil; pendingCount = 0
         if enabled {
-            if live { reader.start() } else { status = "测试模式" }
+            if live { startReaderIfAllowed() } else { status = "测试模式" }
         } else {
-            reader.stop(); activities?.end("messages")
+            reader.stop(); playback.clear(); activities?.end("messages")
         }
     }
     private func bumpSettingsRevision() {
@@ -108,11 +179,11 @@ public final class FeishuStore: ObservableObject {
         bumpSettingsRevision()
         // A pending batch was selected using the old rules. Only future messages alert.
         pendingAlert?.cancel(); pendingAlert = nil; pendingCount = 0
-        activities?.end("messages")
+        playback.clear(); activities?.end("messages")
     }
     public func reconnect() {
-        reader.stop()
-        if enabled && live { reader.start() }
+        reader.stop(); playback.clear()
+        startReaderIfAllowed()
     }
     public func remindLater(_ id: String, now: Date = Date()) {
         guard let i = messages.firstIndex(where: { $0.id == id }) else { return }
@@ -143,7 +214,7 @@ public final class FeishuStore: ObservableObject {
         }
     }
     private func queueAlert() {
-        guard enabled, !isMuted, canAlert() else { return }
+        guard enabled, !isMuted, !playback.suspended, canAlert() else { return }
         pendingCount += 1
         guard pendingAlert == nil else { return }
         let wait = max(1, 12 - Date().timeIntervalSince(lastAlert))
@@ -151,7 +222,7 @@ public final class FeishuStore: ObservableObject {
             try? await Task.sleep(for: .seconds(wait))
             guard !Task.isCancelled, let self else { return }
             self.pendingAlert = nil
-            guard self.enabled, !self.isMuted, self.canAlert() else { self.pendingCount = 0; return }
+            guard self.enabled, !self.isMuted, !self.playback.suspended, self.canAlert() else { self.pendingCount = 0; return }
             let count = self.pendingCount; self.pendingCount = 0
             self.lastAlert = Date()
             self.presentAlert(count: count)
