@@ -1,1 +1,1 @@
-{"schema":1,"targets":["web","mac"],"webApp":"feishu-danmu","webRoot":"apps/danmu/Web","macProduct":"apps/island","preserveCollaborationPanel":true}
+{"schema":2,"targets":["github-source"],"repository":"zaizhi-1112/feishu-island","panelRole":"information-and-collaboration"}

@@ -4,7 +4,7 @@ function createPanel({dir,owner=process.env.COLLAB_OWNER_ID,preview=false}={}){
  if(preview&&process.env.NODE_ENV==='production')throw Error('禁止生产预览');
  const nonces=new Map();
  const store=createStore(dir,preview?'preview-a':owner);
- if(preview&&store.s.members.length===1){store.s.members.push({id:'preview-b',name:'伙伴（合成）',owner:false});store.upsert({pr:4,number:600,sha:'a'.repeat(40),base:'b'.repeat(40),title:'0.6.0 融合预览',summary:'同一个接收器驱动灵动岛列表与透明弹幕。\n增加本机设置与个人外观 Agent。\n预览版独立运行，不替换现用弹幕。',tests:'合成消息与隐藏渲染检查通过；真实消息与原生交互尚未验收。',checks:true,open:true,mergeable:true});store.save();}
+ if(preview&&store.s.members.length===1){store.s.members.push({id:'preview-b',name:'柚子（合成）',owner:true});store.upsert({pr:4,number:600,sha:'a'.repeat(40),base:'b'.repeat(40),title:'0.6.0 融合预览',summary:'同一个接收器驱动灵动岛列表与透明弹幕。\n增加本机设置与个人外观 Agent。\n预览版独立运行，不替换现用弹幕。',tests:'合成消息与隐藏渲染检查通过；真实消息与原生交互尚未验收。',checks:true,open:true,mergeable:true});store.save();}
  function json(res,status,value){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(value));}
  async function body(req){let size=0,parts=[];for await(const p of req){size+=p.length;if(size>1048576)throw Error('内容过长');parts.push(p);}return JSON.parse(Buffer.concat(parts).toString()||'{}');}
  return {store,async handle(req,res,url,uid){
@@ -26,15 +26,6 @@ function createPanel({dir,owner=process.env.COLLAB_OWNER_ID,preview=false}={}){
     if(route==='/runner/heartbeat'){store.s.runner.lastSeen=Date.now();store.save();reply({ok:true});}
     else if(route==='/runner/sync'){if(!Array.isArray(input.versions)||input.versions.length>50)throw Error('版本列表无效');for(const v of input.versions)store.upsert(v);store.s.runner.lastSeen=Date.now();store.save();reply({ok:true});}
     else if(route==='/runner/claim')reply({job:store.claim()});
-    else if(route==='/runner/artifact'){
-     const j=store.s.jobs.find(j=>j.id===input.job&&j.status==='building');if(!j)throw Error('发布任务不存在');
-     if(!Number.isSafeInteger(input.offset)||input.offset<0||!Number.isSafeInteger(input.total)||input.total<1||input.total>83886080||!Number.isSafeInteger(input.size)||!/^([a-f0-9]{64})$/.test(input.hash||'')||typeof input.chunk!=='string'||input.chunk.length>720000||!/^[A-Za-z0-9+/]*={0,2}$/.test(input.chunk))throw Error('下载包数据无效');
-     const bytes=Buffer.from(input.chunk,'base64');if(bytes.length!==input.size||!bytes.length||input.offset+bytes.length>input.total)throw Error('下载包长度不符');
-     const files=path.join(dir,'artifacts');fs.mkdirSync(files,{recursive:true,mode:0o700});const file=path.join(files,j.id+'.zip');const offset=fs.existsSync(file)?fs.statSync(file).size:0;
-     if(offset!==input.offset)throw Error('上传进度变化，请核对已上传文件');fs.appendFileSync(file,bytes,{mode:0o600});
-     if(input.offset+bytes.length===input.total){const actual=crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');if(actual!==input.hash)throw Error('下载包校验失败');j.artifact={file:j.id+'.zip',size:input.total,hash:actual};store.save();}
-     reply({offset:input.offset+bytes.length,complete:!!j.artifact});
-    }
     else if(route==='/runner/result'){store.result(input);reply({ok:true});}
     else json(res,404,{error:'接口不存在'});return true;
    }

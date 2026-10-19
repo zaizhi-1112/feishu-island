@@ -32,7 +32,7 @@ bash scripts/check.sh island         # macOS：灵动岛逻辑检查，需兼容
 
 ## 两人协作
 
-日常使用 [中文协作面板](https://feishu-danmu.virxact.net/collab/)：需求、版本、过程与阶段总结在同一个入口。宰治与柚子分别同意同一版本后，本机 Codex 自动化处理网页版及 Mac 下载发布。需要负责人电脑与 Codex 能运行并保持公司登录；不会自动安装 Mac 更新。首次由柚子申请加入，宰治确认身份。细节见 `apps/danmu/Web/collab/README.md`。
+日常使用 [中文协作面板](https://feishu-danmu.virxact.net/collab/)：需求、版本、过程与阶段总结在同一个入口。宰治与柚子分别同意同一版本后，确认的源码版本合入 GitHub；网站面板用于信息同步与协作。定时任务目前关闭。源码操作使用各自的 GitHub 身份，不自动安装应用或上线产品服务。首次由柚子申请加入，宰治确认身份。细节见 `apps/danmu/Web/collab/README.md`。
 
 
 一项需求对应一个 Issue；每个 Agent 从最新 main 建自己的分支；测试后提交 Pull Request，由另一人/维护者查看效果与限制再合并。不要让两边直接覆盖 main，不 force push，不自动发布。GitHub 是否强制执行评审，以仓库设置实际结果为准，CODEOWNERS 本身不构成强制保护。
