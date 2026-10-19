@@ -1,6 +1,6 @@
 import fs from 'node:fs';import crypto from 'node:crypto';import {execFileSync} from 'node:child_process';
 const [configPath,output]=process.argv.slice(2),config=JSON.parse(fs.readFileSync(configPath,'utf8'));const repo='zaizhi-1112/feishu-island';
-const gh=route=>JSON.parse(execFileSync('gh',['api',route],{encoding:'utf8',maxBuffer:4*1024*1024}));
+const gh=route=>JSON.parse(execFileSync('gh',['api',route],{encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:4*1024*1024}));
 const base=gh(`repos/${repo}/commits/main`).sha,versions=[];
 for(const pr of gh(`repos/${repo}/pulls?state=open&per_page=30`)){
  const p=gh(`repos/${repo}/pulls/${pr.number}`),runs=gh(`repos/${repo}/commits/${p.head.sha}/check-runs`).check_runs;
