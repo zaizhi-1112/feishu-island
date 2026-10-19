@@ -39,7 +39,7 @@ async function publish(j){
  if(release.target_commitish!==merged.sha)throw Error('同名版本来源不一致，停止发布');
  await cmd('gh',['release','upload',tag,zip,'--repo',repo]);
  release=await gh(['api',`repos/${repo}/releases/${release.id}`,'--method','PATCH','-F','draft=false']);
- report={job:j.id,digest:j.digest,sha:j.sha,macUrl:release.html_url,mergeSha:merged.sha,workDir:dir};
+ report={job:j.id,digest:j.digest,sha:j.sha,macUrl:release.html_url,mergeSha:merged.sha,workDir:dir,zip};
  console.log('已发布：'+j.version.title);
 }
 const envelope=JSON.parse(readFileSync(process.argv[3],'utf8'));
