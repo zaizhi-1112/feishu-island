@@ -5,12 +5,11 @@ struct FeishuView: View {
     @ObservedObject var store: FeishuStore
     @Environment(\.nookResolvedTheme) private var theme
     @State private var showAll = false
-    @State private var selectedID: String?
     @State private var showConnection = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if let id = selectedID, let message = store.visibleMessages.first(where: { $0.id == id }) {
+            if let id = store.readingID, let message = store.visibleMessages.first(where: { $0.id == id }) {
                 detail(message)
             } else {
                 header
@@ -23,8 +22,7 @@ struct FeishuView: View {
                         LazyVStack(spacing: 8) {
                             ForEach(list) { message in
                                 Button {
-                                    selectedID = message.id
-                                    store.markViewed(message.id)
+                                    store.openReader(message.id)
                                 } label: { row(message) }
                                     .buttonStyle(.plain)
                                     .accessibilityIdentifier("feishu.message.\(message.id)")
@@ -165,38 +163,15 @@ struct FeishuView: View {
     }
 
     private func detail(_ message: FeishuMessage) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Button { selectedID = nil; store.actionError = nil } label: { Label("返回", systemImage: "chevron.left") }
-                    .buttonStyle(.plain).foregroundStyle(theme.secondaryLabel)
-                Spacer()
-                Button { store.toggleFollow(message.chatID) } label: {
-                    Image(systemName: store.followed.contains(message.chatID) ? "star.fill" : "star")
-                }.buttonStyle(.plain).foregroundStyle(theme.accent)
-                    .help("关注此会话的新消息").accessibilityLabel(store.followed.contains(message.chatID) ? "取消关注" : "关注会话")
-            }.font(.system(size: 11))
-            VStack(alignment: .leading, spacing: 7) {
-                Text(message.source).font(.system(size: 15, weight: .semibold)).foregroundStyle(theme.primaryLabel)
-                HStack(spacing: 7) {
-                    Text(message.senderName)
-                    Text("·")
-                    Text(message.created, style: .time)
-                }.font(.system(size: 10)).foregroundStyle(theme.tertiaryLabel)
-            }
-            ScrollView {
-                Text(message.text).font(.system(size: 12)).lineSpacing(6)
-                    .foregroundStyle(theme.primaryLabel).textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(12)
-            }.frame(height: 154).modifier(IslandCard())
-            HStack(spacing: 8) {
-                Button("10分钟后提醒") { store.remindLater(message.id); selectedID = nil }
-                    .buttonStyle(IslandButtonStyle())
-                Spacer()
-                Button("打开会话") { store.open(message) }.buttonStyle(IslandButtonStyle(prominent: true))
-                    .disabled(message.chatURL == nil).accessibilityIdentifier("feishu.openChat")
-            }
-            Text("岛内查看不改变飞书已读 · 稍后提醒仅本次运行有效")
-                .font(.system(size: 9)).foregroundStyle(theme.tertiaryLabel)
-        }
+        IslandMessageReader(message: message, followed: store.followed.contains(message.chatID),
+                            pending: store.readingQueue.count,
+                            onBack: { store.closeReader() },
+                            onFollow: { store.toggleFollow(message.chatID) },
+                            onDone: { store.finishReading() },
+                            onRemind: { store.remindLater(message.id); store.finishReading() },
+                            onOpen: { store.open(message) }, appearance: store.appearance,
+                            initialPage: store.readingPages[message.id] ?? 0,
+                            onPageChange: { store.rememberReadingPage($0, for: message.id) })
+            .id(message.id)
     }
 }

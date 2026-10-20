@@ -12,6 +12,9 @@ public final class DanmuPlayback {
     var overlay: Overlay?
     let headless: Bool
     public private(set) var accepted = 0
+    public private(set) var presented = 0
+    public private(set) var skippedRead = 0
+    public private(set) var unreadRetries = 0
     public private(set) var suspended = false
     private var seen = Set<String>(), order: [String] = []
     private var observers: [NSObjectProtocol] = []
@@ -49,20 +52,25 @@ public final class DanmuPlayback {
         guard options.enabled, !suspended, !seen.contains(message.id) else { return false }
         if overlay == nil {
             overlay = Overlay(showsWindow: !headless, frame: headless ? NSRect(x:0,y:0,width:640,height:480) : nil)
+            overlay?.allowsCards = false // Long messages are read in the actual island surface.
             overlay?.verifyUnread = { [weak self] id, completion in self?.checkUnread?(id,completion) }
+            overlay?.onPresented = { [weak self] _ in self?.presented += 1 }
+            overlay?.onUnreadCheck = { [weak self] unread in
+                if unread == false { self?.skippedRead += 1 }
+                if unread == nil { self?.unreadRetries += 1 }
+            }
             overlay?.paused = options.paused
             applyAppearance()
         }
         seen.insert(message.id); order.append(message.id)
         if order.count > 1000 { seen.remove(order.removeFirst()) }
-        let text = "\(message.chatName) · \(message.senderName)：\(message.text)"
-        overlay?.enqueue(text,demo:demo,createdAt:message.created,messageID:demo ? nil : message.id)
+        overlay?.enqueue(message.danmuText,demo:demo,createdAt:message.created,messageID:demo ? nil : message.id)
         accepted += 1
         return true
     }
     func clear() { overlay?.clear() }
     func suspend(_ value: Bool) { suspended = value; if value { clear(); overlay?.window.orderOut(nil) }; overlay?.paused = value || options.paused; if !value, !headless, options.enabled { overlay?.window.orderFrontRegardless() } }
-    func resetAccount() { clear(); seen.removeAll(); order.removeAll() }
+    func resetAccount() { clear(); seen.removeAll(); order.removeAll(); accepted = 0; presented = 0; skippedRead = 0; unreadRetries = 0 }
     public var queued: Int { overlay?.queue.count ?? 0 }
     public var visible: Int { overlay?.flying.count ?? 0 }
     public var windowVisible: Bool { overlay?.window.isVisible ?? false }

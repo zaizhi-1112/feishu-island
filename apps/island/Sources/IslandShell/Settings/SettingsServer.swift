@@ -93,15 +93,46 @@ final class SettingsServer {
             "account": store.account, "status": store.status,
             "isMuted": store.isMuted, "mutedUntil": store.mutedUntil?.timeIntervalSince1970 as Any? ?? NSNull(),
             "followedCount": store.followed.count,
+            "delivery": store.deliveryDiagnostics,
+            "presentation": "island",
             "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "开发版"
         ])
     }
     func respond(method: String, path: String, headers: [String: String], body: Data) async -> SettingsResponse {
         let host = "127.0.0.1:\(port)"
         guard headers["host"] == host else { return .error(403, "仅接受本机地址") }
+        guard let url = URLComponents(string: path) else { return .error(400, "地址不正确") }
+        if url.path == "/oauth/virxact/callback" {
+            guard method == "GET", !sessionLocked else { return .error(403,"请解锁Mac后重新连接。") }
+            do {
+                try await WorkspaceStore.shared.finishHub(query:url.queryItems ?? [])
+                return SettingsResponse(status:200,contentType:"text/html; charset=utf-8",body:Data("<!doctype html><meta charset=utf-8><title>已连接</title><p>虚实中台已连接到本机灵动岛。可以关闭此页，回到顶部工作台。</p>".utf8))
+            } catch { return .error(400,error.localizedDescription) }
+        }
         if let origin = headers["origin"], origin != "http://\(host)" { return .error(403, "来源不匹配") }
         if let site = headers["sec-fetch-site"], site == "cross-site" { return .error(403, "来源不匹配") }
-        guard let url = URLComponents(string: path) else { return .error(400, "地址不正确") }
+        if url.path == "/api/workspace" {
+            guard !sessionLocked else { return .error(403,"锁屏期间不读取个人工作区。") }
+            let workspace = WorkspaceStore.shared
+            if method == "POST" {
+                guard headers["origin"] == "http://\(host)", headers["x-island-settings"] == "1", headers["content-type"]?.hasPrefix("application/json") == true,
+                      let action = try? JSONSerialization.jsonObject(with:body) as? [String:Any] else { return .error(403,"请从本机设置页操作。") }
+                do {
+                    switch action["action"] as? String {
+                    case "connectURL": return .json(["url":try await workspace.hubClient.begin(callback:"http://\(host)/oauth/virxact/callback").absoluteString])
+                    case "connect": workspace.connectHub(callback:"http://\(host)/oauth/virxact/callback")
+                    case "disconnect": workspace.disconnectHub()
+                    case "refresh": Task { await workspace.refreshHub() }
+                    case "minutes": guard let minutes = action["minutes"] as? Int, (0...10080).contains(minutes) else { return .error(400,"提醒分钟数不正确。") }; workspace.setMinutes(minutes)
+                    case "recipe": try workspace.addRecipe(title:action["title"] as? String ?? "",instruction:action["instruction"] as? String ?? "")
+                    case "add": _ = try workspace.add(text:action["text"] as? String ?? "",minutes:action["minutes"] as? Int)
+                    case "open": workspace.openBoard()
+                    default: return .error(400,"不支持的工作区操作。")
+                    }
+                } catch { return .error(400,error.localizedDescription) }
+            } else if method != "GET" { return .error(405,"不支持的操作。") }
+            return .json(["aiTool":WorkAI.displayName,"aiAvailable":WorkAI.executable != nil,"reminderMinutes":workspace.disk.reminderMinutes,"taskCount":workspace.disk.items.count,"hubConnected":workspace.hub.connected,"hubError":workspace.hub.error,"error":workspace.error])
+        }
         if url.path == "/mcp" {
             guard headers["origin"] == nil, !sessionLocked, agent.active, headers["authorization"] == "Bearer " + (agent.token ?? "") else { return .error(403,"仅接受有效的个人外观连接") }
             guard method == "POST" else { return .error(405,"不支持的操作") }
@@ -191,7 +222,10 @@ struct SettingsResponse {
     let contentType: String
     let body: Data
     static func json(_ object: [String: Any], status: Int = 200) -> Self {
-        Self(status: status, contentType: "application/json; charset=utf-8", body: (try? JSONSerialization.data(withJSONObject: object)) ?? Data())
+        guard JSONSerialization.isValidJSONObject(object), let bytes = try? JSONSerialization.data(withJSONObject:object) else {
+            return Self(status:500,contentType:"application/json; charset=utf-8",body:Data("{\"error\":\"应用响应格式不正确\"}".utf8))
+        }
+        return Self(status:status,contentType:"application/json; charset=utf-8",body:bytes)
     }
     static func error(_ status: Int, _ message: String) -> Self { .json(["error": message], status: status) }
     var data: Data {
@@ -204,11 +238,11 @@ struct SettingsResponse {
 @MainActor
 private final class SettingsConnection {
     private let connection: NWConnection
-    private let handle: (String, String, [String: String], Data) async -> SettingsResponse
+    private let handle: @MainActor (String, String, [String: String], Data) async -> SettingsResponse
     private let finished: () -> Void
     private var buffer = Data()
     private var done = false
-    init(connection: NWConnection, handle: @escaping (String, String, [String: String], Data) async -> SettingsResponse, finished: @escaping () -> Void) {
+    init(connection: NWConnection, handle: @escaping @MainActor (String, String, [String: String], Data) async -> SettingsResponse, finished: @escaping () -> Void) {
         self.connection = connection; self.handle = handle; self.finished = finished
     }
     func start() {

@@ -2,6 +2,7 @@ import NookApp
 import SwiftUI
 
 public enum IslandHost {
+    public static let workspaceID = "local.zaizhi.feishu-island.preview.workspace"
     public static let homeID = "local.zaizhi.feishu-island.preview.home"
     public static let feishuID = "local.zaizhi.feishu-island.preview.feishu"
     public static let sampleID = "local.zaizhi.feishu-island.preview.sample"
@@ -9,7 +10,7 @@ public enum IslandHost {
     public static func configuration() -> NookHostConfiguration {
         var host = NookHostConfiguration()
         host.branding = NookHostBranding(
-            hostName: "飞书工作岛预览版", hostTagline: "常用功能，抬手即达。",
+            hostName: "飞书工作岛", hostTagline: "常用功能，抬手即达。",
             mark: NookHostBranding.symbol("capsule.fill"),
             menuBarIcon: NookHostBranding.symbol("capsule")
         )
@@ -23,13 +24,15 @@ public enum IslandHost {
         host.chromeTheme = IslandDesign.chrome
         host.chromeBehavior.showsLaunchShimmer = false
         host.chromeBehavior.edgeDocked = true
-        // Hide the framework's conflicting "hover to fully expand" settings.
-        host.chromeBehavior.hoverIntent = NookHoverIntent(action: .none)
+        host.chromeBehavior.hoverIntent = NookHoverIntent(action: .expand, delay: .milliseconds(150), externalDisplayDelay: .milliseconds(200))
         host.moduleSwitcherPlacement = .leadingCluster
         host.register(FeishuModule.info) { FeishuModule(context: $0) }
-        host.register(HomeModule.info) { HomeModule(context: $0) }
-        host.register(SampleModule.info) { SampleModule(context: $0) }
-        host.defaultModule = feishuID
+        host.register(WorkspaceModule.info) { WorkspaceModule(context: $0) }
+        if ProcessInfo.processInfo.arguments.contains("--self-test") || Bundle.main.bundleIdentifier != "local.zaizhi.feishu-island.preview" {
+            host.register(HomeModule.info) { HomeModule(context: $0) }
+            host.register(SampleModule.info) { SampleModule(context: $0) }
+        }
+        host.defaultModule = workspaceID
         return host
     }
 

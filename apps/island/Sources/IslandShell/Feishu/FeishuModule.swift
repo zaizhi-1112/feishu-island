@@ -27,12 +27,23 @@ final class FeishuModule: NookModule {
         var config = IslandHost.baseConfiguration(title: "飞书消息", symbol: "paperplane.fill")
         config.expandedWidth = 380
         let store = store
+        config.setCompactLeading { WorkspaceDropMark(store:.shared) }
         config.setCompactTrailing { FeishuCompactView(store: store) }
         config.setHome { FeishuView(store: store) }
         config.onReady = { [weak self] coordinator in
             guard let self else { return }
+            if !self.context.defaults.bool(forKey: "hoverAutoCollapseV1") {
+                if coordinator.appState.keepNookOpen { coordinator.toggleKeepNookOpen() }
+                self.context.defaults.set(true, forKey: "hoverAutoCollapseV1")
+            }
             store.canAlert = { [weak coordinator] in coordinator?.appState.isNookVisible == false }
+            store.onOpenReader = { [weak coordinator, weak store] in
+                coordinator?.switchModule(to: IslandHost.feishuID)
+                store?.presentReadingActivity()
+            }
+            store.onCloseReader = { [weak coordinator] in coordinator?.hideNook() }
             store.start(activities: self.context.services.resolve(NookLiveActivitiesKey.self))
+            if ProcessInfo.processInfo.arguments.contains("--feishu-demo"), store.readingID != nil { store.onOpenReader() }
             RuntimeVerification.startIfRequested(coordinator: coordinator)
         }
         return config

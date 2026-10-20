@@ -117,7 +117,7 @@ final class AccountReader {
         p.arguments = (profile.isEmpty ? [] : ["--profile", profile]) + args
         var env = ProcessInfo.processInfo.environment
         env["LARKSUITE_CLI_NO_UPDATE_NOTIFIER"] = "1"; env["LARKSUITE_CLI_NO_SKILLS_NOTIFIER"] = "1"
-        p.environment = env; p.standardInput = FileHandle.nullDevice
+        p.environment = FeishuTransport.shared.environment(env); p.standardInput = FileHandle.nullDevice
         let pipe = Pipe(); let errors = Pipe(); p.standardOutput = pipe; p.standardError = errors
         // Foundation Process retains Pipe handles after exit. Close all parent
         // descriptors explicitly; polling otherwise exhausts the GUI process.

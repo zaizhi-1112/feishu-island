@@ -41,7 +41,7 @@ function createStore(dir,owner){
   if(input.ok===true){if(v.target!=='github-source'||!/^[a-f0-9]{40}$/.test(input.mergeSha||'')||input.commitUrl!=='https://github.com/zaizhi-1112/feishu-island/commit/'+input.mergeSha)throw Error('GitHub 源码版本结果无效');v.url=input.commitUrl;v.mergeSha=input.mergeSha;v.state='published';j.status='published';event('版本助手','published','源代码已更新到 GitHub：'+v.title);}else{v.state='failed';v.approvals={};j.status='failed';v.error=text(input.error||'源代码更新失败，请让 Agent 检查',1000);event('版本助手','failed',v.error);}save();}
  function action(uid,input){const m=requireMember(uid);
   switch(input.type){
-   case 'need':{const n={id:crypto.randomUUID(),title:text(input.title,140),detail:text(input.detail,6000),by:m.name,status:'待安排',at:new Date().toISOString()};s.needs.unshift(n);event(m.name,'need','记录需求：'+n.title);break;}
+   case 'need':{const n={id:crypto.randomUUID(),title:text(input.title,140),detail:text(input.detail,6000),by:m.name,byId:uid,status:'待安排',at:new Date().toISOString()};s.needs.unshift(n);event(m.name,'need','记录需求：'+n.title);break;}
    case 'need-status':{const n=s.needs.find(n=>n.id===input.id);if(!n||!['待安排','开发中','待验收','已完成'].includes(input.status))throw Error('需求状态无效');n.status=input.status;event(m.name,'progress',n.title+' → '+n.status);break;}
    case 'note':event(m.name,'note',text(input.detail,6000));break;
    case 'join':own(uid);if(s.members.length!==1)throw Error('项目仅供两位成员使用');{const p=s.requests.find(p=>p.id===input.id);if(!p)throw Error('加入申请不存在');s.members.push({...p,owner:true});s.requests=[];event(m.name,'member','确认伙伴加入：'+p.name);}break;

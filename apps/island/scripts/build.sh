@@ -9,8 +9,9 @@ if [[ ! -d "$SDK" ]]; then
     exit 1
 fi
 CONFIG="${ISLAND_CONFIGURATION:-release}"
-swift build -j 2 --sdk "$SDK" -c "$CONFIG" --product YuIsland
-BIN_DIR="$(swift build --sdk "$SDK" -c "$CONFIG" --show-bin-path)"
+SCRATCH="${ISLAND_SCRATCH_PATH:-$ROOT/.build}"
+swift build --scratch-path "$SCRATCH" -j 2 --sdk "$SDK" -c "$CONFIG" --product YuIsland
+BIN_DIR="$(swift build --scratch-path "$SCRATCH" --sdk "$SDK" -c "$CONFIG" --show-bin-path)"
 APP="$ROOT/dist/飞书工作岛预览版.app"
 if pgrep -f "^$APP/Contents/MacOS/YuIsland$" >/dev/null; then
     echo '预览版正在运行，请手动退出后再构建。不会替换运行中的程序。' >&2; exit 1

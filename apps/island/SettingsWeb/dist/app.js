@@ -40,9 +40,9 @@ function render() {
   text('#rules-count', `${keys.filter(key => draft.rules[key]).length}类消息`);
   $$('[data-danmu]').forEach(button=>{button.setAttribute('aria-checked',String(draft.danmu[button.dataset.danmu]));button.disabled=saving||!connected;});
   for(const [id,key] of [['#cli-path','cliPath'],['#cli-profile','profile']]){if(document.activeElement!==$(id))$(id).value=draft.connection[key];$(id).disabled=saving||!connected;}
-  $('#danmu-font').value=draft.appearance.fontSize; text('#danmu-font-value',draft.appearance.fontSize);
+  $('#danmu-font').value=draft.appearance.fontSize; text('#danmu-font-value',draft.appearance.fontSize / 2);
   $('#danmu-theme').value=draft.appearance.background===null?'system':draft.appearance.background==='#111111'?'night':draft.appearance.background==='#ffffff'?'paper':'custom';
-  $('#danmu-demo').disabled=!connected||saving||!saved?.danmu?.enabled||saved?.danmu?.paused;
+  $('#danmu-demo').disabled=!connected||saving||!saved?.enabled;
   text('#auth-hint','仅使用本人只读授权。授权未完成时，可让你的 Agent 按以上 CLI 路径和账号配置名完成授权；保存连接不会自动授权。');
   renderPreview();
   renderCustom();
@@ -66,6 +66,8 @@ function renderPreview() {
   $$('[data-preview]').forEach(button => button.classList.toggle('active', button.dataset.preview === previewType));
 }
 function renderLive(state) {
+  const delivery = state.delivery;
+  text('#delivery-status', delivery ? `本次运行：岛内保留 ${delivery.retained} 条，其中重要 ${delivery.important} 条；进入阅读 ${delivery.islandReadingAccepted || 0} 条、待阅读 ${delivery.islandReadingPending || 0} 条。` : '当前应用尚未提供投递计数。');
   text('#account', state.account); text('#version', state.version);
   text('#receive-state', state.enabled ? '接收中' : '已停止');
   text('#mute-state', state.isMuted ? `静音至${new Date(state.mutedUntil * 1000).toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', hour12:false})}` : '正常提醒');
@@ -236,10 +238,10 @@ $('#picker-add').addEventListener('click', () => {
   closePicker(); changed();
 });
 function selectPage(page) {
-  if (!['general','feishu','modules'].includes(page)) page = 'feishu';
+  if (!['general','feishu','modules','workspace'].includes(page)) page = 'feishu';
   $$('.page').forEach(section => section.hidden = section.id !== `page-${page}`);
   $$('.nav-item').forEach(button => { const active = button.dataset.page === page; button.classList.toggle('active', active); if (active) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
-  text('#breadcrumb', {general:'通用设置', feishu:'飞书消息', modules:'功能模块'}[page]);
+  text('#breadcrumb', {workspace:'材料与待办', general:'通用设置', feishu:'飞书消息', modules:'功能模块'}[page]);
   if (location.hash !== `#${page}`) history.replaceState(null,'',`#${page}`);
 }
 $$('[data-page]').forEach(button => button.addEventListener('click', () => selectPage(button.dataset.page)));
@@ -253,4 +255,20 @@ for(const [id,key] of [['#cli-path','cliPath'],['#cli-profile','profile']])$(id)
 $('#danmu-font').addEventListener('input',()=>{draft.appearance.fontSize=Number($('#danmu-font').value);changed();});
 $('#danmu-theme').addEventListener('change',()=>{const mode=$('#danmu-theme').value;if(mode==='custom')return;Object.assign(draft.appearance,{background:mode==='system'?null:mode==='night'?'#111111':'#ffffff',foreground:mode==='system'?null:mode==='night'?'#ffffff':'#111111'});changed();});
 $('#danmu-demo').addEventListener('click',async()=>{try{await request('POST',{},'/api/demo');setStatus('已发送一条合成消息，不读取飞书。');}catch(e){setStatus(e.message,true);}});
-$('#connect-agent').addEventListener('click',async()=>{const button=$('#connect-agent');try{const link=await request('POST',{},'/api/agent');await navigator.clipboard.writeText(`请按我接下来的描述定制飞书工作岛的个人弹幕外观。使用本机 MCP（Streamable HTTP）${link.endpoint}，Authorization: Bearer ${link.token}。先 initialize、tools/list，再 read_appearance、update_appearance；读取 saved=true 后才算保存成功。连接 30 分钟有效、锁屏撤销，请保持本机应用打开。仅外观；不得索取消息、凭据或修改核心设置。也可用本机 HTTP 工具发送标准 JSON-RPC。不要输出密钥，不让我手动贴回 JSON。`);button.textContent='已复制，发给 Agent';}catch(e){setStatus(e.message,true);}finally{setTimeout(()=>{button.textContent='接入 Agent';},4000);}});
+$('#connect-agent').addEventListener('click',async()=>{const button=$('#connect-agent');try{const link=await request('POST',{},'/api/agent');await navigator.clipboard.writeText(`请按我接下来的描述定制飞书工作岛的个人灵动岛阅读外观。使用本机 MCP（Streamable HTTP）${link.endpoint}，Authorization: Bearer ${link.token}。先 initialize、tools/list，再 read_appearance、update_appearance；读取 saved=true 后才算保存成功。连接 30 分钟有效、锁屏撤销，请保持本机应用打开。仅外观；不得索取消息、凭据或修改核心设置。也可用本机 HTTP 工具发送标准 JSON-RPC。不要输出密钥，不让我手动贴回 JSON。`);button.textContent='已复制，发给 Agent';}catch(e){setStatus(e.message,true);}finally{setTimeout(()=>{button.textContent='接入 Agent';},4000);}});
+
+async function workspaceAction(payload) {
+  try {
+    const state = await request(payload ? 'POST' : 'GET', payload, '/api/workspace');
+    text('#workspace-state', `${state.aiAvailable ? `本机${state.aiTool}已找到` : '未找到本机AI工具'} · ${state.taskCount}项材料/待办 · ${state.hubConnected ? '中台已连接' : '中台待本人授权'}`);
+    if (document.activeElement !== $('#workspace-minutes')) $('#workspace-minutes').value = state.reminderMinutes;
+    text('#workspace-feedback', state.error || state.hubError || (payload ? '操作已提交' : ''));
+  } catch(e) { text('#workspace-feedback', e.message); }
+}
+$('#workspace-open').addEventListener('click',()=>workspaceAction({action:'open'}));
+$('#workspace-connect').addEventListener('click',()=>workspaceAction({action:'connect'}));
+$('#workspace-disconnect').addEventListener('click',()=>workspaceAction({action:'disconnect'}));
+$('#workspace-save-minutes').addEventListener('click',()=>workspaceAction({action:'minutes',minutes:Number($('#workspace-minutes').value)}));
+$('#workspace-add-recipe').addEventListener('click',()=>workspaceAction({action:'recipe',title:$('#workspace-recipe-title').value,instruction:$('#workspace-recipe-instruction').value}));
+workspaceAction();
+setInterval(()=>{ if (!$('#page-workspace').hidden) workspaceAction(); },15000);

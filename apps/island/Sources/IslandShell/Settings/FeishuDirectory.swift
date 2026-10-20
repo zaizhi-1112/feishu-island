@@ -57,7 +57,7 @@ final class FeishuDirectory: @unchecked Sendable {
         let process = Process(); process.executableURL = cli; process.arguments = (profile.isEmpty ? [] : ["--profile",profile]) + args
         var env = ProcessInfo.processInfo.environment
         env["LARKSUITE_CLI_NO_UPDATE_NOTIFIER"] = "1"; env["LARKSUITE_CLI_NO_SKILLS_NOTIFIER"] = "1"
-        process.environment = env; process.standardInput = FileHandle.nullDevice
+        process.environment = FeishuTransport.shared.environment(env); process.standardInput = FileHandle.nullDevice
         // Both streams are JSON for CLI success/failure. A single pipe also avoids stderr backpressure.
         let pipe = Pipe(); process.standardOutput = pipe; process.standardError = pipe
         defer { try? pipe.fileHandleForReading.close(); try? pipe.fileHandleForWriting.close() }
