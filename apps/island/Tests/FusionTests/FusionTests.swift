@@ -62,9 +62,35 @@ final class FusionTests {
         XCTAssertTrue(HubClient.readable(["forbidden":true]).contains("权限"))
         XCTAssertTrue(HubClient.readable(["auth":true]).contains("授权"))
         let before=s.accepted
-        XCTAssertTrue(WorkspaceDrop.accept([NSItemProvider(item:workFile as NSURL,typeIdentifier:"public.file-url")],store:s))
+        XCTAssertTrue(WorkspaceDrop.acceptFiles([workFile],store:s))
         for _ in 0..<100 where s.accepted==before { try await Task.sleep(nanoseconds:20_000_000) }
         XCTAssertEqual(s.accepted,before+1);XCTAssertTrue(s.disk.items.first?.input.contains("原文合成材料") == true)
+        XCTAssertTrue(s.ingestActive)
+        XCTAssertFalse(WorkspaceDrop.acceptFiles([URL(string:"https://example.invalid/material.txt")!],store:s))
+        let receipt = s.accepted
+        do { _ = try s.add(text:""); XCTAssertTrue(false) } catch { XCTAssertEqual(s.accepted,receipt) }
+        XCTAssertEqual(IngestMotion.progress(elapsed:-1),0)
+        XCTAssertEqual(IngestMotion.progress(elapsed:9),1)
+        XCTAssertGreaterThan(IngestMotion.fileRadius(0.1),IngestMotion.fileRadius(0.5))
+        XCTAssertEqual(IngestMotion.fileRadius(0.8),0)
+        let frames = root.appendingPathComponent("ingest-frames")
+        try FileManager.default.createDirectory(at:frames,withIntermediateDirectories:true)
+        var previous: Data?
+        for (index,progress) in [0.12,0.4,0.65,0.9].enumerated() {
+            let renderer = ImageRenderer(content:IngestBlackHole(progress:progress).background(Color.black))
+            renderer.scale = 2
+            if let image = renderer.cgImage {
+                XCTAssertEqual(image.width,480); XCTAssertEqual(image.height,220)
+                let png = NSBitmapImageRep(cgImage:image).representation(using:.png,properties:[:])!
+                if let previous { XCTAssertFalse(previous == png) }
+                previous = png
+                try png.write(to:frames.appendingPathComponent("frame-\(index).png"))
+            } else { XCTAssertTrue(false) }
+        }
+        if CommandLine.arguments.contains("--ingest-frames") { print("Ingestion frame evidence: \(frames.path)") }
+        for _ in 0..<100 where s.ingestActive { try await Task.sleep(for:.milliseconds(25)) }
+        XCTAssertFalse(s.ingestActive)
+
         XCTAssertEqual(try String(contentsOf:workFile,encoding:.utf8),"原文合成材料")
         XCTAssertTrue(HubClient.readable(["type":"report","rule":"合成周报","committedAt":"2026-10-18T16:36:02.000Z","items":[["name":"下周工作计划","value":"合成计划"]]]).contains("合成计划"))
         for ip in ["127.0.0.1","198.18.0.1","192.168.1.1","10.0.0.1","169.254.1.1"] { XCTAssertFalse(FeishuTransport.publicIPv4(ip)) }

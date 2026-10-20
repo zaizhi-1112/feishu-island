@@ -14,6 +14,7 @@ final class WorkspaceModule: NookModule {
     func makeConfiguration() -> NookConfiguration {
         var c = IslandHost.baseConfiguration(title:"工作台",symbol:"tray.and.arrow.down.fill")
         c.expandedWidth = 400
+        c.onFileDrop = { WorkspaceDrop.acceptFiles($0,store:.shared) }
         c.setCompactLeading { WorkspaceDropMark(store:.shared) }
         c.setCompactTrailing { WorkspaceCompact(store:.shared) }
         c.setHome { WorkspaceView(store:.shared) }
@@ -62,26 +63,28 @@ struct VirxactMark: Shape {
 struct WorkspaceDropMark: View {
     @ObservedObject var store: WorkspaceStore
     @State private var target = false
-    @State private var swallow = false
-    @State private var consumed = false
     var body: some View {
         ZStack {
-            VirxactMark().fill(.white).frame(width:20,height:20).rotationEffect(.degrees(swallow ? 100 : 0)).scaleEffect(target ? 1.2 : 1)
-            if swallow { Image(systemName:"doc.fill").font(.system(size:14)).scaleEffect(consumed ? 0.01 : 1).opacity(consumed ? 0 : 1).offset(x:consumed ? 0 : 18,y:consumed ? 0 : -8) }
+            VirxactMark().fill(.white).frame(width:20,height:20)
+            if store.ingestActive {
+                Circle().trim(from:0.08,to:0.82).stroke(.white,lineWidth:1.5)
+                    .frame(width:26,height:26)
+            }
         }.frame(width:30,height:26).contentShape(Rectangle())
+            .scaleEffect(target ? 1.12 : 1)
             .onDrop(of:[UTType.fileURL.identifier,UTType.utf8PlainText.identifier,UTType.url.identifier],isTargeted:$target) { providers in WorkspaceDrop.accept(providers,store:store) }
-            .onChange(of:store.accepted) { _,_ in animateAcceptance() }
-            .onAppear { if Date().timeIntervalSince(store.acceptedAt)<1 { animateAcceptance() } }
             .help("拖入文件、文字或链接，先存为待办")
     }
-    private func animateAcceptance() {
-        consumed = false; swallow = true
-        DispatchQueue.main.async { withAnimation(.easeIn(duration:0.45)) { consumed = true } }
-        DispatchQueue.main.asyncAfter(deadline:.now()+0.7) { withAnimation(.spring(response:0.3,dampingFraction:0.7)) { swallow = false } }
-    }
 }
+
 @MainActor
 enum WorkspaceDrop {
+    static func acceptFiles(_ urls: [URL], store: WorkspaceStore) -> Bool {
+        guard !urls.isEmpty, urls.count <= 20, urls.allSatisfy(\.isFileURL) else {
+            store.error = "请选择1到20个本机材料文件。"; return false
+        }
+        return accept(urls.map { NSItemProvider(item:$0 as NSURL,typeIdentifier:UTType.fileURL.identifier) },store:store)
+    }
     static func accept(_ providers: [NSItemProvider], store: WorkspaceStore) -> Bool {
         guard !providers.isEmpty, providers.count <= 20 else { store.error = "一次最多放入20份材料。"; return false }
         Task {
@@ -138,6 +141,10 @@ struct WorkspaceView: View {
             .onAppear { minutes = store.disk.reminderMinutes }
             .onDrop(of:[UTType.fileURL.identifier,UTType.utf8PlainText.identifier,UTType.url.identifier],isTargeted:$target) { WorkspaceDrop.accept($0,store:store) }
             .overlay { if target { RoundedRectangle(cornerRadius:14).stroke(.white.opacity(0.8),style:StrokeStyle(lineWidth:2,dash:[6])).allowsHitTesting(false) } }
+            .overlay(alignment:.top) {
+                WorkspaceIngestFeedback(store:store).padding(.top,42)
+                    .allowsHitTesting(false)
+            }
     }
     private var materials: some View {
         VStack(alignment:.leading,spacing:9) {

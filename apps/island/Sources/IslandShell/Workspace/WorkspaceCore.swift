@@ -136,6 +136,7 @@ final class WorkspaceStore: ObservableObject {
     @Published var boardTab = 0
     @Published var accepted = 0
     var acceptedAt = Date.distantPast
+    @Published private(set) var ingestActive = false
     @Published var hub = HubSnapshot()
     var notify: (String) -> Void = { _ in }
     var openBoard: () -> Void = {}
@@ -188,7 +189,14 @@ final class WorkspaceStore: ObservableObject {
         let title = String((files.first?.lastPathComponent ?? text.split(separator:"\n").first.map(String.init) ?? "材料").prefix(48))
         let item = WorkItem(title:title,input:input,files:files.map(\.lastPathComponent),instruction:instruction ?? disk.recipes.first?.instruction ?? "整理要点",due:reminder == 0 ? nil : Date().addingTimeInterval(Double(reminder)*60))
         guard mutate({ $0.items.insert(item,at:0) }) else { throw WorkError.message(error) }
-        selected = item.id; acceptedAt = Date(); accepted += 1; openBoard(); return item.id
+        selected = item.id; acceptedAt = Date(); accepted += 1; ingestActive = true
+        let generation = accepted
+        Task { [weak self] in
+            try? await Task.sleep(for:.seconds(IngestMotion.duration))
+            guard let self, self.accepted == generation else { return }
+            self.ingestActive = false
+        }
+        openBoard(); return item.id
     }
     func setMinutes(_ minutes: Int) { guard (0...10080).contains(minutes) else { return }; _ = mutate { $0.reminderMinutes = minutes } }
     func addRecipe(title: String, instruction: String) throws {

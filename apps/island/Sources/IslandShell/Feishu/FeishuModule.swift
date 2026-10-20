@@ -26,6 +26,7 @@ final class FeishuModule: NookModule {
     func makeConfiguration() -> NookConfiguration {
         var config = IslandHost.baseConfiguration(title: "飞书消息", symbol: "paperplane.fill")
         config.expandedWidth = 380
+        config.onFileDrop = { WorkspaceDrop.acceptFiles($0,store:.shared) }
         let store = store
         config.setCompactLeading { WorkspaceDropMark(store:.shared) }
         config.setCompactTrailing { FeishuCompactView(store: store) }
