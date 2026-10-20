@@ -72,7 +72,7 @@ struct WorkspaceDropMark: View {
             }
         }.frame(width:30,height:26).contentShape(Rectangle())
             .scaleEffect(target ? 1.12 : 1)
-            .onDrop(of:[UTType.fileURL.identifier,UTType.utf8PlainText.identifier,UTType.url.identifier],isTargeted:$target) { providers in WorkspaceDrop.accept(providers,store:store) }
+            .onDrop(of:[UTType.fileURL.identifier,UTType.image.identifier,UTType.utf8PlainText.identifier,UTType.url.identifier],isTargeted:$target) { providers in WorkspaceDrop.accept(providers,store:store) }
             .help("拖入文件、文字或链接，先存为待办")
     }
 }
@@ -91,11 +91,14 @@ enum WorkspaceDrop {
         Task {
             defer { store.endMaterialDrop() }
             do {
-                var text: [String] = [], files: [URL] = []
+                var text: [String] = [], files: [URL] = [], inlineImages: [PendingWorkImage] = []
                 for provider in providers {
                     if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
                         let data = try await load(provider,type:UTType.fileURL.identifier)
                         guard let url = URL(dataRepresentation:data,relativeTo:nil), url.isFileURL else { throw WorkError.message("文件地址无效。") }; files.append(url)
+                    } else if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                        let data = try await load(provider,type:UTType.image.identifier)
+                        inlineImages.append(try PendingWorkImage.decode(data,name:"拖入图片"))
                     } else {
                         let type = provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) ? UTType.url.identifier : UTType.utf8PlainText.identifier
                         let data = try await load(provider,type:type)
@@ -104,12 +107,16 @@ enum WorkspaceDrop {
                 }
                 // Parsing is off the UI thread; files are never uploaded or executed by dropping alone.
                 let captured = text.joined(separator:"\n"), urls = files
-                let material = try await Task.detached { () -> String in
-                    var pieces = captured.isEmpty ? [] : [captured]
-                    for url in urls { let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }; pieces.append("文件：\(url.lastPathComponent)\n" + (try WorkMaterial.read(url))) }
-                    return pieces.joined(separator:"\n\n")
+                let material = try await Task.detached { () -> (String,[PendingWorkImage]) in
+                    var pieces = captured.isEmpty ? [] : [captured], images: [PendingWorkImage] = []
+                    for url in urls {
+                        let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
+                        if WorkspaceStore.isImage(url) { images.append(try PendingWorkImage.read(url)) }
+                        else { pieces.append("文件：\(url.lastPathComponent)\n" + (try WorkMaterial.read(url))) }
+                    }
+                    return (pieces.joined(separator:"\n\n"),images)
                 }.value
-                _ = try store.add(text:material)
+                _ = try store.add(text:material.0,images:material.1+inlineImages)
             } catch { store.error = error.localizedDescription }
         }
         return true
@@ -120,8 +127,10 @@ enum WorkspaceDrop {
 }
 struct WorkspaceView: View {
     @ObservedObject var store: WorkspaceStore
-    @State private var input = ""
-    @State private var recipe = "feedback"
+    var desktop = false
+    private var input: String { store.draftText }
+    @State private var agentCopied = false
+    @State private var recipe = "work"
     @State private var minutes = 20
     var body: some View {
         VStack(alignment:.leading,spacing:10) {
@@ -130,6 +139,7 @@ struct WorkspaceView: View {
                     Button(title) { store.boardTab = i }.buttonStyle(.plain).padding(.horizontal,10).padding(.vertical,6).background(store.boardTab == i ? Color.white.opacity(0.16) : .clear,in:Capsule())
                 }
                 Spacer()
+                if !desktop { Button { WorkspaceWindow.shared.open(store:store) } label: { Image(systemName:"macwindow") }.help("打开独立工作台") }
                 Button { SettingsServer.shared.open() } label:{ Image(systemName:"gearshape") }.buttonStyle(.plain).help("设置与连接")
             }
             if !store.error.isEmpty { Text(store.error).font(.system(size:12)).foregroundStyle(.orange).textSelection(.enabled) }
@@ -138,14 +148,31 @@ struct WorkspaceView: View {
                 else if store.boardTab == 1 { tasks }
                 else { cards }
             }.frame(maxWidth:.infinity,alignment:.leading)
-        }.padding(12).frame(width:376).foregroundStyle(.white)
+        }.padding(desktop ? 24 : 12).frame(width:desktop ? 760 : 376).foregroundStyle(.white)
             .onAppear { minutes = store.disk.reminderMinutes }
 
     }
     private var materials: some View {
         VStack(alignment:.leading,spacing:9) {
+            HStack {
+                TextField("项目",text:$store.draftProject).textFieldStyle(.roundedBorder).frame(maxWidth:desktop ? 280 : 170)
+                if desktop { Button("归纳这个项目") { store.summarizeProject() }; Button(agentCopied ? "已复制连接" : "接入Agent") { SettingsServer.shared.copyWorkspaceConnection(store:store); agentCopied = SettingsServer.shared.workspaceAgent.active }.help("复制当前项目已有任务的MCP连接，30分钟有效；不包含聊天、凭据或其他项目。") }
+                Spacer()
+            }.font(.system(size:12))
             HStack { WorkspaceDropMark(store:store).frame(width:32,height:32); Text("放下材料，接着做你的事").font(.system(size:15,weight:.semibold)); Spacer() }
-            TextEditor(text:$input).font(.system(size:13)).scrollContentBackground(.hidden).padding(6).frame(height:72).background(.white.opacity(0.08),in:RoundedRectangle(cornerRadius:8)).accessibilityLabel("材料文字或链接")
+            WorkInputEditor(text:$store.draftText,pasteImage:{store.attachImage($0)}).padding(6).frame(height:desktop ? 160 : 72).background(.white.opacity(0.08),in:RoundedRectangle(cornerRadius:8))
+            if !store.draftImages.isEmpty {
+                ScrollView(.horizontal) {
+                    HStack(spacing:8) {
+                        ForEach(store.draftImages) { image in
+                            VStack(spacing:3) {
+                                if let ns = NSImage(data:image.data) { Image(nsImage:ns).resizable().scaledToFit().frame(width:54,height:38) }
+                                Button("移除") { store.draftImages.removeAll{$0.id == image.id} }.font(.system(size:10)).accessibilityLabel("移除图片："+image.image.name)
+                            }.help(image.image.name)
+                        }
+                    }
+                }.frame(height:62)
+            }
             Picker("处理方式",selection:$recipe) { ForEach(store.disk.recipes) { r in Text(r.title).tag(r.id) } }.font(.system(size:12))
             HStack {
                 Text("提醒").font(.system(size:12))
@@ -153,17 +180,18 @@ struct WorkspaceView: View {
                 Spacer()
             }.font(.system(size:12))
             HStack {
-                Button("选文件") { store.pickFiles(instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction,minutes:minutes); store.boardTab = 1 }
+                Button("添加附件") { store.pickFiles() }
+                Button("粘贴") { store.pasteMaterial() }
                 Button("存待办") { add(run:false) }
                 Button("交给AI") { add(run:true) }
             }.font(.system(size:12))
             Button("读取上方飞书文档链接") { store.readFeishuMaterial(input,instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction); store.boardTab = 1 }.font(.system(size:11))
-            Text("当前处理工具：\(WorkAI.displayName)。拖入只保存本机。点击“交给AI”才把材料交给你本机已登录的AI服务；链接先作为文字，不自动抓取。支持Word、PDF、文字文件。").font(.system(size:10)).foregroundStyle(.white.opacity(0.55)).fixedSize(horizontal:false,vertical:true)
+            Text("当前处理工具：\(WorkAI.displayName)。拖入只保存本机。点击“交给AI”才把材料交给你本机已登录的AI服务；链接先作为文字，不自动抓取。支持图片/截图（⌘V粘贴）、Word、PDF、文字；最多6张图片，交给AI前可移除。").font(.system(size:10)).foregroundStyle(.white.opacity(0.55)).fixedSize(horizontal:false,vertical:true)
             HStack { Button("导入材料Skill") { store.importSkill() }; Spacer(); Text("\(store.disk.items.filter{$0.state != "done"}.count)项未完成").foregroundStyle(.secondary) }.font(.system(size:11))
         }
     }
     private func add(run: Bool) {
-        do { let id = try store.add(text:input,instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction,minutes:minutes); input = ""; store.boardTab = 1; if run { store.run(id) } } catch { store.error = error.localizedDescription }
+        do { let id = try store.add(text:input,instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction,minutes:minutes,images:store.draftImages,project:store.draftProject); store.draftText = ""; store.draftImages = []; store.boardTab = 1; if run { store.run(id) } } catch { store.error = error.localizedDescription }
     }
     private var tasks: some View {
         ScrollView {
@@ -176,19 +204,31 @@ struct WorkspaceView: View {
                         }.buttonStyle(.plain)
                         if store.selected == item.id {
                             if let due = item.due { DatePicker(item.reminded ? "再次提醒" : "提醒时间",selection:Binding(get:{due},set:{store.setReminder(item.id,date:$0)}),displayedComponents:[.date,.hourAndMinute]).datePickerStyle(.field).font(.system(size:10)) }
+                            Text((item.project ?? "日常工作")+" · "+item.created.formatted(date:.abbreviated,time:.shortened)).font(.system(size:10)).foregroundStyle(.secondary)
                             Text(item.result.isEmpty ? String(item.input.prefix(500)) : item.result).font(.system(size:13)).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)
+                            if let images = item.images, !images.isEmpty {
+                                HStack {
+                                    ForEach(images) { image in
+                                        Button { NSWorkspace.shared.open(store.imageURL(item:item,image:image)) } label: {
+                                            if let ns = NSImage(contentsOf:store.imageURL(item:item,image:image)) { Image(nsImage:ns).resizable().scaledToFit().frame(width:48,height:40) }
+                                            else { Image(systemName:"photo") }
+                                        }.help(image.name)
+                                    }
+                                }
+                            }
+                            if let source = item.resultSource { Text("结果来源："+source).font(.system(size:10)).foregroundStyle(.secondary) }
                             if !item.failure.isEmpty { Text(item.failure).font(.system(size:11)).foregroundStyle(.orange) }
                             HStack {
                                 if ["running","queued"].contains(item.state) { Button("取消") { store.cancel(item.id) } }
                                 else if item.state != "done" { Button(item.result.isEmpty ? "交给AI" : "重新处理") { store.run(item.id) }; Button("完成") { store.complete(item.id) } }
                                 Button("稍后20分") { store.snooze(item.id) }
-                                if !item.result.isEmpty { Button("复制结果") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(item.result,forType:.string) } }
+                                if !item.result.isEmpty { Button("复制结果") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(item.result,forType:.string) }; Button("存文档") { store.exportDocument(item) } }
                             }.font(.system(size:11))
                         }
                     }.padding(10).background(.white.opacity(0.07),in:RoundedRectangle(cornerRadius:10))
                 }
             }
-        }.frame(height:290)
+        }.frame(height:desktop ? 440 : 290)
     }
     private func label(_ state: String) -> String { ["todo":"待办","queued":"排队中","running":"处理中","succeeded":"已完成 · 可取结果","failed":"处理失败","interrupted":"上次中断","done":"已处理"][state] ?? state }
     private var cards: some View {

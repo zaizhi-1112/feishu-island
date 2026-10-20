@@ -8,6 +8,7 @@ final class SettingsServer {
     private var listener: NWListener?
     private weak var store: FeishuStore?
     private let agent = AppearanceMCP()
+    let workspaceAgent = WorkspaceMCP()
     private let assetsRoot: URL?
     init(assetsRoot: URL? = nil) { self.assetsRoot = assetsRoot }
     var address: String? { ready ? "http://127.0.0.1:\(port)" : nil }
@@ -26,7 +27,7 @@ final class SettingsServer {
             if store?.updateAppearance(value) == true { self?.agent.savedRevision = self?.agent.revision ?? 0 }
         }
         if lockObserver == nil {
-            lockObserver = NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.sessionDidResignActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.sessionLocked = true; self?.agent.revoke() } }
+            lockObserver = NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.sessionDidResignActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.sessionLocked = true; self?.agent.revoke(); self?.workspaceAgent.revoke() } }
         }
         if unlockObserver == nil {
             unlockObserver = NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.sessionDidBecomeActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.sessionLocked = false } }
@@ -81,6 +82,13 @@ final class SettingsServer {
         }
         if let url = URL(string: "http://127.0.0.1:\(port)/") { NSWorkspace.shared.open(url) }
     }
+    func copyWorkspaceConnection(store: WorkspaceStore) {
+        guard !sessionLocked, let address else { store.error = "工作台未就绪，请解锁后重试。"; return }
+        let token = workspaceAgent.authorize(store:store)
+        let config: [String:Any] = ["mcpServers":["feishu-island-workspace":["type":"http","url":address+"/mcp/workspace","headers":["Authorization":"Bearer "+token]]]]
+        guard let bytes = try? JSONSerialization.data(withJSONObject:config,options:[.prettyPrinted,.sortedKeys]) else { return }
+        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(String(decoding:bytes,as:UTF8.self),forType:.string)
+    }
     private func snapshot(_ store: FeishuStore) -> SettingsResponse {
         let ruleData = try! JSONEncoder().encode(store.rules)
         return .json([
@@ -132,6 +140,15 @@ final class SettingsServer {
                 } catch { return .error(400,error.localizedDescription) }
             } else if method != "GET" { return .error(405,"不支持的操作。") }
             return .json(["aiTool":WorkAI.displayName,"aiAvailable":WorkAI.executable != nil,"reminderMinutes":workspace.disk.reminderMinutes,"taskCount":workspace.disk.items.count,"hubConnected":workspace.hub.connected,"hubError":workspace.hub.error,"error":workspace.error])
+        }
+        if url.path == "/mcp/workspace" {
+            guard headers["origin"] == nil, !sessionLocked, workspaceAgent.active,
+                  headers["authorization"] == "Bearer "+(workspaceAgent.token ?? "") else { return .error(403,"仅接受有效的个人项目连接") }
+            guard method == "POST" else { return .error(405,"不支持的操作") }
+            guard headers["content-type"]?.hasPrefix("application/json") == true,
+                  let object = try? JSONSerialization.jsonObject(with:body) as? [String:Any] else { return .error(400,"格式不正确") }
+            if let result = workspaceAgent.rpc(object,store:WorkspaceStore.shared) { return .json(result) }
+            return SettingsResponse(status:202,contentType:"application/json",body:Data())
         }
         if url.path == "/mcp" {
             guard headers["origin"] == nil, !sessionLocked, agent.active, headers["authorization"] == "Bearer " + (agent.token ?? "") else { return .error(403,"仅接受有效的个人外观连接") }

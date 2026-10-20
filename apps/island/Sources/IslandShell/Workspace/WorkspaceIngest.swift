@@ -53,7 +53,7 @@ struct WorkspaceDropSurface<Content: View>: View {
                 }
             }
             .contentShape(Rectangle())
-            .onDrop(of:[UTType.fileURL.identifier,UTType.utf8PlainText.identifier,UTType.url.identifier],isTargeted:$textTarget) {
+            .onDrop(of:[UTType.fileURL.identifier,UTType.image.identifier,UTType.utf8PlainText.identifier,UTType.url.identifier],isTargeted:$textTarget) {
                 WorkspaceDrop.accept($0,store:store)
             }
     }

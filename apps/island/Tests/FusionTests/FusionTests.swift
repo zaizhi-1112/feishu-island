@@ -14,6 +14,13 @@ import SwiftUI
 import NookApp
 @testable import IslandShell
 
+func syntheticWorkImage() -> Data {
+    let rep = NSBitmapImageRep(bitmapDataPlanes:nil,pixelsWide:160,pixelsHigh:80,bitsPerSample:8,samplesPerPixel:4,hasAlpha:true,isPlanar:false,colorSpaceName:.deviceRGB,bytesPerRow:0,bitsPerPixel:0)!
+    let bytes = rep.bitmapData!
+    for y in 0..<80 { for x in 0..<160 { let i = y*rep.bytesPerRow+x*4; bytes[i] = x < 80 ? 255 : 0; bytes[i+1] = 0; bytes[i+2] = x < 80 ? 0 : 255; bytes[i+3] = 255 } }
+    return rep.representation(using:.png,properties:[:])!
+}
+
 @MainActor
 final class FusionTests {
     func fixture(_ id:String = UUID().uuidString, text:String = "合成短消息", kind:String = "p2p") -> FeishuMessage {
@@ -88,6 +95,64 @@ final class FusionTests {
         XCTAssertTrue(bounded)
         XCTAssertEqual(PortalFlow.point(index:7,time:1,collapse:1),.zero)
         XCTAssertFalse(PortalFlow.point(index:7,time:0) == PortalFlow.point(index:7,time:0.5))
+        let imageData = syntheticWorkImage()
+        let pending = try PendingWorkImage.decode(imageData,name:"合成红蓝图.png")
+        XCTAssertEqual(pending.image.width,160); XCTAssertEqual(pending.image.height,80)
+        do { _ = try PendingWorkImage.decode(Data("not-image".utf8),name:"invalid.png"); XCTAssertTrue(false) } catch { XCTAssertTrue(true) }
+        do { _ = try PendingWorkImage.decode(Data(repeating:0,count:10_000_001),name:"large.png"); XCTAssertTrue(false) } catch { XCTAssertTrue(true) }
+        let imageStore = WorkspaceStore(root:root.appendingPathComponent("image-workspace"),startTimers:false)
+        imageStore.attachImage(imageData)
+        XCTAssertEqual(imageStore.draftImages.count,1)
+        let editor = WorkInputEditor.Editor()
+        editor.clipboardImage = { imageData }
+        editor.receiveImage = { imageStore.attachImage($0) }
+        editor.paste(nil)
+        XCTAssertEqual(imageStore.draftImages.count,2)
+        let pasteKey = NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.command,timestamp:0,windowNumber:0,context:nil,characters:"v",charactersIgnoringModifiers:"v",isARepeat:false,keyCode:9)!
+        XCTAssertTrue(editor.performKeyEquivalent(with:pasteKey))
+        XCTAssertEqual(imageStore.draftImages.count,3)
+        let imageID = try imageStore.add(text:"",minutes:0,images:[pending],project:"合成图片项目")
+        let imageItem = imageStore.disk.items.first(where:{$0.id==imageID})!
+        let owned = imageStore.imageURL(item:imageItem,image:pending.image)
+        XCTAssertEqual(try Data(contentsOf:owned),pending.data)
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath:owned.path)[.posixPermissions] as? Int,0o600)
+        let imageReload = WorkspaceStore(root:root.appendingPathComponent("image-workspace"),startTimers:false)
+        XCTAssertEqual(imageReload.disk.items.first?.images?.count,1)
+        XCTAssertEqual(imageReload.disk.items.first?.project,"合成图片项目")
+        let imageBefore = imageStore.disk.items.count
+        do { _ = try imageStore.add(text:"too many",images:Array(repeating:pending,count:7)); XCTAssertTrue(false) } catch { XCTAssertEqual(imageStore.disk.items.count,imageBefore) }
+        XCTAssertTrue(s.disk.items.first?.images == nil) // Old text-only workspace remains readable.
+        let mcp = WorkspaceMCP()
+        imageStore.draftProject = "合成图片项目"
+        _ = mcp.authorize(store:imageStore)
+        let outsider = try imageStore.add(text:"不共享项目",minutes:0,project:"另一个项目")
+        func call(_ name: String,_ args: [String:Any] = [:]) -> [String:Any] {
+            mcp.rpc(["jsonrpc":"2.0","id":1,"method":"tools/call","params":["name":name,"arguments":args]],store:imageStore)!
+        }
+        XCTAssertTrue(call("read_work_task",["task_id":outsider.uuidString])["error"] != nil)
+        XCTAssertTrue(call("read_work_task",["task_id":imageID.uuidString])["result"] != nil)
+        XCTAssertTrue(call("submit_work_result",["task_id":imageID.uuidString,"digest":"wrong","text":"拒绝覆盖"])["error"] != nil)
+        let args: [String:Any] = ["task_id":imageID.uuidString,"digest":WorkspaceMCP.digest(imageItem),"text":"合成Agent处理结果"]
+        var externalAlerts = 0; imageStore.notify = {_ in externalAlerts += 1}
+        XCTAssertTrue(call("submit_work_result",args)["result"] != nil)
+        XCTAssertEqual(imageStore.disk.items.first(where:{$0.id==imageID})?.state,"succeeded")
+        XCTAssertEqual(imageStore.disk.items.first(where:{$0.id==imageID})?.resultSource,"外部Agent回传")
+        _ = call("submit_work_result",args); XCTAssertEqual(externalAlerts,1)
+        imageStore.complete(imageID)
+        XCTAssertTrue(call("submit_work_result",args)["error"] != nil)
+        mcp.expires = 0; XCTAssertTrue(call("list_project_tasks")["error"] != nil)
+        mcp.revoke(); XCTAssertNil(mcp.token)
+        let mcpServer = SettingsServer()
+        mcpServer.start(store:store().0,listen:false)
+        _ = mcpServer.workspaceAgent.authorize(store:imageStore)
+        let wire = try JSONSerialization.data(withJSONObject:["jsonrpc":"2.0","id":1,"method":"initialize"])
+        var headers = ["host":"127.0.0.1:18766","content-type":"application/json","authorization":"Bearer "+mcpServer.workspaceAgent.token!]
+        let initialized = await mcpServer.respond(method:"POST",path:"/mcp/workspace",headers:headers,body:wire)
+        XCTAssertEqual(initialized.status,200)
+        headers["origin"] = "https://example.invalid"
+        XCTAssertEqual(await mcpServer.respond(method:"POST",path:"/mcp/workspace",headers:headers,body:wire).status,403)
+        headers["origin"] = nil; headers["authorization"] = "Bearer wrong"
+        XCTAssertEqual(await mcpServer.respond(method:"POST",path:"/mcp/workspace",headers:headers,body:wire).status,403)
         let frames = root.appendingPathComponent("ingest-frames")
         try FileManager.default.createDirectory(at:frames,withIntermediateDirectories:true)
         let waiting = ImageRenderer(content:IngestPortalScene(phase:.waiting,elapsed:0.25).background(Color.black))
@@ -370,6 +435,16 @@ final class FusionTests {
                 do {try p.run();let bytes=pipe.fileHandleForReading.readDataToEndOfFile();p.waitUntilExit();let d = try JSONSerialization.jsonObject(with:bytes) as? [String:Any];return p.terminationStatus == 0 && d?["ok"] as? Bool == true} catch{return false}
             }.value
             print(success ? "PASS: real Feishu user read-only connection, metadata only; no message bodies" : "FAIL: Feishu scoped connection unavailable");exit(success ? 0 : 1)
+        }
+        if CommandLine.arguments.contains("--work-image-ai-check") {
+            do {
+                let url = FileManager.default.temporaryDirectory.appendingPathComponent("island-synthetic-vision-"+UUID().uuidString+".png")
+                try syntheticWorkImage().write(to:url)
+                let ai = WorkAI()
+                let result = try await Task.detached { try ai.run(input:"附件是合成色块，没有客户资料。",instruction:"观察图片，说出左半边和右半边分别是什么颜色，用中文回答，不超过40字。",images:[url]) }.value
+                guard result.contains("红"),result.contains("蓝") else { print("FAIL: synthetic image colors not recognized");exit(1) }
+                print("PASS: real Codex recognized both colors from the attached synthetic image; no real materials or messages")
+            } catch { print("FAIL: "+error.localizedDescription);exit(1) }; return
         }
         if CommandLine.arguments.contains("--work-ai-check") {
             do {
