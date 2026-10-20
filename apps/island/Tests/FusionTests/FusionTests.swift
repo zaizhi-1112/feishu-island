@@ -75,6 +75,19 @@ final class FusionTests {
         XCTAssertEqual(IngestMotion.progress(elapsed:9),1)
         XCTAssertGreaterThan(IngestMotion.fileRadius(0.1),IngestMotion.fileRadius(0.5))
         XCTAssertEqual(IngestMotion.fileRadius(0.8),0)
+        // Long-running hover and every collapse endpoint remain finite and inside the island.
+        var bounded = true
+        for time in [0.0, 0.5, 100_000_000.0] {
+            for collapse in [0.0, 0.5, 1.0] {
+                for index in 0..<144 {
+                    let p = PortalFlow.point(index:index,time:time,collapse:collapse)
+                    bounded = bounded && p.x.isFinite && p.y.isFinite && abs(p.x)<=169 && abs(p.y)<=80
+                }
+            }
+        }
+        XCTAssertTrue(bounded)
+        XCTAssertEqual(PortalFlow.point(index:7,time:1,collapse:1),.zero)
+        XCTAssertFalse(PortalFlow.point(index:7,time:0) == PortalFlow.point(index:7,time:0.5))
         let frames = root.appendingPathComponent("ingest-frames")
         try FileManager.default.createDirectory(at:frames,withIntermediateDirectories:true)
         let waiting = ImageRenderer(content:IngestPortalScene(phase:.waiting,elapsed:0.25).background(Color.black))
