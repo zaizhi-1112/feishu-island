@@ -30,7 +30,7 @@ final class FeishuModule: NookModule {
         let store = store
         config.setCompactLeading { WorkspaceDropMark(store:.shared) }
         config.setCompactTrailing { FeishuCompactView(store: store) }
-        config.setHome { FeishuView(store: store) }
+        config.setHome { WorkspaceDropSurface(store:.shared) { FeishuView(store:store) } }
         config.onReady = { [weak self] coordinator in
             guard let self else { return }
             if !self.context.defaults.bool(forKey: "hoverAutoCollapseV1") {

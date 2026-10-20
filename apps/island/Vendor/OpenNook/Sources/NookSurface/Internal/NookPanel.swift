@@ -152,7 +152,9 @@ final class NookDragInterceptingView: NSView {
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
         let urls = readFileURLs(from: sender.draggingPasteboard)
         guard !urls.isEmpty else { return [] }
-        return dragDestination?.nookPanelDraggingEntered(urls) ?? []
+        let operation = dragDestination?.nookPanelDraggingEntered(urls) ?? []
+        if !operation.isEmpty { hideSourcePreview(sender) }
+        return operation
     }
 
     /// Forward updates as `entered` again - `Nook` is idempotent on enter - so the
@@ -160,7 +162,9 @@ final class NookDragInterceptingView: NSView {
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
         let urls = readFileURLs(from: sender.draggingPasteboard)
         guard !urls.isEmpty else { return [] }
-        return dragDestination?.nookPanelDraggingEntered(urls) ?? []
+        let operation = dragDestination?.nookPanelDraggingEntered(urls) ?? []
+        if !operation.isEmpty { hideSourcePreview(sender) }
+        return operation
     }
 
     override func draggingExited(_ sender: NSDraggingInfo?) {
@@ -181,6 +185,14 @@ final class NookDragInterceptingView: NSView {
         let urls = readFileURLs(from: sender.draggingPasteboard)
         guard !urls.isEmpty else { return false }
         return dragDestination?.nookPanelPerformDrop(urls) ?? false
+    }
+
+    private func hideSourcePreview(_ sender: NSDraggingInfo) {
+        // Destination-only image changes are reverted by AppKit on leaving the region.
+        // The host shows the portal; no source thumbnail or filename needs to cover it.
+        sender.enumerateDraggingItems(options:[],for:self,classes:[NSURL.self],searchOptions:[:]) { item,_,_ in
+            item.imageComponentsProvider = nil
+        }
     }
 
     private func readFileURLs(from pasteboard: NSPasteboard) -> [URL] {

@@ -11,6 +11,7 @@ func XCTAssertLessThan<T:Comparable>(_ a:T,_ b:T,line:UInt = #line) { record(a <
 import Foundation
 import AppKit
 import SwiftUI
+import NookApp
 @testable import IslandShell
 
 @MainActor
@@ -24,6 +25,7 @@ final class FusionTests {
         return (FeishuStore(defaults:defaults),defaults,suite)
     }
     func testWorkspacePersistenceRemindersAndOAuthBoundary() async throws {
+        verifyNativeDragPreview()
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("island-work-check-"+UUID().uuidString)
         XCTAssertEqual(SettingsResponse.json(["url":URL(string:"https://example.invalid")!]).status,500)
         XCTAssertEqual(SettingsResponse.json(["url":"https://example.invalid"]).status,200)
@@ -75,12 +77,34 @@ final class FusionTests {
         XCTAssertEqual(IngestMotion.fileRadius(0.8),0)
         let frames = root.appendingPathComponent("ingest-frames")
         try FileManager.default.createDirectory(at:frames,withIntermediateDirectories:true)
+        let waiting = ImageRenderer(content:IngestPortalScene(phase:.waiting,elapsed:0.25).background(Color.black))
+        waiting.scale = 2
+        if let img=waiting.cgImage { try NSBitmapImageRep(cgImage:img).representation(using:.png,properties:[:])!.write(to:frames.appendingPathComponent("waiting.png")); XCTAssertEqual(img.width,696) } else { XCTAssertTrue(false) }
+        let waitingStore = WorkspaceStore(root:root.appendingPathComponent("drag-surface"),startTimers:false)
+        XCTAssertTrue(waitingStore.beginMaterialDrop()); XCTAssertTrue(waitingStore.ingestSaving)
+        XCTAssertFalse(waitingStore.beginMaterialDrop()); waitingStore.endMaterialDrop(); XCTAssertFalse(waitingStore.ingestSaving)
+        let shell = AppState(preferenceDefaults:NookPreferenceDefaults())
+        shell.isDragInFlight = true
+        let surface = WorkspaceDropSurface(store:waitingStore) { Text("SYNTHETIC RESTING CARD").frame(width:376,height:260) }
+            .environmentObject(shell).background(Color.black)
+        let host = NSHostingView(rootView:surface)
+        host.frame = NSRect(x:0,y:0,width:376,height:260)
+        let window = NSWindow(contentRect:host.frame,styleMask:.borderless,backing:.buffered,defer:false)
+        window.isReleasedWhenClosed = false; window.contentView = host
+        host.layoutSubtreeIfNeeded()
+        try await Task.sleep(for:.milliseconds(80))
+        if let rep = host.bitmapImageRepForCachingDisplay(in:host.bounds) {
+            host.cacheDisplay(in:host.bounds,to:rep)
+            try rep.representation(using:.png,properties:[:])!.write(to:frames.appendingPathComponent("native-drag-state.png"))
+            XCTAssertGreaterThan(rep.pixelsWide,0); XCTAssertFalse(window.isVisible)
+        } else { XCTAssertTrue(false) }
+        window.close()
         var previous: Data?
         for (index,progress) in [0.12,0.4,0.65,0.9].enumerated() {
             let renderer = ImageRenderer(content:IngestBlackHole(progress:progress).background(Color.black))
             renderer.scale = 2
             if let image = renderer.cgImage {
-                XCTAssertEqual(image.width,480); XCTAssertEqual(image.height,220)
+                XCTAssertEqual(image.width,696); XCTAssertEqual(image.height,328)
                 let png = NSBitmapImageRep(cgImage:image).representation(using:.png,properties:[:])!
                 if let previous { XCTAssertFalse(previous == png) }
                 previous = png

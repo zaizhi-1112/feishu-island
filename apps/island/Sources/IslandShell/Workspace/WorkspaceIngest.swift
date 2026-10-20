@@ -1,91 +1,119 @@
+import NookApp
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// A save receipt, never a processing indicator. Elapsed time survives view replacement.
+/// Save-confirmation timing stays independent of the native drag session.
 enum IngestMotion {
-    static let duration: Double = 1.65
+    static let duration: Double = 0.85
     static func progress(elapsed: Double) -> Double { min(1,max(0,elapsed / duration)) }
     static func fileRadius(_ p: Double) -> Double { 79 * pow(max(0,1 - min(1,max(0,p))/0.77),1.15) }
 }
 
-struct WorkspaceIngestFeedback: View {
-    @ObservedObject var store: WorkspaceStore
+enum IngestPhase { case waiting, saving, receipt }
+
+/// Uses OpenNook's real AppKit drag-session signal, before mouse-up. No extra window.
+/// The original view stays mounted (including draft text and scroll position), but invisible.
+/// Only the visible chrome shortens; OpenNook's native drag interceptor keeps its region.
+struct WorkspaceDropSurface<Content: View>: View {
+    @EnvironmentObject private var shell: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject var store: WorkspaceStore
+    @State private var textTarget = false
+    private let content: Content
+    init(store: WorkspaceStore, @ViewBuilder content: () -> Content) {
+        self.store = store; self.content = content()
+    }
+    private var presenting: Bool { shell.isDragInFlight || textTarget || store.ingestSaving || store.ingestActive }
+    private var phase: IngestPhase { store.ingestActive ? .receipt : store.ingestSaving ? .saving : .waiting }
     var body: some View {
-        if store.ingestActive {
-            Group {
-                if reduceMotion {
-                    Label("材料已收好 · 仅存本机",systemImage:"checkmark.circle.fill")
-                        .font(.system(size:13,weight:.medium)).padding(18)
-                } else {
-                    TimelineView(.animation(minimumInterval:1.0/45)) { timeline in
-                        IngestBlackHole(progress:IngestMotion.progress(elapsed:timeline.date.timeIntervalSince(store.acceptedAt)))
+        content
+            .opacity(presenting ? 0 : 1)
+            .allowsHitTesting(!presenting)
+            .accessibilityHidden(presenting)
+            .frame(height:presenting ? 164 : nil)
+            .clipped()
+            .overlay {
+                if presenting {
+                    Group {
+                        if reduceMotion {
+                            VStack(spacing:12) {
+                                VirxactMark().fill(.white).frame(width:46,height:46)
+                                Text(store.ingestActive ? "已收好" : store.ingestSaving ? "正在收纳" : "松手收纳").font(.system(size:13))
+                            }
+                        } else {
+                            TimelineView(.animation(minimumInterval:1.0/45)) { timeline in
+                                IngestPortalScene(phase:phase,elapsed:store.ingestActive ? timeline.date.timeIntervalSince(store.acceptedAt) : timeline.date.timeIntervalSinceReferenceDate)
+                            }
+                        }
                     }
+                    .frame(maxWidth:.infinity,maxHeight:.infinity)
+                    .allowsHitTesting(false)
+                    .accessibilityElement(children:.ignore)
+                    .accessibilityLabel(store.ingestActive ? "材料已收好" : "黑洞已张开，松手收纳材料")
                 }
             }
-            .background(.black.opacity(0.97),in:RoundedRectangle(cornerRadius:18))
-            .overlay { RoundedRectangle(cornerRadius:18).stroke(.white.opacity(0.24),lineWidth:0.5) }
-            .accessibilityElement(children:.ignore)
-            .accessibilityLabel("材料已收好，仅保存在本机")
-        }
+            .contentShape(Rectangle())
+            .onDrop(of:[UTType.fileURL.identifier,UTType.utf8PlainText.identifier,UTType.url.identifier],isTargeted:$textTarget) {
+                WorkspaceDrop.accept($0,store:store)
+            }
     }
 }
 
-/// Entire visual is bounded to the island. No separate window, event capture or desktop mask.
+/// The island's own black surface is the void. No card, border, fake document or thumbnail.
+struct IngestPortalScene: View {
+    var phase: IngestPhase
+    var elapsed: Double
+    private var receipt: Double { phase == .receipt ? IngestMotion.progress(elapsed:elapsed) : 0 }
+    private var opening: Double {
+        phase == .receipt ? pow(1-receipt,0.7) : 0.88 + 0.12*sin(elapsed*2.4)
+    }
+    var body: some View {
+        let mouth = opening
+        ZStack {
+            Canvas { context,size in
+                let center = CGPoint(x:size.width/2,y:size.height/2)
+                // Horizontal accretion disc: alternating brilliant and absent segments.
+                for ring in 0..<8 {
+                    var c = context
+                    c.translateBy(x:center.x,y:center.y)
+                    c.rotate(by:.radians(-0.10))
+                    c.scaleBy(x:1,y:0.30 + mouth*0.28)
+                    c.rotate(by:.radians(elapsed * (ring.isMultiple(of:2) ? 0.85 : -0.65) + Double(ring)*0.7))
+                    let r = (33 + Double(ring)*7.5) * (0.45+mouth*0.55)
+                    for arc in 0..<3 {
+                        var path = Path()
+                        let start = Double(arc)*120+Double(ring)*9
+                        path.addArc(center:.zero,radius:r,startAngle:.degrees(start),endAngle:.degrees(start+72),clockwise:false)
+                        c.stroke(path,with:.color(.white.opacity((0.96-Double(ring)*0.10)*mouth)),style:StrokeStyle(lineWidth:ring == 0 ? 3.5 : 1.5,lineCap:.round))
+                    }
+                }
+                // Streams point into the mouth; no facsimile of the file being dragged.
+                for i in 0..<28 {
+                    let cycle = (elapsed*0.48+Double(i)/28).truncatingRemainder(dividingBy:1)
+                    let angle = Double(i)*2.399+elapsed*0.35
+                    let r = (40+(1-cycle)*108)*mouth
+                    let point = CGPoint(x:center.x+cos(angle)*r,y:center.y+sin(angle)*r*0.45)
+                    let end = CGPoint(x:center.x+cos(angle)*(r+5+cycle*8),y:center.y+sin(angle)*(r+5+cycle*8)*0.45)
+                    var trail = Path(); trail.move(to:point); trail.addLine(to:end)
+                    context.stroke(trail,with:.color(.white.opacity((0.1+cycle*0.5)*mouth)),lineWidth:0.7)
+                }
+                context.fill(Path(ellipseIn:CGRect(x:center.x-43*mouth,y:center.y-28*mouth,width:86*mouth,height:56*mouth)),with:.color(.black))
+            }
+            // Two halves of the real brand mark open like jaws, then close into the logo.
+            ZStack {
+                VirxactMark().fill(.white)
+                    .mask(alignment:.top) { Rectangle().frame(height:23) }
+                    .offset(y:-mouth*9)
+                VirxactMark().fill(.white)
+                    .mask(alignment:.bottom) { Rectangle().frame(height:23) }
+                    .offset(y:mouth*9)
+            }.frame(width:46,height:46)
+        }.frame(width:348,height:164).clipped()
+    }
+}
+
+/// Deterministic save-phase render used by the offline visual checks.
 struct IngestBlackHole: View {
     var progress: Double
-    var body: some View {
-        let p = min(1,max(0,progress))
-        let envelope = min(1,p/0.10) * min(1,(1-p)/0.18)
-        let radius = IngestMotion.fileRadius(p)
-        let angle = -0.65 + p * 9.5
-        VStack(spacing:0) {
-            ZStack {
-                Canvas { context,size in
-                    let center = CGPoint(x:size.width/2,y:size.height/2)
-                    let growth = 0.45 + 0.55 * min(1,p/0.18)
-                    // Black gaps between white arcs give the official mark's virtual/real rhythm.
-                    for ring in 0..<6 {
-                        var c = context
-                        c.translateBy(x:center.x,y:center.y)
-                        c.rotate(by:.radians(-0.16))
-                        c.scaleBy(x:1,y:0.40 + Double(ring)*0.025)
-                        c.rotate(by:.radians(p * (ring.isMultiple(of:2) ? 7 : -5) + Double(ring)*0.9))
-                        let r = (25 + Double(ring)*5.8) * growth
-                        let rect = CGRect(x:-r,y:-r,width:r*2,height:r*2)
-                        c.stroke(Path(ellipseIn:rect),with:.color(.white.opacity(0.055 * envelope)),lineWidth:3)
-                        for arc in 0..<3 {
-                            var path = Path()
-                            let start = Double(arc)*120 + Double(ring)*11
-                            path.addArc(center:.zero,radius:r,startAngle:.degrees(start),endAngle:.degrees(start+58),clockwise:false)
-                            c.stroke(path,with:.color(.white.opacity((0.92-Double(ring)*0.105)*envelope)),style:StrokeStyle(lineWidth:ring == 0 ? 2.3 : 1.2,lineCap:.round))
-                        }
-                    }
-                    // Inward particle paths; fixed seed and bounded count, no random frame jitter.
-                    for i in 0..<18 {
-                        let phase = (p * 1.35 + Double(i)/18).truncatingRemainder(dividingBy:1)
-                        let a = Double(i)*2.399 + p*4.2
-                        let r = (26 + (1-phase)*58) * growth
-                        let x = center.x + cos(a)*r
-                        let y = center.y + sin(a)*r*0.39
-                        context.fill(Path(ellipseIn:CGRect(x:x,y:y,width:1.3,height:1.3)),with:.color(.white.opacity((0.25+0.6*phase)*envelope)))
-                    }
-                    context.fill(Path(ellipseIn:CGRect(x:center.x-22,y:center.y-16,width:44,height:32)),with:.color(.black))
-                }.frame(width:228,height:78)
-                VirxactMark().fill(.white).frame(width:25,height:25)
-                    .rotationEffect(.degrees(-sin(p*Double.pi)*90))
-                    .scaleEffect(0.94 + 0.06*cos(p*Double.pi*2))
-                if p < 0.79 {
-                    Image(systemName:"doc.fill").font(.system(size:21,weight:.medium)).foregroundStyle(.white)
-                        .scaleEffect(max(0.01,1-pow(p/0.79,1.7)))
-                        .rotationEffect(.degrees(p*590))
-                        .offset(x:cos(angle)*radius,y:sin(angle)*radius*0.44)
-                        .opacity(min(1,(0.79-p)/0.14))
-                }
-            }.frame(width:228,height:78).clipped()
-            Text(p < 0.77 ? "正在收纳" : "已收好 · 仅存本机")
-                .font(.system(size:11,weight:.medium)).foregroundStyle(.white.opacity(0.8))
-                .frame(height:22)
-        }.padding(.horizontal,6).padding(.vertical,5)
-            .frame(width:240,height:110).clipped()
-    }
+    var body: some View { IngestPortalScene(phase:.receipt,elapsed:progress*IngestMotion.duration) }
 }

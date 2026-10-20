@@ -36,3 +36,12 @@ OpenNook's modifications to the kit are licensed under the MIT License - see
 `LICENSE-MIT-NOOKSURFACE` - preserving compatibility with the original
 DynamicNotchKit license and keeping the chrome freely usable for any purpose,
 including downstream forks.
+
+## Local Feishu Island host patch (2026-10-21)
+
+`NookSurface/Internal/NookPanel.swift`: while a native file drag is accepted over
+this island, suppress the source's drag-image components so the host's waiting
+portal is visible. AppKit automatically restores the source drag images when the drag leaves or
+is cancelled; the host does not cache thumbnails. No file data is changed,
+no thumbnail is persisted, and normal mouse hit testing stays transparent.
+The existing MIT notice and upstream license remain in effect.

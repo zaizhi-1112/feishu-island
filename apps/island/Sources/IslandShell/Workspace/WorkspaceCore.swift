@@ -137,6 +137,7 @@ final class WorkspaceStore: ObservableObject {
     @Published var accepted = 0
     var acceptedAt = Date.distantPast
     @Published private(set) var ingestActive = false
+    @Published private(set) var ingestSaving = false
     @Published var hub = HubSnapshot()
     var notify: (String) -> Void = { _ in }
     var openBoard: () -> Void = {}
@@ -178,6 +179,11 @@ final class WorkspaceStore: ObservableObject {
         let old = disk; change(&disk)
         do { try save(); error = ""; return true } catch { disk = old; self.error = "保存失败，操作未生效。请检查磁盘空间。"; return false }
     }
+    func beginMaterialDrop() -> Bool {
+        guard !ingestSaving else { return false }
+        ingestActive = false; ingestSaving = true; return true
+    }
+    func endMaterialDrop() { ingestSaving = false }
     @discardableResult func add(text: String, files: [URL] = [], instruction: String? = nil, minutes: Int? = nil) throws -> UUID {
         guard disk.items.count < 500, files.count <= 20, text.utf8.count <= 200_000 else { throw WorkError.message("材料或待办过多，请先整理。") }
         var parts = text.isEmpty ? [] : [text]

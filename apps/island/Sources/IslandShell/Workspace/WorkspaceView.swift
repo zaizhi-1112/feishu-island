@@ -17,7 +17,7 @@ final class WorkspaceModule: NookModule {
         c.onFileDrop = { WorkspaceDrop.acceptFiles($0,store:.shared) }
         c.setCompactLeading { WorkspaceDropMark(store:.shared) }
         c.setCompactTrailing { WorkspaceCompact(store:.shared) }
-        c.setHome { WorkspaceView(store:.shared) }
+        c.setHome { WorkspaceDropSurface(store:.shared) { WorkspaceView(store:.shared) } }
         c.onReady = { [context] coordinator in
             let store = WorkspaceStore.shared
             store.openBoard = { [weak coordinator] in coordinator?.switchModule(to:IslandHost.workspaceID); coordinator?.showNook() }
@@ -26,7 +26,7 @@ final class WorkspaceModule: NookModule {
                     WorkspaceDropMark(store:store)
                 } compactTrailing: { Text("待查看").font(.system(size:10)) } minimal: { Image(systemName:"checkmark.circle") }
                 activity.setPeek { Text(title).font(.system(size:13)).padding(8) }
-                activity.setExpanded { WorkspaceView(store:store) }
+                activity.setExpanded { WorkspaceDropSurface(store:store) { WorkspaceView(store:store) } }
                 context.services.resolve(NookLiveActivitiesKey.self).start(activity)
             }
         }
@@ -87,7 +87,9 @@ enum WorkspaceDrop {
     }
     static func accept(_ providers: [NSItemProvider], store: WorkspaceStore) -> Bool {
         guard !providers.isEmpty, providers.count <= 20 else { store.error = "一次最多放入20份材料。"; return false }
+        guard store.beginMaterialDrop() else { return false }
         Task {
+            defer { store.endMaterialDrop() }
             do {
                 var text: [String] = [], files: [URL] = []
                 for provider in providers {
@@ -121,7 +123,6 @@ struct WorkspaceView: View {
     @State private var input = ""
     @State private var recipe = "feedback"
     @State private var minutes = 20
-    @State private var target = false
     var body: some View {
         VStack(alignment:.leading,spacing:10) {
             HStack {
@@ -139,12 +140,7 @@ struct WorkspaceView: View {
             }.frame(maxWidth:.infinity,alignment:.leading)
         }.padding(12).frame(width:376).foregroundStyle(.white)
             .onAppear { minutes = store.disk.reminderMinutes }
-            .onDrop(of:[UTType.fileURL.identifier,UTType.utf8PlainText.identifier,UTType.url.identifier],isTargeted:$target) { WorkspaceDrop.accept($0,store:store) }
-            .overlay { if target { RoundedRectangle(cornerRadius:14).stroke(.white.opacity(0.8),style:StrokeStyle(lineWidth:2,dash:[6])).allowsHitTesting(false) } }
-            .overlay(alignment:.top) {
-                WorkspaceIngestFeedback(store:store).padding(.top,42)
-                    .allowsHitTesting(false)
-            }
+
     }
     private var materials: some View {
         VStack(alignment:.leading,spacing:9) {
