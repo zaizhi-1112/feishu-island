@@ -31,8 +31,10 @@ final class FusionTests {
         let id = try s.add(text:"合成客户反馈：搜索结果没有日期。",minutes:1)
         XCTAssertEqual(s.disk.items.count,1); XCTAssertEqual(s.disk.items[0].state,"todo")
         var alerts = 0; s.notify = {_ in alerts += 1}
+        s.boardTab = 2
         s.tick(now:Date().addingTimeInterval(61)); s.tick(now:Date().addingTimeInterval(62))
         XCTAssertEqual(alerts,1); XCTAssertTrue(s.disk.items[0].reminded)
+        XCTAssertEqual(s.boardTab,1); XCTAssertEqual(s.selected,id)
         let loaded = WorkspaceStore(root:root,startTimers:false)
         XCTAssertEqual(loaded.disk.items[0].id,id); XCTAssertTrue(loaded.disk.items[0].reminded)
         let render = ImageRenderer(content:WorkspaceView(store:s).background(Color.black).preferredColorScheme(.dark))

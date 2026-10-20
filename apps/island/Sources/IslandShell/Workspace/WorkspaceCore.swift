@@ -133,6 +133,7 @@ final class WorkspaceStore: ObservableObject {
     @Published private(set) var disk = WorkDisk()
     @Published var error = ""
     @Published var selected: UUID?
+    @Published var boardTab = 0
     @Published var accepted = 0
     var acceptedAt = Date.distantPast
     @Published var hub = HubSnapshot()
@@ -218,7 +219,7 @@ final class WorkspaceStore: ObservableObject {
                 switch result { case .success(let value): state.items[i].result = value; state.items[i].state = "succeeded"
                 case .failure(let e): state.items[i].failure = e.localizedDescription; state.items[i].state = "failed" }
             }
-            if saved { self.notify(result.isSuccess ? "材料处理完成，点开取结果" : "材料处理未完成，点开查看") }
+            if saved { self.selected = id; self.boardTab = 1; self.notify(result.isSuccess ? "材料处理完成，点开取结果" : "材料处理未完成，点开查看") }
             if saved, let next=self.disk.items.reversed().first(where:{$0.state=="queued"}) {
                 if self.mutate({s in if let i=s.items.firstIndex(where:{$0.id==next.id}){s.items[i].state="todo"}}){self.run(next.id)}
             }
@@ -233,7 +234,7 @@ final class WorkspaceStore: ObservableObject {
     func snooze(_ id: UUID, minutes: Int = 20) { guard (1...10080).contains(minutes) else { return }; _ = mutate { s in if let i = s.items.firstIndex(where:{$0.id == id}) { s.items[i].due = Date().addingTimeInterval(Double(minutes)*60); s.items[i].reminded = false } } }
     func tick(now: Date = Date()) {
         let due = disk.items.filter { $0.state != "done" && !$0.reminded && ($0.due.map{$0 <= now} ?? false) }
-        if !due.isEmpty, mutate({ s in for i in s.items.indices where due.contains(where:{$0.id == s.items[i].id}) { s.items[i].reminded = true } }) { selected = due.first?.id; notify("\(due.count)项待办到提醒时间了") }
+        if !due.isEmpty, mutate({ s in for i in s.items.indices where due.contains(where:{$0.id == s.items[i].id}) { s.items[i].reminded = true } }) { selected = due.first?.id; boardTab = 1; notify("\(due.count)项待办到提醒时间了") }
         if integrationEnabled && now.timeIntervalSince(lastHubRefresh) > 600 { Task { await refreshHub() } }
     }
     func readFeishuMaterial(_ link: String, instruction: String?) {

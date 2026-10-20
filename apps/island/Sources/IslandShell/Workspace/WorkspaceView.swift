@@ -115,7 +115,6 @@ enum WorkspaceDrop {
 }
 struct WorkspaceView: View {
     @ObservedObject var store: WorkspaceStore
-    @State private var tab = 0
     @State private var input = ""
     @State private var recipe = "feedback"
     @State private var minutes = 20
@@ -124,15 +123,15 @@ struct WorkspaceView: View {
         VStack(alignment:.leading,spacing:10) {
             HStack {
                 ForEach(Array(["材料","待办","中台"].enumerated()),id:\.offset) { i,title in
-                    Button(title) { tab = i }.buttonStyle(.plain).padding(.horizontal,10).padding(.vertical,6).background(tab == i ? Color.white.opacity(0.16) : .clear,in:Capsule())
+                    Button(title) { store.boardTab = i }.buttonStyle(.plain).padding(.horizontal,10).padding(.vertical,6).background(store.boardTab == i ? Color.white.opacity(0.16) : .clear,in:Capsule())
                 }
                 Spacer()
                 Button { SettingsServer.shared.open() } label:{ Image(systemName:"gearshape") }.buttonStyle(.plain).help("设置与连接")
             }
             if !store.error.isEmpty { Text(store.error).font(.system(size:12)).foregroundStyle(.orange).textSelection(.enabled) }
             Group {
-                if tab == 0 { materials }
-                else if tab == 1 { tasks }
+                if store.boardTab == 0 { materials }
+                else if store.boardTab == 1 { tasks }
                 else { cards }
             }.frame(maxWidth:.infinity,alignment:.leading)
         }.padding(12).frame(width:376).foregroundStyle(.white)
@@ -151,17 +150,17 @@ struct WorkspaceView: View {
                 Spacer()
             }.font(.system(size:12))
             HStack {
-                Button("选文件") { store.pickFiles(instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction,minutes:minutes); tab = 1 }
+                Button("选文件") { store.pickFiles(instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction,minutes:minutes); store.boardTab = 1 }
                 Button("存待办") { add(run:false) }
                 Button("交给AI") { add(run:true) }
             }.font(.system(size:12))
-            Button("读取上方飞书文档链接") { store.readFeishuMaterial(input,instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction); tab = 1 }.font(.system(size:11))
+            Button("读取上方飞书文档链接") { store.readFeishuMaterial(input,instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction); store.boardTab = 1 }.font(.system(size:11))
             Text("当前处理工具：\(WorkAI.displayName)。拖入只保存本机。点击“交给AI”才把材料交给你本机已登录的AI服务；链接先作为文字，不自动抓取。支持Word、PDF、文字文件。").font(.system(size:10)).foregroundStyle(.white.opacity(0.55)).fixedSize(horizontal:false,vertical:true)
             HStack { Button("导入材料Skill") { store.importSkill() }; Spacer(); Text("\(store.disk.items.filter{$0.state != "done"}.count)项未完成").foregroundStyle(.secondary) }.font(.system(size:11))
         }
     }
     private func add(run: Bool) {
-        do { let id = try store.add(text:input,instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction,minutes:minutes); input = ""; tab = 1; if run { store.run(id) } } catch { store.error = error.localizedDescription }
+        do { let id = try store.add(text:input,instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction,minutes:minutes); input = ""; store.boardTab = 1; if run { store.run(id) } } catch { store.error = error.localizedDescription }
     }
     private var tasks: some View {
         ScrollView {
