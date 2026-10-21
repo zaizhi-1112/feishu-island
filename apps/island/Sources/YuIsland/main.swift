@@ -2,6 +2,8 @@ import NookApp
 import IslandShell
 import AppKit
 
+if MainActor.assumeIsolated({ DotSandbox.runIfRequested() }) { exit(0) }
+
 // Finder normally reuses the running app. Guard direct executable launches as well.
 if let id = Bundle.main.bundleIdentifier,
    let existing = NSRunningApplication.runningApplications(withBundleIdentifier: id)

@@ -128,6 +128,10 @@ enum WorkspaceDrop {
 struct WorkspaceView: View {
     @ObservedObject var store: WorkspaceStore
     var desktop = false
+    @ObservedObject var dotPairing = SettingsServer.shared.dotPairing
+    @State private var confirmDot = false
+    @State private var confirmedProject = ""
+    @State private var dotCopied = false
     private var input: String { store.draftText }
     @State private var agentCopied = false
     @State private var recoveryURL = ""
@@ -150,7 +154,15 @@ struct WorkspaceView: View {
                 else { cards }
             }.frame(maxWidth:.infinity,alignment:.leading)
         }.padding(desktop ? 24 : 12).frame(width:desktop ? 760 : 376).foregroundStyle(.white)
-            .onAppear { minutes = store.disk.reminderMinutes }
+            .onAppear { minutes = store.disk.reminderMinutes; if Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview" { do { try dotPairing.load() } catch { store.error=error.localizedDescription } } }
+            .onChange(of:store.draftProject) { _,_ in dotCopied=false; agentCopied=false }
+            .confirmationDialog("连接Dot到「\(confirmedProject)」？",isPresented:$confirmDot,titleVisibility:.visible) {
+                Button("允许此项目长期连接并复制") {
+                    guard confirmedProject==store.draftProject else { store.error="项目已变化，请重新确认。"; return }
+                    SettingsServer.shared.copyDotConnection(store:store); dotCopied=store.error.isEmpty
+                }
+                Button("取消",role:.cancel) {}
+            } message: { Text("仅能领取你主动交给Dot的本项目任务和附件、回传结果。凭据放本机钥匙串，连接时自动续期；30天不连接失效。锁屏暂停，可随时断开。不会读取飞书消息或其他项目。") }
 
     }
     private var materials: some View {
@@ -177,7 +189,19 @@ struct WorkspaceView: View {
             Picker("交给谁",selection:$store.draftService) {
                 Text(WorkAI.displayName+" · 本机").tag("codex")
                 Text("豆包工作 · 本人已登录网页").tag("doubao")
+                Text("Dot · 已配对项目").tag("dot")
             }.font(.system(size:12))
+            if store.draftService == "dot" {
+                HStack {
+                    Text(dotPairing.grant(project:store.draftProject) == nil ? "Dot待配对" : "Dot已配对").font(.system(size:11))
+                    if desktop {
+                        Button(dotCopied ? "已复制Dot连接" : "连接Dot") { confirmedProject=store.draftProject; confirmDot=true }
+                        Button("断开") { do { try dotPairing.disconnect(project:store.draftProject); dotCopied=false } catch { store.error=error.localizedDescription } }.disabled(dotPairing.grant(project:store.draftProject)==nil)
+                    } else { Button("连接设置") { WorkspaceWindow.shared.open(store:store) } }
+                }.font(.system(size:11))
+                if let seen=dotPairing.grant(project:store.draftProject)?.lastSeen { Text("最后连接："+seen.formatted(date:.abbreviated,time:.shortened)).font(.system(size:10)).foregroundStyle(.secondary) }
+                Text("交给AI后等待Dot领取；配对不会自动唤醒Dot。Mac和ChatGPT须在线，Dot需要在已连接的本机任务中使用此连接。").font(.system(size:10)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            }
             Picker("处理方式",selection:$recipe) { ForEach(store.disk.recipes) { r in Text(r.title).tag(r.id) } }.font(.system(size:12))
             HStack {
                 Text("提醒").font(.system(size:12))
@@ -191,7 +215,7 @@ struct WorkspaceView: View {
                 Button("交给AI") { add(run:true) }
             }.font(.system(size:12))
             Button("读取上方飞书文档链接") { store.readFeishuMaterial(input,instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction); store.boardTab = 1 }.font(.system(size:11))
-            Text("当前处理工具：\(store.draftService == "doubao" ? "豆包工作（本人网页）" : WorkAI.displayName)。拖入只保存本机。点击“交给AI”才把材料交给你本机已登录的AI服务；链接先作为文字，不自动抓取。支持图片/截图（⌘V粘贴）、Word、PDF、文字；最多6张图片，交给AI前可移除。").font(.system(size:10)).foregroundStyle(.white.opacity(0.55)).fixedSize(horizontal:false,vertical:true)
+            Text("当前处理工具：\(store.draftService == "dot" ? "Dot（项目派单）" : store.draftService == "doubao" ? "豆包工作（本人网页）" : WorkAI.displayName)。拖入只保存本机。点击“交给AI”才把材料交给你本机已登录的AI服务；链接先作为文字，不自动抓取。支持图片/截图（⌘V粘贴）、Word、PDF、文字；最多6张图片，交给AI前可移除。").font(.system(size:10)).foregroundStyle(.white.opacity(0.55)).fixedSize(horizontal:false,vertical:true)
             HStack { Button("导入材料Skill") { store.importSkill() }; Spacer(); Text("\(store.disk.items.filter{$0.state != "done"}.count)项未完成").foregroundStyle(.secondary) }.font(.system(size:11))
         }
     }
@@ -244,13 +268,13 @@ struct WorkspaceView: View {
                             if let source = item.resultSource { Text("结果来源："+source).font(.system(size:10)).foregroundStyle(.secondary) }
                             if !item.failure.isEmpty { Text(item.failure).font(.system(size:11)).foregroundStyle(.orange) }
                             HStack {
-                                if ["running","queued"].contains(item.state) { Button(item.service == "doubao" ? "停止等候" : "取消") { store.cancel(item.id) } }
+                                if ["running","queued","dot_waiting","dot_running"].contains(item.state) { Button(item.service == "doubao" ? "停止等候" : "取消") { store.cancel(item.id) } }
                                 else if item.state != "done" { Button(item.result.isEmpty ? "交给AI" : "重新处理") { store.run(item.id) }; Button("完成") { store.complete(item.id) } }
                                 Button("稍后20分") { store.snooze(item.id) }
                             }.font(.system(size:11))
                             HStack {
                                 Button("编辑") { store.beginEdit(item.id) }.disabled(!WorkspaceStore.canEdit(item))
-                                Button("删除",role:.destructive) { store.deleteItem(item.id) }.disabled(["running","queued"].contains(item.state))
+                                Button("删除",role:.destructive) { store.deleteItem(item.id) }.disabled(["running","queued","dot_running"].contains(item.state))
                             }.font(.system(size:11))
                             if !item.result.isEmpty { HStack { Button("复制结果") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(item.result,forType:.string) }; Button("存文档") { store.exportDocument(item) }; Button("存到飞书") { store.saveToFeishu(item) } }.font(.system(size:11)) }
                         }
@@ -264,7 +288,7 @@ struct WorkspaceView: View {
             }
         }.frame(height:desktop ? 440 : 290)
     }
-    private func label(_ state: String) -> String { ["todo":"待办","queued":"排队中","running":"处理中","succeeded":"已完成 · 可取结果","failed":"处理失败","interrupted":"上次中断","done":"已处理"][state] ?? state }
+    private func label(_ state: String) -> String { ["dot_waiting":"等待Dot领取","dot_running":"Dot处理中","todo":"待办","queued":"排队中","running":"处理中","succeeded":"已完成 · 可取结果","failed":"处理失败","interrupted":"上次中断","done":"已处理"][state] ?? state }
     private var cards: some View {
         VStack(alignment:.leading,spacing:8) {
             HStack { Text(store.hub.connected ? store.hub.name : "本人虚实中台").font(.system(size:14,weight:.semibold)); Spacer(); Button("刷新") { Task { await store.refreshHub() } } }

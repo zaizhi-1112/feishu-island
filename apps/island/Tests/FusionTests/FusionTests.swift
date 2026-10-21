@@ -505,6 +505,7 @@ final class FusionTests {
         }
         let tests = FusionTests()
         do {
+            try await tests.testDotPairingAndDelegation()
             try tests.testTaskEditingTrashAndRestore()
             try await tests.testWorkspacePersistenceRemindersAndOAuthBoundary()
             await tests.testFreshInstallIsStoppedAndRendererIsLazy()

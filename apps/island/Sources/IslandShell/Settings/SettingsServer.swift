@@ -9,8 +9,10 @@ final class SettingsServer {
     private weak var store: FeishuStore?
     private let agent = AppearanceMCP()
     let workspaceAgent = WorkspaceMCP()
+    let dotPairing: DotPairing
+    private let workspaceOverride: WorkspaceStore?
     private let assetsRoot: URL?
-    init(assetsRoot: URL? = nil) { self.assetsRoot = assetsRoot }
+    init(assetsRoot: URL? = nil, dotPairing: DotPairing? = nil, workspace: WorkspaceStore? = nil) { self.assetsRoot = assetsRoot; self.dotPairing = dotPairing ?? DotPairing(); self.workspaceOverride=workspace }
     var connectedAccountName: String? { store?.account }
     var address: String? { ready ? "http://127.0.0.1:\(port)" : nil }
     private var lockObserver: NSObjectProtocol?
@@ -90,6 +92,16 @@ final class SettingsServer {
         guard let bytes = try? JSONSerialization.data(withJSONObject:config,options:[.prettyPrinted,.sortedKeys]) else { return }
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(String(decoding:bytes,as:UTF8.self),forType:.string)
     }
+    func copyDotConnection(store: WorkspaceStore) {
+        guard !sessionLocked, let address else { store.error="请解锁并等待本机服务就绪。"; return }
+        do {
+            let token=try dotPairing.pair(project:store.draftProject)
+            let config: [String:Any] = ["mcpServers":["feishu-island-dot":["type":"http","url":address+"/mcp/dot","headers":["Authorization":"Bearer "+token]]]]
+            let data=try JSONSerialization.data(withJSONObject:config,options:[.prettyPrinted,.sortedKeys])
+            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(String(decoding:data,as:UTF8.self),forType:.string)
+            store.error=""
+        } catch { store.error=error.localizedDescription }
+    }
     private func snapshot(_ store: FeishuStore) -> SettingsResponse {
         let ruleData = try! JSONEncoder().encode(store.rules)
         return .json([
@@ -141,6 +153,17 @@ final class SettingsServer {
                 } catch { return .error(400,error.localizedDescription) }
             } else if method != "GET" { return .error(405,"不支持的操作。") }
             return .json(["aiTool":WorkAI.displayName,"aiAvailable":WorkAI.executable != nil,"reminderMinutes":workspace.disk.reminderMinutes,"taskCount":workspace.disk.items.count,"hubConnected":workspace.hub.connected,"hubError":workspace.hub.error,"error":workspace.error])
+        }
+        if url.path == "/mcp/dot" {
+            guard headers["origin"] == nil, !sessionLocked, method=="POST",
+                  headers["content-type"]?.hasPrefix("application/json")==true,
+                  let auth=headers["authorization"], auth.hasPrefix("Bearer ") else { return .error(403,"仅接受本机Dot项目连接") }
+            guard let object=try? JSONSerialization.jsonObject(with:body) as? [String:Any] else { return .error(400,"格式不正确") }
+            do {
+                guard let grant=try dotPairing.authenticate(String(auth.dropFirst(7))) else { return .error(403,"连接已过期或断开，请由本人重新配对") }
+                if let result=DotMCP.rpc(object,grant:grant,store:workspaceOverride ?? WorkspaceStore.shared,now:dotPairing.now()) { return .json(result) }
+                return SettingsResponse(status:202,contentType:"application/json",body:Data())
+            } catch { return .error(503,"Dot安全凭据暂不可用；未要求密码，未执行任务") }
         }
         if url.path == "/mcp/workspace" {
             guard headers["origin"] == nil, !sessionLocked, workspaceAgent.active,

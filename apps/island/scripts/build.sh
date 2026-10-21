@@ -39,6 +39,8 @@ cp -R "$ROOT/Vendor/OpenNook/ThirdPartyLicenses" "$APP/Contents/Resources/"
 if [[ -f "$ROOT/Resources/AppIcon.icns" ]]; then
     cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/"
 fi
+ISLAND_SDK="$SDK" bash "$ROOT/scripts/build-dot-auth-helper.sh"
+cp "$ROOT/.build/dot-auth-helper/feishu-dot-auth" "$APP/Contents/Helpers/feishu-dot-auth"
 codesign --force --sign - "$APP"
 codesign --verify --strict "$APP"
 echo "Built: $APP"
