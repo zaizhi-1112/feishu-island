@@ -20,6 +20,9 @@ struct WorkItem: Codable, Identifiable, Equatable {
     var exportDigest: String?
     var exportVerifiedAt: Date?
     var dotClaim: DotClaim?
+    var dotDispatch: UUID?
+    var dotQueuedAt: Date?
+    var dotDeliveries: [String:DotDelivery]?
     var state = "todo"
     var created = Date()
     var due: Date?
@@ -165,6 +168,7 @@ final class WorkspaceStore: ObservableObject {
     @Published private(set) var ingestSaving = false
     @Published var hub = HubSnapshot()
     var notify: (String) -> Void = { _ in }
+    var dotQueued: () -> Void = {}
     var openBoard: () -> Void = {}
     private let root: URL
     private var runner: (any WorkRunning)?
@@ -314,7 +318,21 @@ final class WorkspaceStore: ObservableObject {
               !["done","running","queued","dot_waiting","dot_running"].contains(item.state) else { return }
         guard mutate({ s in if let i=s.items.firstIndex(where:{$0.id==id}) {
             s.items[i].state="dot_waiting"; s.items[i].dotClaim=nil; s.items[i].failure=""; s.items[i].result=""; s.items[i].resultSource=nil
+            s.items[i].dotDispatch=UUID(); s.items[i].dotQueuedAt=Date(); s.items[i].dotDeliveries=[:]
         } }) else { throw WorkError.message(error) }
+        dotQueued()
+    }
+    func saveDotDelivery(taskID: UUID, dispatch: UUID, subscription: String, value: DotDelivery) -> Bool {
+        guard disk.items.contains(where:{$0.id==taskID && $0.dotDispatch==dispatch && $0.state=="dot_waiting"}) else { return false }
+        return mutate { s in if let i=s.items.firstIndex(where:{$0.id==taskID}) {
+            if s.items[i].dotDeliveries == nil { s.items[i].dotDeliveries=[:] }
+            s.items[i].dotDeliveries?[subscription]=value
+        } }
+    }
+    func retryDotNotification(_ id: UUID) {
+        guard let item=disk.items.first(where:{$0.id==id}), item.state=="dot_waiting",
+              let deliveries=item.dotDeliveries, !deliveries.isEmpty, deliveries.values.allSatisfy({$0.stopped && !$0.accepted}) else { return }
+        if mutate({ s in if let i=s.items.firstIndex(where:{$0.id==id}) { s.items[i].dotDeliveries=deliveries.mapValues{_ in DotDelivery()} } }) { dotQueued() }
     }
     func expireDotClaims(now: Date = Date()) {
         guard disk.items.contains(where:{$0.state=="dot_running" && ($0.dotClaim?.expires ?? .distantPast)<=now}) else { return }

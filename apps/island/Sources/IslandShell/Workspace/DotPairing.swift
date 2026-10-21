@@ -7,6 +7,7 @@ struct DotGrant: Codable {
     var secret: String
     var expires: Date
     var lastSeen: Date?
+    var subscription: DotSubscription?
 }
 @MainActor protocol DotCredentialStore {
     func load() throws -> [DotGrant]
@@ -76,6 +77,12 @@ struct DotGrant: Codable {
     }
     func disconnect(project: String) throws {
         try load(); let next=grants.filter{$0.project != project}
+        try credentials.save(next); grants=next
+    }
+    func setSubscription(_ subscription: DotSubscription?, grantID: UUID) throws {
+        try load()
+        guard let i=grants.firstIndex(where:{$0.id==grantID && $0.expires>now()}) else { throw WorkError.message("Dot连接已撤销或过期。") }
+        var next=grants; next[i].subscription=subscription
         try credentials.save(next); grants=next
     }
     private static func matches(_ a: String,_ b: String) -> Bool {

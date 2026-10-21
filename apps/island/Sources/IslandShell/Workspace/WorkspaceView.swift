@@ -129,6 +129,7 @@ struct WorkspaceView: View {
     @ObservedObject var store: WorkspaceStore
     var desktop = false
     @ObservedObject var dotPairing = SettingsServer.shared.dotPairing
+    @ObservedObject var dotTunnel = DotTunnel.shared
     @State private var confirmDot = false
     @State private var confirmedProject = ""
     @State private var dotCopied = false
@@ -196,11 +197,12 @@ struct WorkspaceView: View {
                     Text(dotPairing.grant(project:store.draftProject) == nil ? "Dot待配对" : "Dot已配对").font(.system(size:11))
                     if desktop {
                         Button(dotCopied ? "已复制Dot连接" : "连接Dot") { confirmedProject=store.draftProject; confirmDot=true }
-                        Button("断开") { do { try dotPairing.disconnect(project:store.draftProject); dotCopied=false } catch { store.error=error.localizedDescription } }.disabled(dotPairing.grant(project:store.draftProject)==nil)
+                        Button("断开") { do { try dotPairing.disconnect(project:store.draftProject); DotTunnel.shared.stop(); dotCopied=false } catch { store.error=error.localizedDescription } }.disabled(dotPairing.grant(project:store.draftProject)==nil)
                     } else { Button("连接设置") { WorkspaceWindow.shared.open(store:store) } }
                 }.font(.system(size:11))
                 if let seen=dotPairing.grant(project:store.draftProject)?.lastSeen { Text("最后连接："+seen.formatted(date:.abbreviated,time:.shortened)).font(.system(size:10)).foregroundStyle(.secondary) }
-                Text("交给AI后等待Dot领取；配对不会自动唤醒Dot。Mac和ChatGPT须在线，Dot需要在已连接的本机任务中使用此连接。").font(.system(size:10)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+                Text(dotTunnel.status).font(.system(size:10)).foregroundStyle(.secondary)
+                Text(dotPairing.grant(project:store.draftProject)?.subscription.map { $0.expires>Date() ? "任务通知已订阅：交给AI后自动通知Dot；通知送达后仍需Dot领取处理。Mac和ChatGPT须在线。" : "Dot通知订阅已过期，需在Dot中恢复订阅。" } ?? "尚未订阅自动通知：需先在Dot安装私人插件并订阅本项目；配对本身不会唤醒Dot。").font(.system(size:10)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             }
             Picker("处理方式",selection:$recipe) { ForEach(store.disk.recipes) { r in Text(r.title).tag(r.id) } }.font(.system(size:12))
             HStack {
@@ -267,6 +269,11 @@ struct WorkspaceView: View {
                             ForEach(item.cloudDocuments ?? [],id:\.self) { link in if WorkBrowser.validDocument(link), let url=URL(string:link) { Link(item.exportVerifiedAt == nil ? "查看飞书文档（待回读核对）" : "打开飞书文档（已回读核对）",destination:url).font(.system(size:11)) } }
                             if let source = item.resultSource { Text("结果来源："+source).font(.system(size:10)).foregroundStyle(.secondary) }
                             if !item.failure.isEmpty { Text(item.failure).font(.system(size:11)).foregroundStyle(.orange) }
+                            if item.service=="dot", item.state=="dot_waiting", let deliveries=item.dotDeliveries, !deliveries.isEmpty {
+                                if deliveries.values.contains(where:{$0.accepted}) { Text("通知已送达 · 等待Dot领取").font(.system(size:11)).foregroundStyle(.secondary) }
+                                else if deliveries.values.allSatisfy({$0.stopped}) { HStack { Text("通知未送达"); Button("重试通知") { store.retryDotNotification(item.id) } }.font(.system(size:11)).foregroundStyle(.orange) }
+                                else { Text("通知正在重试").font(.system(size:11)).foregroundStyle(.secondary) }
+                            }
                             HStack {
                                 if ["running","queued","dot_waiting","dot_running"].contains(item.state) { Button(item.service == "doubao" ? "停止等候" : "取消") { store.cancel(item.id) } }
                                 else if item.state != "done" { Button(item.result.isEmpty ? "交给AI" : "重新处理") { store.run(item.id) }; Button("完成") { store.complete(item.id) } }

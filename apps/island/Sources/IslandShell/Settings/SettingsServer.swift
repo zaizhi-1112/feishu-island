@@ -12,12 +12,15 @@ final class SettingsServer {
     let dotPairing: DotPairing
     private let workspaceOverride: WorkspaceStore?
     private let assetsRoot: URL?
-    init(assetsRoot: URL? = nil, dotPairing: DotPairing? = nil, workspace: WorkspaceStore? = nil) { self.assetsRoot = assetsRoot; self.dotPairing = dotPairing ?? DotPairing(); self.workspaceOverride=workspace }
+    private let dotTransport: any DotWebhookTransport
+    init(assetsRoot: URL? = nil, dotPairing: DotPairing? = nil, workspace: WorkspaceStore? = nil, dotTransport: any DotWebhookTransport = DotPublicWebhook()) { self.assetsRoot = assetsRoot; self.dotPairing = dotPairing ?? DotPairing(); self.workspaceOverride=workspace; self.dotTransport=dotTransport }
     var connectedAccountName: String? { store?.account }
     var address: String? { ready ? "http://127.0.0.1:\(port)" : nil }
     private var lockObserver: NSObjectProtocol?
     private var unlockObserver: NSObjectProtocol?
     private var sessionLocked = false
+    private var dotEventTimer: Timer?
+    private lazy var dotEvents = DotEvents(pairing:dotPairing,store:workspaceOverride ?? WorkspaceStore.shared,transport:dotTransport,allowed:{ [weak self] in self?.sessionLocked == false })
     private var port: UInt16 = 18766
     private var ready = false
     private var openWhenReady = false
@@ -30,12 +33,21 @@ final class SettingsServer {
             if store?.updateAppearance(value) == true { self?.agent.savedRevision = self?.agent.revision ?? 0 }
         }
         if lockObserver == nil {
-            lockObserver = NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.sessionDidResignActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.sessionLocked = true; self?.agent.revoke(); self?.workspaceAgent.revoke() } }
+            lockObserver = NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.sessionDidResignActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.sessionLocked = true; self?.agent.revoke(); self?.workspaceAgent.revoke(); DotTunnel.shared.stop() } }
         }
         if unlockObserver == nil {
             unlockObserver = NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.sessionDidBecomeActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.sessionLocked = false } }
         }
         guard listen else { return }
+        if dotEventTimer == nil {
+            let workspace=workspaceOverride ?? WorkspaceStore.shared
+            workspace.dotQueued={ [weak self] in Task { @MainActor in await self?.dotEvents.pump() } }
+            dotEventTimer=Timer.scheduledTimer(withTimeInterval:5,repeats:true) { [weak self] _ in Task { @MainActor in
+                guard let self else { return }
+                if self.ready { DotTunnel.shared.maintain(pairing:self.dotPairing,port:self.port,unlocked:!self.sessionLocked) }
+                await self.dotEvents.pump()
+            } }
+        }
         guard listener == nil else { return }
         self.listen(port: preferredPort)
     }
@@ -161,7 +173,11 @@ final class SettingsServer {
             guard let object=try? JSONSerialization.jsonObject(with:body) as? [String:Any] else { return .error(400,"格式不正确") }
             do {
                 guard let grant=try dotPairing.authenticate(String(auth.dropFirst(7))) else { return .error(403,"连接已过期或断开，请由本人重新配对") }
-                if let result=DotMCP.rpc(object,grant:grant,store:workspaceOverride ?? WorkspaceStore.shared,now:dotPairing.now()) { return .json(result) }
+                if (object["method"] as? String)?.hasPrefix("events/")==true {
+                    if let result=await dotEvents.rpc(object,grant:grant) { return .json(result) }
+                    return SettingsResponse(status:202,contentType:"application/json",body:Data())
+                }
+                if let result=DotMCP.rpc(object,grant:grant,store:workspaceOverride ?? WorkspaceStore.shared,now:dotPairing.now(),modern:headers["mcp-protocol-version"]=="2026-07-28") { return .json(result) }
                 return SettingsResponse(status:202,contentType:"application/json",body:Data())
             } catch { return .error(503,"Dot安全凭据暂不可用；未要求密码，未执行任务") }
         }
