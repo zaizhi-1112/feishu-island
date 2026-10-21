@@ -10,7 +10,7 @@ final class WorkspaceMCP {
     private var project = ""
     var active: Bool { token != nil && ProcessInfo.processInfo.systemUptime < expires }
     static func digest(_ item: WorkItem) -> String {
-        let payload = item.id.uuidString+"\n"+item.input+"\n"+item.instruction+"\n"+(item.images ?? []).map { $0.id.uuidString }.joined(separator:",")
+        let payload = item.id.uuidString+"\n"+(item.project ?? "日常工作")+"\n"+item.title+"\n"+item.input+"\n"+item.instruction+"\n"+(item.images ?? []).map { $0.id.uuidString }.joined(separator:",")
         return SHA256.hash(data:Data(payload.utf8)).map { String(format:"%02x",$0) }.joined()
     }
     func authorize(store: WorkspaceStore) -> String {

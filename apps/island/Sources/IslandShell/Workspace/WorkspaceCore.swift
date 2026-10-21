@@ -38,6 +38,7 @@ struct WorkRecipe: Codable, Identifiable {
 }
 struct WorkDisk: Codable {
     var items: [WorkItem] = []
+    var trash: [WorkItem]?
     var recipes = WorkRecipe.presets
     var reminderMinutes = 20
     var selectedCards: [String] = []
@@ -151,6 +152,11 @@ final class WorkspaceStore: ObservableObject {
     @Published var draftText = ""
     @Published var draftProject = "日常工作"
     @Published var draftService = "codex"
+    @Published var editingID: UUID?
+    @Published var editTitle = ""
+    @Published var editInput = ""
+    @Published var editInstruction = ""
+    @Published var editProject = ""
     @Published var draftImages: [PendingWorkImage] = []
     @Published var accepted = 0
     var acceptedAt = Date.distantPast
@@ -380,6 +386,40 @@ final class WorkspaceStore: ObservableObject {
         guard disk.items.first(where:{$0.id == id})?.state == "running" else { return }; cancelledJobs.insert(id); runner?.cancel()
     }
     func setReminder(_ id: UUID, date: Date) { guard abs(date.timeIntervalSinceNow) < 366*86400 else{return};_ = mutate { s in if let i=s.items.firstIndex(where:{$0.id==id}){s.items[i].due=date;s.items[i].reminded=false} } }
+    static func canEdit(_ item: WorkItem) -> Bool {
+        !["running","queued"].contains(item.state) && !(item.remoteSubmissionPending == true && item.remoteTaskURL == nil)
+    }
+    func beginEdit(_ id: UUID) {
+        guard let item = disk.items.first(where:{$0.id == id}), Self.canEdit(item) else { error = "先停止处理或核对原任务，再修改材料。"; return }
+        editingID = id; editTitle = item.title; editInput = item.input; editInstruction = item.instruction; editProject = item.project ?? "日常工作"
+    }
+    func cancelEdit() { editingID = nil; editTitle = ""; editInput = ""; editInstruction = ""; editProject = "" }
+    func saveEdit() {
+        guard let id=editingID, let item=disk.items.first(where:{$0.id==id}), Self.canEdit(item) else { error = "任务状态已变化，未覆盖内容。"; return }
+        let title=editTitle.trimmingCharacters(in:.whitespacesAndNewlines), input=editInput.trimmingCharacters(in:.whitespacesAndNewlines)
+        let instruction=editInstruction.trimmingCharacters(in:.whitespacesAndNewlines), project=editProject.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard !title.isEmpty, title.count<=80, !input.isEmpty, input.utf8.count<=200_000, !instruction.isEmpty, instruction.utf8.count<=16_000, !project.isEmpty, project.count<=60 else { error = "请填写标题、内容、处理要求和项目；标题最多80字，内容最多200KB。"; return }
+        let changed = item.input != input || item.instruction != instruction
+        if mutate({ state in
+            guard let i=state.items.firstIndex(where:{$0.id==id}) else { return }
+            state.items[i].title=title; state.items[i].input=input; state.items[i].instruction=instruction; state.items[i].project=project
+            if changed {
+                state.items[i].state="todo"; state.items[i].result=""; state.items[i].resultSource=nil; state.items[i].failure=""
+                state.items[i].remoteTaskURL=nil; state.items[i].remoteSubmissionPending=nil; state.items[i].cloudDocuments=nil
+                state.items[i].exportSourceID=nil; state.items[i].exportDigest=nil; state.items[i].exportVerifiedAt=nil
+            }
+        }) { cancelEdit() }
+    }
+    func deleteItem(_ id: UUID) {
+        guard let item=disk.items.first(where:{$0.id==id}), !["running","queued"].contains(item.state) else { error = "请先停止处理，再删除这条本机记录。"; return }
+        if mutate({ state in state.items.removeAll{$0.id==id}; state.trash=(state.trash ?? []).filter{$0.id != id}; state.trash!.insert(item,at:0) }) {
+            if selected==id { selected=nil }; if editingID==id { cancelEdit() }
+        }
+    }
+    func restoreItem(_ id: UUID) {
+        guard disk.items.count<500, let item=disk.trash?.first(where:{$0.id==id}), !disk.items.contains(where:{$0.id==id}) else { error = "待办已恢复或列表已满。"; return }
+        if mutate({ state in state.trash?.removeAll{$0.id==id}; state.items.insert(item,at:0) }) { selected=id }
+    }
     func complete(_ id: UUID) { guard disk.items.first(where:{$0.id == id})?.state != "running" else { return }; _ = mutate { s in if let i = s.items.firstIndex(where:{$0.id == id}) { s.items[i].state = "done"; s.items[i].due = nil } } }
     func snooze(_ id: UUID, minutes: Int = 20) { guard (1...10080).contains(minutes) else { return }; _ = mutate { s in if let i = s.items.firstIndex(where:{$0.id == id}) { s.items[i].due = Date().addingTimeInterval(Double(minutes)*60); s.items[i].reminded = false } } }
     func tick(now: Date = Date()) {

@@ -31,6 +31,30 @@ final class FusionTests {
         let defaults = UserDefaults(suiteName:suite)!
         return (FeishuStore(defaults:defaults),defaults,suite)
     }
+    func testTaskEditingTrashAndRestore() throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent("island-edit-check-"+UUID().uuidString)
+        let s=WorkspaceStore(root:root,startTimers:false)
+        let id=try s.add(text:"合成待办原文",minutes:1)
+        try s.receiveAgentResult(id,text:"原处理结果")
+        let original=s.disk.items[0], digest=WorkspaceMCP.digest(original)
+        s.beginEdit(id); s.editTitle="合成待办新标题"; s.editInput="修改后的合成材料"; s.editInstruction="整理两条要点"; s.editProject="合成编辑项目"; s.saveEdit()
+        XCTAssertNil(s.editingID); XCTAssertEqual(s.disk.items[0].title,"合成待办新标题")
+        XCTAssertEqual(s.disk.items[0].input,"修改后的合成材料"); XCTAssertEqual(s.disk.items[0].state,"todo")
+        XCTAssertEqual(s.disk.items[0].result,""); XCTAssertFalse(WorkspaceMCP.digest(s.disk.items[0])==digest)
+        s.beginEdit(id); s.editInput=""; s.saveEdit(); XCTAssertEqual(s.disk.items[0].input,"修改后的合成材料"); s.cancelEdit()
+        s.beginEdit(id); s.editTitle="未保存的标题"; s.cancelEdit(); XCTAssertEqual(s.disk.items[0].title,"合成待办新标题")
+        let mcp=WorkspaceMCP(); s.draftProject="合成编辑项目"; _=mcp.authorize(store:s)
+        s.deleteItem(id); XCTAssertEqual(s.disk.items.count,0); XCTAssertEqual(s.disk.trash?.first?.id,id)
+        let read=mcp.rpc(["jsonrpc":"2.0","id":1,"method":"tools/call","params":["name":"read_work_task","arguments":["task_id":id.uuidString]]],store:s)!
+        XCTAssertTrue(read["error"] != nil)
+        var reminders=0; s.notify={_ in reminders+=1}; s.tick(now:Date().addingTimeInterval(90)); XCTAssertEqual(reminders,0)
+        let reload=WorkspaceStore(root:root,startTimers:false); XCTAssertEqual(reload.disk.items.count,0); XCTAssertEqual(reload.disk.trash?.first?.input,"修改后的合成材料")
+        reload.restoreItem(id); XCTAssertEqual(reload.disk.items.count,1); XCTAssertEqual(reload.disk.trash?.count,0)
+        reload.restoreItem(id); XCTAssertEqual(reload.disk.items.count,1)
+        let final=WorkspaceStore(root:root,startTimers:false); XCTAssertEqual(final.disk.items[0].project,"合成编辑项目")
+        var running=original; running.state="running"; XCTAssertFalse(WorkspaceStore.canEdit(running))
+        running.state="todo"; running.remoteSubmissionPending=true; XCTAssertFalse(WorkspaceStore.canEdit(running))
+    }
     func testWorkspacePersistenceRemindersAndOAuthBoundary() async throws {
         verifyNativeDragPreview()
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("island-work-check-"+UUID().uuidString)
@@ -481,6 +505,7 @@ final class FusionTests {
         }
         let tests = FusionTests()
         do {
+            try tests.testTaskEditingTrashAndRestore()
             try await tests.testWorkspacePersistenceRemindersAndOAuthBoundary()
             await tests.testFreshInstallIsStoppedAndRendererIsLazy()
             await tests.testOneEventFeedsListAndOptionalRendererWithoutDuplicates()

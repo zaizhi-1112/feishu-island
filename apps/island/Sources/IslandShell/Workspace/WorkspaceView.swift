@@ -210,7 +210,17 @@ struct WorkspaceView: View {
                         if store.selected == item.id {
                             if let due = item.due { DatePicker(item.reminded ? "再次提醒" : "提醒时间",selection:Binding(get:{due},set:{store.setReminder(item.id,date:$0)}),displayedComponents:[.date,.hourAndMinute]).datePickerStyle(.field).font(.system(size:10)) }
                             Text((item.project ?? "日常工作")+" · "+item.created.formatted(date:.abbreviated,time:.shortened)).font(.system(size:10)).foregroundStyle(.secondary)
-                            Text(item.result.isEmpty ? String(item.input.prefix(500)) : item.result).font(.system(size:13)).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)
+                            if store.editingID == item.id {
+                                TextField("标题",text:$store.editTitle).textFieldStyle(.roundedBorder).accessibilityLabel("待办标题")
+                                TextField("项目",text:$store.editProject).textFieldStyle(.roundedBorder).accessibilityLabel("待办项目")
+                                Text("内容").font(.system(size:11))
+                                WorkInputEditor(text:$store.editInput,pasteImage:{_ in}).frame(height:110).accessibilityLabel("待办内容")
+                                TextField("处理要求",text:$store.editInstruction).textFieldStyle(.roundedBorder).accessibilityLabel("待办处理要求")
+                                Text("修改内容或处理要求后，需重新交给AI处理。").font(.system(size:10)).foregroundStyle(.secondary)
+                                HStack { Button("保存修改") { store.saveEdit() }; Button("取消修改") { store.cancelEdit() } }.font(.system(size:11))
+                            } else {
+                                Text(item.result.isEmpty ? String(item.input.prefix(500)) : item.result).font(.system(size:13)).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)
+                            }
                             if let images = item.images, !images.isEmpty {
                                 HStack {
                                     ForEach(images) { image in
@@ -238,9 +248,18 @@ struct WorkspaceView: View {
                                 else if item.state != "done" { Button(item.result.isEmpty ? "交给AI" : "重新处理") { store.run(item.id) }; Button("完成") { store.complete(item.id) } }
                                 Button("稍后20分") { store.snooze(item.id) }
                             }.font(.system(size:11))
+                            HStack {
+                                Button("编辑") { store.beginEdit(item.id) }.disabled(!WorkspaceStore.canEdit(item))
+                                Button("删除",role:.destructive) { store.deleteItem(item.id) }.disabled(["running","queued"].contains(item.state))
+                            }.font(.system(size:11))
                             if !item.result.isEmpty { HStack { Button("复制结果") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(item.result,forType:.string) }; Button("存文档") { store.exportDocument(item) }; Button("存到飞书") { store.saveToFeishu(item) } }.font(.system(size:11)) }
                         }
                     }.padding(10).background(.white.opacity(0.07),in:RoundedRectangle(cornerRadius:10))
+                }
+                if let trash=store.disk.trash, !trash.isEmpty {
+                    DisclosureGroup("已删除（\(trash.count)）") {
+                        ForEach(trash) { item in HStack { Text(item.title).lineLimit(2); Spacer(); Button("恢复") { store.restoreItem(item.id) }.accessibilityLabel("恢复："+item.title) }.font(.system(size:11)).padding(.vertical,4) }
+                    }.font(.system(size:12)).padding(8)
                 }
             }
         }.frame(height:desktop ? 440 : 290)

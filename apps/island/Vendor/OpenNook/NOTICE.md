@@ -45,3 +45,8 @@ portal is visible. AppKit automatically restores the source drag images when the
 is cancelled; the host does not cache thumbnails. No file data is changed,
 no thumbnail is persisted, and normal mouse hit testing stays transparent.
 The existing MIT notice and upstream license remain in effect.
+
+`NookSurface/Nook.swift`: an edge-docked compact surface now honors the host's
+explicit `.expand` hover intent. Leaving cancels the pending delay; existing
+hover-exit compaction and explicit presentation pins remain unchanged. This
+removes the forced click between edge reveal and the host's expanded content.

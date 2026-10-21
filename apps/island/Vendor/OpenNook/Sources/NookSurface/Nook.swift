@@ -642,9 +642,12 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         performHoverHapticIfEnabled()
         cancelHoverIntent()
 
-        // Edge docking has its own middle state: pointer presence reveals the compact
-        // pill through NookView's geometry, but never opens the full content on hover.
-        if edgeDocked, state == .compact { return }
+        // Honor a host's explicit expand intent at the screen edge as well.
+        // Leaving still cancels the pending intent before this branch.
+        if edgeDocked, state == .compact {
+            if hovering, hoverIntent.action == .expand { hoverEntered() }
+            return
+        }
 
         // Any intent but the standard one waits, peeks, or does nothing; see `Nook+Peek.swift`.
         // The standard intent takes the path below, exactly as before intents existed.

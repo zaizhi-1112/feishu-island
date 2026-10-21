@@ -223,7 +223,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 )
                 .accessibilityElement(children: layout.isRetracted ? .ignore : .contain)
                 .accessibilityLabel(layout.isRetracted ? "刘海感应区，移入露出状态" : "灵动岛")
-                .accessibilityValue(layout.isRetracted ? "已融入刘海" : (nook.state == .compact ? "就绪，点击展开" : "已展开"))
+                .accessibilityValue(layout.isRetracted ? "已融入刘海" : (nook.state == .compact ? (nook.hoverIntent.action == .expand ? "就绪，悬停展开" : "就绪，点击展开") : "已展开"))
                 .accessibilityIdentifier("island.edgeDock")
         } else if nook.edgeDocked {
             let layout = edgeLayout
@@ -248,7 +248,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 )
                 .accessibilityElement(children: layout.isRetracted ? .ignore : .contain)
                 .accessibilityLabel(layout.isRetracted ? "灵动岛顶边，移入露出胶囊" : "灵动岛")
-                .accessibilityValue(layout.isRetracted ? "已缩回顶边" : (nook.state == .compact ? "就绪，点击展开" : "已展开"))
+                .accessibilityValue(layout.isRetracted ? "已缩回顶边" : (nook.state == .compact ? (nook.hoverIntent.action == .expand ? "就绪，悬停展开" : "就绪，点击展开") : "已展开"))
                 .accessibilityIdentifier("island.edgeDock")
         } else {
             chrome
