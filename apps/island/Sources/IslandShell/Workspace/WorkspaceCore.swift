@@ -1,6 +1,7 @@
 import AppKit
 import PDFKit
 import Foundation
+import CryptoKit
 
 struct WorkItem: Codable, Identifiable, Equatable {
     var id = UUID()
@@ -11,6 +12,13 @@ struct WorkItem: Codable, Identifiable, Equatable {
     var images: [WorkImage]?
     var project: String?
     var resultSource: String?
+    var service: String?
+    var remoteTaskURL: String?
+    var remoteSubmissionPending: Bool?
+    var cloudDocuments: [String]?
+    var exportSourceID: UUID?
+    var exportDigest: String?
+    var exportVerifiedAt: Date?
     var state = "todo"
     var created = Date()
     var due: Date?
@@ -69,7 +77,7 @@ enum WorkMaterial {
 }
 
 /// No shell, hooks, MCP, skill executables or agent tools; model reads only the selected material.
-final class WorkAI: @unchecked Sendable {
+final class WorkAI: WorkRunning, @unchecked Sendable {
     private let lock = NSLock()
     private var process: Process?
     private var stopped = false
@@ -142,6 +150,7 @@ final class WorkspaceStore: ObservableObject {
     @Published var boardTab = 0
     @Published var draftText = ""
     @Published var draftProject = "日常工作"
+    @Published var draftService = "codex"
     @Published var draftImages: [PendingWorkImage] = []
     @Published var accepted = 0
     var acceptedAt = Date.distantPast
@@ -151,8 +160,9 @@ final class WorkspaceStore: ObservableObject {
     var notify: (String) -> Void = { _ in }
     var openBoard: () -> Void = {}
     private let root: URL
-    private var runner: WorkAI?
+    private var runner: (any WorkRunning)?
     private var job: Task<Void,Never>?
+    private var cancelledJobs: Set<UUID> = []
     private var timer: Timer?
     private var integrationEnabled = false
     private var activity: NSObjectProtocol?
@@ -194,7 +204,7 @@ final class WorkspaceStore: ObservableObject {
         ingestActive = false; ingestSaving = true; return true
     }
     func endMaterialDrop() { ingestSaving = false }
-    @discardableResult func add(text: String, files: [URL] = [], instruction: String? = nil, minutes: Int? = nil, images: [PendingWorkImage] = [], project: String? = nil) throws -> UUID {
+    @discardableResult func add(text: String, files: [URL] = [], instruction: String? = nil, minutes: Int? = nil, images: [PendingWorkImage] = [], project: String? = nil, service: String? = nil) throws -> UUID {
         guard disk.items.count < 500, files.count <= 20, text.utf8.count <= 200_000 else { throw WorkError.message("材料或待办过多，请先整理。") }
         var parts = text.isEmpty ? [] : [text]
         for url in files { let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }; parts.append("文件：\(url.lastPathComponent)\n" + (try WorkMaterial.read(url))) }
@@ -205,7 +215,7 @@ final class WorkspaceStore: ObservableObject {
         let reminder = minutes ?? disk.reminderMinutes
         guard (0...10080).contains(reminder) else { throw WorkError.message("提醒时间请设为0到10080分钟，0表示不提醒。") }
         let title = String((files.first?.lastPathComponent ?? images.first?.image.name ?? text.split(separator:"\n").first.map(String.init) ?? "材料").prefix(48))
-        let item = WorkItem(title:title.isEmpty ? "图片材料" : title,input:input,files:files.map(\.lastPathComponent),instruction:instruction ?? disk.recipes.first?.instruction ?? "整理要点",images:images.isEmpty ? nil : images.map(\.image),project:String((project ?? draftProject).prefix(60)),due:reminder == 0 ? nil : Date().addingTimeInterval(Double(reminder)*60))
+        let item = WorkItem(title:title.isEmpty ? "图片材料" : title,input:input,files:files.map(\.lastPathComponent),instruction:instruction ?? disk.recipes.first?.instruction ?? "整理要点",images:images.isEmpty ? nil : images.map(\.image),project:String((project ?? draftProject).prefix(60)),service:service ?? draftService,due:reminder == 0 ? nil : Date().addingTimeInterval(Double(reminder)*60))
         if !images.isEmpty {
             let directory = root.appendingPathComponent("Images/"+item.id.uuidString,isDirectory:true)
             try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
@@ -273,6 +283,25 @@ final class WorkspaceStore: ObservableObject {
     }
     nonisolated static func isImage(_ url: URL) -> Bool { ["png","jpg","jpeg","heic","heif","webp","tiff","tif","gif","bmp"].contains(url.pathExtension.lowercased()) }
     func imageURL(item: WorkItem, image: WorkImage) -> URL { root.appendingPathComponent("Images/"+item.id.uuidString+"/"+image.filename) }
+    func recordRemoteURL(_ id: UUID, url: String) {
+        guard WorkBrowser.validTask(url), let item=disk.items.first(where:{$0.id==id}), item.service == "doubao", item.remoteTaskURL == nil || item.remoteTaskURL == url else { return }
+        _ = mutate { state in if let i=state.items.firstIndex(where:{$0.id==id}) { state.items[i].remoteTaskURL=url; state.items[i].remoteSubmissionPending=false } }
+    }
+    static func exportHash(_ value: String) -> String { SHA256.hash(data:Data(value.utf8)).map{String(format:"%02x",$0)}.joined() }
+    func saveToFeishu(_ item: WorkItem) {
+        guard !item.result.isEmpty else { error = "先生成或填写文档内容。"; return }
+        let digest = Self.exportHash(item.result)
+        if let existing = disk.items.first(where:{$0.exportSourceID==item.id && $0.exportDigest==digest}) {
+            selected=existing.id; boardTab=1
+            if ["failed","interrupted"].contains(existing.state) { run(existing.id) }
+            return
+        }
+        do {
+            let id = try add(text:"新建飞书文档："+item.title+"\n\n"+item.result,instruction:"在本人个人云空间新建一份飞书云文档，将本条给出的结果写入，保留标题与原意。正文开头注明本次工作岛任务编号（系统给你的任务编号），用于回读核对。只创建新文件，不修改已有文档，不读取其他资料；返回真实链接，没有能力或权限就明确说明。",minutes:0,project:item.project,service:"doubao")
+            guard mutate({state in if let i=state.items.firstIndex(where:{$0.id==id}) { state.items[i].exportSourceID=item.id; state.items[i].exportDigest=digest }}) else { throw WorkError.message(error) }
+            boardTab = 1; run(id)
+        } catch { self.error = error.localizedDescription }
+    }
     func receiveAgentResult(_ id: UUID, text: String) throws {
         guard !text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty, text.utf8.count <= 60_000,
               let item = disk.items.first(where:{$0.id==id}), !["done","running","queued"].contains(item.state) else { throw WorkError.message("任务已完成、运行中或结果过大，未覆盖原内容。") }
@@ -297,17 +326,48 @@ final class WorkspaceStore: ObservableObject {
     }
     func run(_ id: UUID) {
         guard let item = disk.items.first(where: { $0.id == id }), !["done","running","queued"].contains(item.state) else { return }
+        if item.service == "doubao", item.remoteSubmissionPending == true, item.remoteTaskURL == nil { error = "豆包提交结果尚未确认，未重复创建。请先在豆包核对原任务并关联链接。"; return }
+        cancelledJobs.remove(id)
         if runner != nil { _ = mutate { s in if let i=s.items.firstIndex(where:{$0.id==id}){s.items[i].state="queued"} }; return }
-        guard mutate({ state in if let i = state.items.firstIndex(where:{$0.id == id}) { state.items[i].state = "running"; state.items[i].failure = "" } }) else { return }
+        guard mutate({ state in if let i = state.items.firstIndex(where:{$0.id == id}) { state.items[i].state = "running"; state.items[i].failure = ""; if item.service == "doubao" && item.remoteTaskURL == nil { state.items[i].remoteSubmissionPending=true } } }) else { return }
         let images = (item.images ?? []).map { imageURL(item:item,image:$0) }
-        let ai = WorkAI(); runner = ai
+        let ai: any WorkRunning
+        if item.service == "doubao" {
+            let browser = WorkBrowser(); browser.expectedAccount = SettingsServer.shared.connectedAccountName ?? ""
+            browser.taskID = item.id.uuidString; browser.resumeURL = item.remoteTaskURL
+            browser.onSubmitting = { [weak self] in Task { @MainActor in
+                guard let self else { return }; _ = self.mutate { state in if let i=state.items.firstIndex(where:{$0.id==id}) { state.items[i].remoteSubmissionPending=true } }
+            } }
+            browser.onURL = { [weak self] url in Task { @MainActor in
+                guard let self else { return }; self.recordRemoteURL(id,url:url)
+            } }
+            ai = browser
+        } else { ai = WorkAI() }
+        runner = ai
         job = Task { [weak self] in
-            let result: Result<String,Error> = await Task.detached { Result { try ai.run(input:item.input,instruction:item.instruction,images:images) } }.value
-            guard let self else { return }; self.runner = nil; self.job = nil
+            var result: Result<String,Error> = await Task.detached { Result { try ai.run(input:item.input,instruction:item.instruction,images:images) } }.value
+            guard let self else { return }
+            var remoteValue: String?, links: [String] = []
+            if case .success(let value) = result {
+                remoteValue = value; links = WorkBrowser.documentLinks(in:value)
+                if item.exportSourceID != nil {
+                    do {
+                        guard let link = links.first else { throw WorkError.message("豆包没有返回飞书文档链接。") }
+                        let body = try await self.hubClient.document(link)
+                        guard body.range(of:item.id.uuidString,options:.caseInsensitive) != nil else { throw WorkError.message("文档未包含本次任务编号，未通过对应关系核对。") }
+                    } catch { result = .failure(WorkError.message("文档结果尚未通过中台回读核对："+error.localizedDescription+" 可重新读取原任务，应用不会重复新建。")) }
+                }
+            }
+            if self.cancelledJobs.remove(id) != nil { result = .failure(WorkError.message("已停止本机等候，云端任务状态请查看原任务。")) }
+            if let browser = ai as? WorkBrowser {
+                if let url=browser.taskURL { self.recordRemoteURL(id,url:url) }
+                else if browser.knownNotSubmitted { _ = self.mutate { state in if let i=state.items.firstIndex(where:{$0.id==id}) { state.items[i].remoteSubmissionPending=false } } }
+            }
+            self.runner = nil; self.job = nil
             let saved = self.mutate { state in
                 guard let i = state.items.firstIndex(where:{$0.id == id}), state.items[i].state == "running" else { return }
-                switch result { case .success(let value): state.items[i].result = value; state.items[i].resultSource = WorkAI.displayName; state.items[i].state = "succeeded"
-                case .failure(let e): state.items[i].failure = e.localizedDescription; state.items[i].state = "failed" }
+                switch result { case .success(let value): state.items[i].cloudDocuments = links; if item.exportSourceID != nil { state.items[i].exportVerifiedAt=Date() }; state.items[i].result = value; state.items[i].resultSource = item.service == "doubao" ? "豆包工作（本人网页会话）" : WorkAI.displayName; state.items[i].state = "succeeded"
+                case .failure(let e): if let remoteValue { state.items[i].result=remoteValue; state.items[i].cloudDocuments=links }; state.items[i].failure = e.localizedDescription; state.items[i].state = "failed" }
             }
             if saved { self.selected = id; self.boardTab = 1; self.notify(result.isSuccess ? "材料处理完成，点开取结果" : "材料处理未完成，点开查看") }
             if saved, let next=self.disk.items.reversed().first(where:{$0.state=="queued"}) {
@@ -317,7 +377,7 @@ final class WorkspaceStore: ObservableObject {
     }
     func cancel(_ id: UUID) {
         if disk.items.first(where:{$0.id == id})?.state == "queued" { _ = mutate { s in if let i=s.items.firstIndex(where:{$0.id==id}){s.items[i].state="todo"} }; return }
-        guard disk.items.first(where:{$0.id == id})?.state == "running" else { return }; runner?.cancel()
+        guard disk.items.first(where:{$0.id == id})?.state == "running" else { return }; cancelledJobs.insert(id); runner?.cancel()
     }
     func setReminder(_ id: UUID, date: Date) { guard abs(date.timeIntervalSinceNow) < 366*86400 else{return};_ = mutate { s in if let i=s.items.firstIndex(where:{$0.id==id}){s.items[i].due=date;s.items[i].reminded=false} } }
     func complete(_ id: UUID) { guard disk.items.first(where:{$0.id == id})?.state != "running" else { return }; _ = mutate { s in if let i = s.items.firstIndex(where:{$0.id == id}) { s.items[i].state = "done"; s.items[i].due = nil } } }

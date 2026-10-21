@@ -24,7 +24,7 @@ struct WorkspaceDesk: View {
                     Text("记录、材料、处理结果和项目进展，放在一起。").foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text("AI："+WorkAI.displayName+"  ·  中台："+(store.hub.connected ? "已连接" : "待连接")).font(.system(size:12)).foregroundStyle(.secondary)
+                Text("AI："+(store.draftService == "doubao" ? "豆包工作" : WorkAI.displayName)+"  ·  中台："+(store.hub.connected ? "已连接" : "待连接")).font(.system(size:12)).foregroundStyle(.secondary)
             }.padding(24)
             Divider()
             ScrollView { WorkspaceView(store:store,desktop:true) }

@@ -11,6 +11,7 @@ final class SettingsServer {
     let workspaceAgent = WorkspaceMCP()
     private let assetsRoot: URL?
     init(assetsRoot: URL? = nil) { self.assetsRoot = assetsRoot }
+    var connectedAccountName: String? { store?.account }
     var address: String? { ready ? "http://127.0.0.1:\(port)" : nil }
     private var lockObserver: NSObjectProtocol?
     private var unlockObserver: NSObjectProtocol?

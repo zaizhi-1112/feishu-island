@@ -153,6 +153,28 @@ final class FusionTests {
         XCTAssertEqual(await mcpServer.respond(method:"POST",path:"/mcp/workspace",headers:headers,body:wire).status,403)
         headers["origin"] = nil; headers["authorization"] = "Bearer wrong"
         XCTAssertEqual(await mcpServer.respond(method:"POST",path:"/mcp/workspace",headers:headers,body:wire).status,403)
+        XCTAssertTrue(WorkBrowser.validTask("https://aily.feishu.cn/tasks/123"))
+        for value in ["http://aily.feishu.cn/tasks/123","https://evil.example/tasks/123","https://aily.feishu.cn.evil.example/tasks/123","https://aily.feishu.cn/tasks/123?redirect=evil","https://aily.feishu.cn/new"] { XCTAssertFalse(WorkBrowser.validTask(value)) }
+        XCTAssertTrue(WorkBrowser.validDocument("https://example.feishu.cn/docx/synthetic"))
+        XCTAssertFalse(WorkBrowser.validDocument("https://evil.example/docx/synthetic"))
+        XCTAssertFalse(WorkBrowser.validDocument("javascript:alert(1)"))
+        XCTAssertNil(WorkBrowser.event("diagnostic only"))
+        XCTAssertNil(WorkBrowser.event("ISLAND_EVENT invalid-json"))
+        XCTAssertNil(WorkBrowser.event("ISLAND_EVENT {\"kind\":\"shell\"}"))
+        XCTAssertEqual(WorkBrowser.event("ISLAND_EVENT {\"kind\":\"created\",\"url\":\"https://aily.feishu.cn/tasks/123\"}")?["kind"] as? String,"created")
+        let browserID = try imageStore.add(text:"浏览器合成任务",minutes:0,service:"doubao")
+        imageStore.recordRemoteURL(browserID,url:"https://evil.example/tasks/123")
+        XCTAssertNil(imageStore.disk.items.first(where:{$0.id==browserID})?.remoteTaskURL)
+        imageStore.recordRemoteURL(browserID,url:"https://aily.feishu.cn/tasks/123")
+        imageStore.recordRemoteURL(browserID,url:"https://aily.feishu.cn/tasks/456")
+        XCTAssertEqual(imageStore.disk.items.first(where:{$0.id==browserID})?.remoteTaskURL,"https://aily.feishu.cn/tasks/123")
+        let preflightID = try imageStore.add(text:"浏览器提交前失败合成验证",minutes:0,service:"doubao")
+        imageStore.run(preflightID)
+        XCTAssertEqual(imageStore.disk.items.first(where:{$0.id==preflightID})?.remoteSubmissionPending,true)
+        let preflightDeadline = Date().addingTimeInterval(3)
+        while imageStore.disk.items.first(where:{$0.id==preflightID})?.state == "running" && Date() < preflightDeadline { try await Task.sleep(nanoseconds:10_000_000) }
+        XCTAssertEqual(imageStore.disk.items.first(where:{$0.id==preflightID})?.state,"failed")
+        XCTAssertEqual(imageStore.disk.items.first(where:{$0.id==preflightID})?.remoteSubmissionPending,false)
         let frames = root.appendingPathComponent("ingest-frames")
         try FileManager.default.createDirectory(at:frames,withIntermediateDirectories:true)
         let waiting = ImageRenderer(content:IngestPortalScene(phase:.waiting,elapsed:0.25).background(Color.black))
@@ -363,16 +385,19 @@ final class FusionTests {
         XCTAssertGreaterThan(IslandReadingPages.split(demo.messages.first(where:{$0.id == "demo1"})!.text).count,1)
     }
     func testSyntheticCLIThroughStoreToBothOutputs() async throws {
-        let root=URL(fileURLWithPath:FileManager.default.currentDirectoryPath)
+        let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let temp=FileManager.default.temporaryDirectory.appendingPathComponent("fusion-reader-" + UUID().uuidString)
         try FileManager.default.createDirectory(at:temp,withIntermediateDirectories:true)
         setenv("DANMU_TEST_STATE",temp.appendingPathComponent("state.json").path,1)
+        setenv("DANMU_TEST_FUSION_COMPACT","1",1)
+        defer { unsetenv("DANMU_TEST_FUSION_COMPACT") }
         let reader=AccountReader(cli:root.appendingPathComponent("Tests/FeishuReaderChecks/fake-cli.py"),profile:"synthetic-island",pollDelay:0.01,pageDelay:0,clock:ServerClock(probe:{.local()}))
         reader.setRules(gray:["chat3"],hidden:["chat4"])
         let (s,d,suite)=store();defer { reader.stop();d.removePersistentDomain(forName:suite) }
         s.updateDanmu(.init(enabled:true));s.startSyntheticReader(reader)
         let deadline=Date().addingTimeInterval(30)
         while s.messages.count < 7 && Date() < deadline { try await Task.sleep(nanoseconds:50_000_000) }
+        if s.messages.count != 7 { print("SYNTHETIC_READER_DIAGNOSTIC count=\(s.messages.count) ids=\(s.messages.map(\.id).sorted())") }
         XCTAssertEqual(s.messages.count,7)
         XCTAssertTrue(s.messages.contains(where:{$0.id == "unknown"}))
         XCTAssertEqual(s.readingAccepted,s.important.count)

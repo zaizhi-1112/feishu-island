@@ -130,6 +130,7 @@ struct WorkspaceView: View {
     var desktop = false
     private var input: String { store.draftText }
     @State private var agentCopied = false
+    @State private var recoveryURL = ""
     @State private var recipe = "work"
     @State private var minutes = 20
     var body: some View {
@@ -173,6 +174,10 @@ struct WorkspaceView: View {
                     }
                 }.frame(height:62)
             }
+            Picker("交给谁",selection:$store.draftService) {
+                Text(WorkAI.displayName+" · 本机").tag("codex")
+                Text("豆包工作 · 本人已登录网页").tag("doubao")
+            }.font(.system(size:12))
             Picker("处理方式",selection:$recipe) { ForEach(store.disk.recipes) { r in Text(r.title).tag(r.id) } }.font(.system(size:12))
             HStack {
                 Text("提醒").font(.system(size:12))
@@ -186,7 +191,7 @@ struct WorkspaceView: View {
                 Button("交给AI") { add(run:true) }
             }.font(.system(size:12))
             Button("读取上方飞书文档链接") { store.readFeishuMaterial(input,instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction); store.boardTab = 1 }.font(.system(size:11))
-            Text("当前处理工具：\(WorkAI.displayName)。拖入只保存本机。点击“交给AI”才把材料交给你本机已登录的AI服务；链接先作为文字，不自动抓取。支持图片/截图（⌘V粘贴）、Word、PDF、文字；最多6张图片，交给AI前可移除。").font(.system(size:10)).foregroundStyle(.white.opacity(0.55)).fixedSize(horizontal:false,vertical:true)
+            Text("当前处理工具：\(store.draftService == "doubao" ? "豆包工作（本人网页）" : WorkAI.displayName)。拖入只保存本机。点击“交给AI”才把材料交给你本机已登录的AI服务；链接先作为文字，不自动抓取。支持图片/截图（⌘V粘贴）、Word、PDF、文字；最多6张图片，交给AI前可移除。").font(.system(size:10)).foregroundStyle(.white.opacity(0.55)).fixedSize(horizontal:false,vertical:true)
             HStack { Button("导入材料Skill") { store.importSkill() }; Spacer(); Text("\(store.disk.items.filter{$0.state != "done"}.count)项未完成").foregroundStyle(.secondary) }.font(.system(size:11))
         }
     }
@@ -195,7 +200,7 @@ struct WorkspaceView: View {
     }
     private var tasks: some View {
         ScrollView {
-            LazyVStack(alignment:.leading,spacing:10) {
+            VStack(alignment:.leading,spacing:10) {
                 if store.disk.items.isEmpty { Text("把材料拖进来，或在“材料”里存一条待办。").font(.system(size:13)).foregroundStyle(.secondary).padding(.vertical,20) }
                 ForEach(store.disk.items) { item in
                     VStack(alignment:.leading,spacing:7) {
@@ -216,14 +221,24 @@ struct WorkspaceView: View {
                                     }
                                 }
                             }
+                            if item.service == "doubao", item.remoteSubmissionPending == true, item.remoteTaskURL == nil, !["running","queued"].contains(item.state) {
+                                TextField("豆包原任务链接",text:$recoveryURL).textFieldStyle(.roundedBorder)
+                                Button("关联原任务") {
+                                    let value = recoveryURL.trimmingCharacters(in:.whitespacesAndNewlines)
+                                    if WorkBrowser.validTask(value) { store.recordRemoteURL(item.id,url:value); recoveryURL = "" }
+                                    else { store.error = "请使用豆包原任务的完整链接。" }
+                                }.font(.system(size:11))
+                            }
+                            if let link = item.remoteTaskURL, WorkBrowser.validTask(link), let url = URL(string:link) { Link("打开豆包原任务",destination:url).font(.system(size:11)) }
+                            ForEach(item.cloudDocuments ?? [],id:\.self) { link in if WorkBrowser.validDocument(link), let url=URL(string:link) { Link(item.exportVerifiedAt == nil ? "查看飞书文档（待回读核对）" : "打开飞书文档（已回读核对）",destination:url).font(.system(size:11)) } }
                             if let source = item.resultSource { Text("结果来源："+source).font(.system(size:10)).foregroundStyle(.secondary) }
                             if !item.failure.isEmpty { Text(item.failure).font(.system(size:11)).foregroundStyle(.orange) }
                             HStack {
-                                if ["running","queued"].contains(item.state) { Button("取消") { store.cancel(item.id) } }
+                                if ["running","queued"].contains(item.state) { Button(item.service == "doubao" ? "停止等候" : "取消") { store.cancel(item.id) } }
                                 else if item.state != "done" { Button(item.result.isEmpty ? "交给AI" : "重新处理") { store.run(item.id) }; Button("完成") { store.complete(item.id) } }
                                 Button("稍后20分") { store.snooze(item.id) }
-                                if !item.result.isEmpty { Button("复制结果") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(item.result,forType:.string) }; Button("存文档") { store.exportDocument(item) } }
                             }.font(.system(size:11))
+                            if !item.result.isEmpty { HStack { Button("复制结果") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(item.result,forType:.string) }; Button("存文档") { store.exportDocument(item) }; Button("存到飞书") { store.saveToFeishu(item) } }.font(.system(size:11)) }
                         }
                     }.padding(10).background(.white.opacity(0.07),in:RoundedRectangle(cornerRadius:10))
                 }
