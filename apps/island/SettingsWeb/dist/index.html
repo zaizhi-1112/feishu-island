@@ -34,9 +34,9 @@
     <div class="page-title"><div><div class="eyebrow">少一点打扰，多一点专注</div><h1>飞书消息</h1><p>选择需要提醒的消息，为联系人和群聊设置例外。</p></div><span class="module-badge"><svg><use href="#i-plane"/></svg>已接入</span></div>
     <section class="card fusion-controls" aria-label="接收与灵动岛">
       <div class="fusion-heading"><h2>接收与灵动岛</h2><button class="secondary" id="connect-agent">接入 Agent</button></div>
-      <p>已使用融合版内置的本人飞书只读接收，消息统一进入顶部灵动岛。</p>
-      <div class="fusion-fields"><label>飞书 CLI 路径<input id="cli-path" autocomplete="off" spellcheck="false" placeholder="本机官方 lark-cli 的绝对路径"></label><label>账号配置名<input id="cli-profile" autocomplete="off" spellcheck="false" placeholder="feishu-island（留空为默认账号）"></label></div>
-      <p class="fusion-help" id="auth-hint">连接配置只指向你本人的只读授权，不复制他人的凭据。</p>
+      <p>飞书新消息统一进入顶部灵动岛，接收状态以下方开关为准。</p>
+      <p class="fusion-help">首次使用：连接你自己的飞书，完成授权后启用接收或归档。</p><p><button class="primary" id="company-open">连接自己的飞书</button> <button class="secondary" id="company-receive">启用公司接收连接</button> <button class="secondary" id="company-archive">启用公司归档连接</button></p><p id="company-status" class="fusion-help" role="status"></p><details><summary>已有本机连接 / 高级设置</summary><div class="fusion-fields"><label>飞书 CLI 路径<input id="cli-path" autocomplete="off" spellcheck="false" placeholder="本机官方 lark-cli 的绝对路径"></label><label>账号配置名<input id="cli-profile" autocomplete="off" spellcheck="false" placeholder="feishu-island（留空为默认账号）"></label></div>
+      <p><button class="secondary" id="company-disable-receive">停用公司接收</button> <button class="secondary" id="company-disable-archive">停用公司归档</button> <button class="secondary" id="company-reset">重新登录公司账号</button></p></details><p class="fusion-help" id="auth-hint">连接配置只指向你本人的只读授权，不复制他人的凭据。</p>
       <div class="fusion-actions"><button class="secondary" id="danmu-demo">岛内合成演示</button></div>
       <p class="fusion-help" id="delivery-status" aria-live="polite">正在读取本次运行的投递计数…</p>
       <p class="fusion-help">所有消息都在顶部灵动岛内查看，可手动翻页，读完再看下一条。岛内默认手动阅读，不会自动消失。</p>

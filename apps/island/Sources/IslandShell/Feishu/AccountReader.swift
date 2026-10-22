@@ -113,9 +113,15 @@ final class AccountReader {
     private func call(_ args: [String], _ token: Int) throws -> [String: Any] {
         requestSlots.wait(); defer { requestSlots.signal() }
         guard alive(token) else { throw AccountFailure(detail: "接收已停止") }
+        let company = profile == CompanyConnection.profile
+        let credential = company ? try CompanyConnection.shared.credential(.receive) : nil
+        guard alive(token) else { throw AccountFailure(detail: "接收已停止") }
+        if let credential, args == ["auth", "status", "--json"] {
+            return ["identities":["user":["available":true,"openId":credential.openID,"userName":credential.userName]]]
+        }
         let p = Process(); p.executableURL = cli
-        p.arguments = (profile.isEmpty ? [] : ["--profile", profile]) + args
-        var env = ProcessInfo.processInfo.environment
+        p.arguments = (profile.isEmpty || company ? [] : ["--profile", profile]) + args
+        var env = credential?.environment(ProcessInfo.processInfo.environment) ?? ProcessInfo.processInfo.environment
         env["LARKSUITE_CLI_NO_UPDATE_NOTIFIER"] = "1"; env["LARKSUITE_CLI_NO_SKILLS_NOTIFIER"] = "1"
         p.environment = FeishuTransport.shared.environment(env); p.standardInput = FileHandle.nullDevice
         let pipe = Pipe(); let errors = Pipe(); p.standardOutput = pipe; p.standardError = errors

@@ -43,7 +43,7 @@ function render() {
   $('#danmu-font').value=draft.appearance.fontSize; text('#danmu-font-value',draft.appearance.fontSize / 2);
   $('#danmu-theme').value=draft.appearance.background===null?'system':draft.appearance.background==='#111111'?'night':draft.appearance.background==='#ffffff'?'paper':'custom';
   $('#danmu-demo').disabled=!connected||saving||!saved?.enabled;
-  text('#auth-hint','仅使用本人只读授权。授权未完成时，可让你的 Agent 按以上 CLI 路径和账号配置名完成授权；保存连接不会自动授权。');
+  text('#auth-hint','消息只读接收，材料归档单独授权。首次使用点“连接自己的飞书”；已有本机连接保留在高级设置中。');
   renderPreview();
   renderCustom();
 }
@@ -272,3 +272,22 @@ $('#workspace-save-minutes').addEventListener('click',()=>workspaceAction({actio
 $('#workspace-add-recipe').addEventListener('click',()=>workspaceAction({action:'recipe',title:$('#workspace-recipe-title').value,instruction:$('#workspace-recipe-instruction').value}));
 workspaceAction();
 setInterval(()=>{ if (!$('#page-workspace').hidden) workspaceAction(); },15000);
+
+async function companyAction(action) {
+  const buttons=['#company-open','#company-receive','#company-archive','#company-disable-receive','#company-disable-archive','#company-reset'].map($);
+  buttons.forEach(b=>b.disabled=true);
+  if(action)text('#company-status','正在处理连接…');
+  try {
+    const result=await request(action?'POST':'GET',action?{action}:undefined,'/api/company');
+    text('#company-status',result.message || '公司连接采用各自授权，已有本机接收保持原配置。');
+    if(action==='receive'){saved=null;draft=null;await load();}
+  } catch(e){text('#company-status',e.message);}
+  finally{buttons.forEach(b=>b.disabled=false);}
+}
+$('#company-open').addEventListener('click',()=>companyAction('open'));
+$('#company-receive').addEventListener('click',()=>companyAction('receive'));
+$('#company-archive').addEventListener('click',()=>companyAction('archive'));
+$('#company-disable-receive').addEventListener('click',()=>companyAction('disableReceive'));
+$('#company-disable-archive').addEventListener('click',()=>companyAction('disableArchive'));
+$('#company-reset').addEventListener('click',()=>companyAction('reset'));
+companyAction();

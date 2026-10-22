@@ -24,6 +24,7 @@ final class SettingsServer {
     private var port: UInt16 = 18766
     private var ready = false
     private var openWhenReady = false
+    private var companyActionBusy = false
     private var connections: [UUID: SettingsConnection] = [:]
 
     func start(store: FeishuStore, listen: Bool = true, preferredPort: UInt16 = 18766) {
@@ -155,6 +156,55 @@ final class SettingsServer {
         }
         if let origin = headers["origin"], origin != "http://\(host)" { return .error(403, "来源不匹配") }
         if let site = headers["sec-fetch-site"], site == "cross-site" { return .error(403, "来源不匹配") }
+        if url.path == "/api/company" {
+            guard !sessionLocked, let store else { return .error(403,"请解锁并打开工作岛。") }
+            let company=CompanyConnection.shared
+            if method == "GET" {
+                return .json(["state":company.statusJSON(),"message":store.connection.profile == CompanyConnection.profile ? "当前消息使用公司连接；材料归档单独授权。" : "现有本机接收保持原配置。首次使用请先连接自己的飞书。"])
+            }
+            guard method == "POST", headers["origin"] == "http://\(host)",headers["x-island-settings"] == "1",headers["content-type"]?.hasPrefix("application/json") == true,
+                  let input=try? JSONSerialization.jsonObject(with:body) as? [String:Any],let action=input["action"] as? String else { return .error(403,"请从本机设置页操作。") }
+            guard store.allowsDirectoryLookup else { return .error(403,"合成模式不打开真实公司连接。") }
+            if action == "open" { company.open(); return .json(["message":"已打开独立连接窗口。在窗口中登录自己的中台账号，并分别授权消息与归档；完成后回到这里启用。"] ) }
+            guard ["receive","archive","disableReceive","disableArchive","reset"].contains(action) else { return .error(400,"不支持的连接操作。") }
+            guard !companyActionBusy else { return .error(409,"连接正在核对，请稍候。") }
+            companyActionBusy=true
+            defer { companyActionBusy=false }
+            if action == "disableReceive" {
+                guard !(store.enabled && store.connection.profile == CompanyConnection.profile) else { return .error(409,"请先停止接收并保存，再停用公司接收连接。") }
+                company.setEnabled(.receive,false)
+                return .json(["message":"公司接收连接已停用。其他接收配置未改变。"])
+            }
+            if action == "disableArchive" || action == "reset" {
+                guard !WorkspaceStore.shared.disk.items.contains(where:{["running","queued","dot_waiting","dot_running"].contains($0.state) || ["running","pending"].contains($0.archive?.state ?? "") || $0.archive?.intent != nil}) else { return .error(409,"仍有任务或归档待完成，请完成后再更改连接。") }
+                if action == "disableArchive" {
+                    company.setEnabled(.archive,false)
+                    return .json(["message":"公司归档连接已停用。后续归档将使用已有本机配置（如有）；历史归档仍须原账号完成。"])
+                }
+                do { try company.reset();company.open();return .json(["message":"已清除本机公司登录，请在连接窗口登录自己的账号。"] ) }
+                catch { return .error(409,(error as? AccountFailure)?.detail ?? "请先停用两项公司连接。") }
+            }
+            let revision=store.settingsRevision
+            if action == "receive", store.enabled { return .error(409,"现有接收正在运行，已保持不变。如需切换，请先停止接收并保存。") }
+            if action == "archive", WorkspaceStore.shared.disk.items.contains(where:{["running","queued","dot_waiting","dot_running"].contains($0.state) || ["running","pending"].contains($0.archive?.state ?? "") || $0.archive?.intent != nil}) { return .error(409,"仍有任务或归档待完成，请完成后再切换归档连接。") }
+            let purpose:CompanyConnection.Purpose=action == "receive" ? .receive : .archive
+            do {
+                let credential=try await Task.detached { try company.prepare(purpose) }.value
+                if action == "receive" {
+                    guard !sessionLocked, !store.enabled, store.settingsRevision == revision else { throw AccountFailure(detail:"接收设置已变化，保留当前配置；请核对后再连接。") }
+                    if let conflict=store.receiveConflict { throw AccountFailure(detail:conflict) }
+                    try company.activate(credential,purpose:purpose)
+                    _=store.updateConnection(FeishuConnection(profile:CompanyConnection.profile))
+                    store.updateSettings(enabled:true,rules:store.rules)
+                } else {
+                    guard !sessionLocked, !WorkspaceStore.shared.disk.items.contains(where:{["running","queued","dot_waiting","dot_running"].contains($0.state) || ["running","pending"].contains($0.archive?.state ?? "") || $0.archive?.intent != nil}) else { throw AccountFailure(detail:"已有任务开始处理，保留原归档连接；完成后再切换。") }
+                    try company.activate(credential,purpose:purpose)
+                }
+                return .json(["message":action == "receive" ? "已核对 \(credential.userName) 的公司授权，开始接收新消息。" : "已核对 \(credential.userName) 的归档授权。之后主动提交的材料可自动归档。"])
+            } catch {
+                return .error(409,(error as? AccountFailure)?.detail ?? "公司连接未完成，请打开连接窗口核对本人授权。")
+            }
+        }
         if url.path == "/api/workspace" {
             guard !sessionLocked else { return .error(403,"锁屏期间不读取个人工作区。") }
             let workspace = WorkspaceStore.shared

@@ -2,6 +2,7 @@ import NookApp
 import IslandShell
 import AppKit
 
+if MainActor.assumeIsolated({ CompanySandbox.runIfRequested() }) { exit(0) }
 if MainActor.assumeIsolated({ DotSandbox.runIfRequested() }) { exit(0) }
 
 // Finder normally reuses the running app. Guard direct executable launches as well.

@@ -517,6 +517,8 @@ final class FusionTests {
             do { try await tests.testArchiveLive() } catch { print("FAIL: "+error.localizedDescription); exit(1) }; return
         }
         do {
+            try tests.testCompanyConnectionBoundary()
+            try await tests.testCompanyActivationIsolation()
             try await tests.testDotPairingAndDelegation()
             try await tests.testDotEvents()
             try tests.testArchiveAutomation()

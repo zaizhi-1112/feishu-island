@@ -46,6 +46,7 @@ import Foundation
         var text="", creates=0, appends=0, calls=0
         let client=WorkArchiveCLI { args, body in
             calls += 1
+            if args == ["auth","status","--json"] { return ["appId":"cli_synthetic","identities":["user":["available":true,"openId":"ou_synthetic"]]] }
             if args.contains("+create") { creates += 1; text=String(decoding:body!,as:UTF8.self); return ["data":["document":["url":"https://synthetic.feishu.cn/docx/test123"]]] }
             if args.contains("+update") { appends += 1; text += String(decoding:body!,as:UTF8.self); return ["ok":true] }
             if args.contains("+fetch") { return ["data":["content":text]] }
@@ -53,12 +54,29 @@ import Foundation
         }
         let final=try WorkArchive.run(item:item,initial:saved,attachments:[],cli:client,save:{saved=$0})
         XCTAssertEqual(final.state,"succeeded"); XCTAssertEqual(creates,1); XCTAssertEqual(appends,1)
+        XCTAssertEqual(final.connectionIdentity?.count,64)
+        var resume=final;resume.state="failed"
+        var foreignCalls=0
+        let foreign=WorkArchiveCLI { args, _ in
+            foreignCalls += 1
+            if args == ["auth","status","--json"] { return ["appId":"cli_synthetic","identities":["user":["available":true,"openId":"ou_another"]]] }
+            return ["ok":true]
+        }
+        do{_=try WorkArchive.run(item:item,initial:resume,attachments:[],cli:foreign,save:{_ in});XCTAssertTrue(false)}catch{XCTAssertTrue(true)}
+        XCTAssertEqual(foreignCalls,1) // identity only; no existing document is touched
+        var legacy=resume;legacy.connectionIdentity=nil
+        let legacyBefore=calls
+        do{_=try WorkArchive.run(item:item,initial:legacy,attachments:[],cli:client,save:{_ in});XCTAssertTrue(false)}catch{XCTAssertTrue(true)}
+        XCTAssertEqual(calls,legacyBefore+1)
+        let resumed=try WorkArchive.run(item:item,initial:resume,attachments:[],cli:client,save:{_ in})
+        XCTAssertEqual(resumed.state,"succeeded");XCTAssertEqual(creates,1);XCTAssertEqual(appends,1)
         XCTAssertTrue(text.contains("https://example.com")); XCTAssertTrue(text.contains(item.result))
         let before=calls
         _=try WorkArchive.run(item:item,initial:final,attachments:[],cli:client,save:{_ in})
         XCTAssertEqual(calls,before)
         var uncertain=WorkArchiveReceipt(target:WorkArchiveTarget(mode:"new"),digest:WorkArchive.digest(item))
         let failing=WorkArchiveCLI { args, _ in
+            if args == ["auth","status","--json"] { return ["appId":"cli_synthetic","identities":["user":["available":true,"openId":"ou_synthetic"]]] }
             if args.contains("+create") { throw WorkError.message("合成断线") }
             return ["ok":true]
         }

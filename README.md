@@ -61,8 +61,15 @@ bash scripts/check.sh island         # macOS：灵动岛逻辑检查，需兼容
 
 验证：`python3 apps/island/Tests/package-pilot-test.py`；本轮独立 Release 构建、arm64 架构校验、ZIP CRC、桌面/390px 说明阅读检查通过；未替换或重启日用应用，接收仍开启且状态正常。下载入口已上线；未配置同事真实账号、未合并 main。
 
-飞书后台接入范围：消息应用 1.0.2、独立归档应用 1.0.1 已发布，仅宰治与史天佑两位成员，原权限未变；史天佑本人尚未授权/验收。旧中台下载域名已实测无对应应用；新下载入口为 https://feishu-island.virxact.net，仅宰治和柚子可见。首次连接服务尚未上线。
+飞书后台接入范围：消息应用 1.0.2、独立归档应用 1.0.1 已发布，仅宰治与史天佑两位成员，原权限未变；史天佑本人尚未授权/验收。旧中台下载域名已实测无对应应用；新下载入口为 https://feishu-island.virxact.net，仅宰治和柚子可见。公司授权服务已上线；原生接续在 build28 实现，首次真人登录仍待验收。
 
-首次授权的技术边界：飞书官方 [v3 用户令牌说明](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/authentication-management/access-token/get-user-access-token-v3)明确，自建应用为 Confidential Client，换取用户令牌仍需要应用密钥；不能把共享 App Secret 装进可分发包。后续需实现合规的公司授权服务与本机个人凭据接续，不能通过复制开发者 CLI profile 冒充一键接入。
+首次授权的技术边界：飞书官方 [v3 用户令牌说明](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/authentication-management/access-token/get-user-access-token-v3)明确，自建应用为 Confidential Client，换取用户令牌仍需要应用密钥；不能把共享 App Secret 装进可分发包。build28 已增加公司授权服务与本机接续实现；不复制开发者 CLI profile，真人首次登录与同事完整流程仍需分别验收。
 
-独立分发 build27 使用宰治指定图标，运行逻辑沿用 build26；图标、白名单打包与静态入口可复现。3 项分发检查、538 条融合合成断言通过，日用接收未重启。当前不能让史天佑仅安装就完成首次连接：公司授权服务、本人 Dot 首次配置和同事实机验收仍是必需的未完成项。Windows 版按本人决定延期，当前只交付 M 系列 Mac 试用包。
+此前独立分发 build27 使用宰治指定图标，运行逻辑沿用 build26；build28 沿用该图标。图标、白名单打包与入口可复现。3 项分发检查、538 条融合合成断言通过，日用接收未重启。当前不能让史天佑仅安装就完成首次连接：Mac 内置公司登录的首次验收、本人 Dot 首次配置和同事实机验收仍是必需的未完成项。Windows 版按本人决定延期，当前只交付 M 系列 Mac 试用包。
+
+
+## 公司连接（build28，独立试用构建）
+
+公司授权服务已上线，仍只对宰治和柚子开放。消息和归档各自授权，应用密钥与刷新凭据由服务器加密保管。Mac 内置独立 WebKit 公司登录窗口，先 prepare 核对授权，重新检查任务和设置未变化后才 activate；核对期间不切换现有消息或归档连接。有效公司登录会话下，短期访问令牌只在内存中交给官方 CLI 1.0.96 的 `LARKSUITE_CLI_USER_ACCESS_TOKEN` 环境提供方；App Secret 和 refresh token 不回到 Mac。此环境提供方已按官方源码核实，覆盖早前“CLI 无法接收外部令牌”的判断。不读取外部浏览器 Cookie，不改既有 CLI profile，旧连接默认保持，不替换日用 build26。
+
+本轮真实证据：公司网页的本人归档授权保存成功；临时凭据通过官方 CLI 完成合成文档新建与回读，两个反馈一致，凭据不落文件。18 项服务合成测试和 565 条融合断言通过。Mac 独立公司登录窗口已打开，当前等待本人扫码；史天佑设备、其个人 Dot 首次配置及接收→AI→归档完整流程尚未实测，不能把本人归档验证说成同事安装即全接通。服务最新状态见后续发布记录；[合成归档验收](docs/AI工作台接入与验收.html#company28)。

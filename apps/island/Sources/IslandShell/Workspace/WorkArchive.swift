@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 final class ArchiveSaveBox: @unchecked Sendable { var saved = false }
 
@@ -45,6 +46,7 @@ struct WorkArchiveReceipt: Codable, Equatable {
     var target: WorkArchiveTarget
     var digest: String
     var operation = UUID()
+    var connectionIdentity: String?
     var state = "pending"
     var document: String?
     var record: String?
@@ -73,16 +75,32 @@ struct WorkArchiveCLI {
     static let profile = "feishu-island-archive"
     var call: ([String], Data?) throws -> [String:Any]
     init(call: @escaping ([String],Data?) throws -> [String:Any]) { self.call = call }
-    init() { call = Self.execute }
-    static func execute(_ args:[String], _ input:Data?) throws -> [String:Any] {
-        try execute(args,input,executable:Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/lark-cli"))
+    init() {
+        let company=CompanyConnection.shared.isEnabled(.archive)
+        call={ args,input in try Self.execute(args,input,forCompany:company) }
     }
-    static func execute(_ args:[String], _ input:Data?, executable exe:URL) throws -> [String:Any] {
+    static func execute(_ args:[String], _ input:Data?, forCompany company:Bool? = nil) throws -> [String:Any] {
+        try execute(args,input,executable:Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/lark-cli"),forCompany:company)
+    }
+    static func execute(_ args:[String], _ input:Data?, executable exe:URL, forCompany selected:Bool? = nil) throws -> [String:Any] {
         guard FileManager.default.isExecutableFile(atPath:exe.path) else { throw WorkError.message("归档组件未安装。") }
+        // Freeze selection for the whole WorkArchiveCLI instance. A company
+        // failure never falls back to a local identity between write steps.
+        let company = selected ?? CompanyConnection.shared.isEnabled(.archive)
+        let credential:CompanyConnection.Credential?
+        do { credential = company ? try CompanyConnection.shared.credential(.archive) : nil }
+        catch { throw WorkError.message((error as? AccountFailure)?.detail ?? "公司归档连接未就绪。") }
+        if let credential, args == ["auth","status","--json"] {
+            return ["appId":credential.appID,"companyUserId":credential.userID,"identities":["user":["available":true,"openId":credential.openID]]]
+        }
+        if let credential, args.count >= 4, Array(args.prefix(2)) == ["auth","check"],
+           let index=args.firstIndex(of:"--scope"), args.indices.contains(index+1) {
+            return credential.checkScopes(args[index+1])
+        }
         let p = Process(), out = Pipe(), stdin = Pipe()
-        p.executableURL = exe; p.arguments = ["--profile",profile] + args
+        p.executableURL = exe; p.arguments = (company ? [] : ["--profile",profile]) + args
         p.standardOutput = out; p.standardError = FileHandle.nullDevice; p.standardInput = stdin
-        p.environment = FeishuTransport.shared.environment(ProcessInfo.processInfo.environment)
+        p.environment = FeishuTransport.shared.environment(credential?.environment(ProcessInfo.processInfo.environment) ?? ProcessInfo.processInfo.environment)
         defer { try? out.fileHandleForReading.close(); try? out.fileHandleForWriting.close(); try? stdin.fileHandleForReading.close(); try? stdin.fileHandleForWriting.close() }
         try p.run()
         let timeout = DispatchWorkItem { if p.isRunning { p.terminate(); DispatchQueue.global().asyncAfter(deadline:.now()+2) { if p.isRunning { kill(p.processIdentifier,SIGKILL) } } } }
@@ -103,6 +121,18 @@ struct WorkArchiveCLI {
             throw WorkError.message("飞书归档请求未成功，请检查独立归档授权及目标权限；已完成的AI结果保留。")
         }
         return json
+    }
+    func connectionIdentity() throws -> String {
+        let status=try call(["auth","status","--json"],nil)
+        guard let app=status["appId"] as? String,!app.isEmpty,
+              let identities=status["identities"] as? [String:Any],let user=identities["user"] as? [String:Any],
+              user["available"] as? Bool == true,let open=user["openId"] as? String,open.hasPrefix("ou_") else {
+            throw WorkError.message("归档连接身份尚未核对，未读取或写入目标。")
+        }
+        let company=status["companyUserId"] as? String
+        let values=[company == nil ? "local" : "company",app,open,company ?? ""]
+        let bytes=try JSONSerialization.data(withJSONObject:values)
+        return SHA256.hash(data:bytes).map{String(format:"%02x",$0)}.joined()
     }
     func request(_ args:[String], body:String? = nil) throws -> [String:Any] { try call(args,body.map{Data($0.utf8)}) }
     func api(_ method:String,_ path:String, body:[String:Any]? = nil, params:[String:Any]? = nil) throws -> [String:Any] {
@@ -150,12 +180,19 @@ enum WorkArchive {
         // An unacknowledged non-idempotent write requires checking its existing destination.
         // Never re-create a document or re-upload a file after an ambiguous response.
         guard r.intent == nil else { throw WorkError.message("上次写入结果待核对，未重复归档。") }
+        let identity=try cli.connectionIdentity()
+        if let previous=r.connectionIdentity {
+            guard previous == identity else { throw WorkError.message("本次归档连接与原任务不一致，已停止续写。请恢复原连接后再试。") }
+        } else if r.document != nil || r.record != nil || r.written || !r.uploaded.isEmpty || !(r.media ?? [:]).isEmpty {
+            throw WorkError.message("旧归档已有写入但缺少账号核对记录，已保留回执；请先核对原文档，不会换账号继续写入。")
+        }
         r.target = try resolve(r.target,cli:cli)
         var scopes = "docx:document:create docx:document:write_only docx:document:readonly"
         if !attachments.isEmpty { scopes += " docs:document.media:upload" }
         if r.target.mode == "base" { scopes += " base:field:read base:record:create base:record:read" }
         let permission = try cli.request(["auth","check","--scope",scopes,"--json"])
         guard permission["ok"] as? Bool == true else { throw WorkError.message("独立飞书归档授权未就绪；AI结果已保留，连接后可只重试归档。") }
+        r.connectionIdentity=identity
         r.state = "running"; r.error = ""; try save(r)
         if r.target.mode == "base", let t = r.target.table {
             let fields = data(try cli.api("GET","/open-apis/bitable/v1/apps/\(t.base)/tables/\(t.table)/fields",params:["page_size":100]))
