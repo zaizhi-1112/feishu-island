@@ -118,3 +118,7 @@
 - build28 新增独立 WebKit 公司登录，prepare 只核对、重新检查任务/设置后 activate；旧连接默认保持，用户图标沿用。独立新连接窗口当前等待本人扫码，日用 build26 未替换。史天佑设备、个人 Dot 首次配置与接收→AI→归档完整流程尚未实测；不能把本人公司网页授权或 CLI 合成归档成功说成同事安装即全接通。细节见 docs/AI工作台接入与验收.html#company28。
 
 - build28 发布核对：594 条融合断言、18 项公司授权服务测试及 3 项打包检查通过；正式运行的五个 helper 与独立包字节一致。公司入口 release248 已 live，仅作者和柚子；Mac 试用包 SHA-256 为 c401a0503754a724e3f6b04c56865b75738abb97a3becae00316739f490ee708。独立包未覆盖日用版，未做桌面遮罩。归档重试保存并核对连接身份，不得换账号续写已有目标；停用/重置入口需先停止相关消费者。
+
+- 2026-10-23 build28 日用升级续验：本人明确要求实际替换后，已从中台实际下载并核验上述 SHA-256 的 build28 ZIP，安装到日用应用路径；旧 build26 与工作区已备份。重启工作岛后接收 enabled=true，connection/account/rules/customRules/danmu 配置哈希与升级前一致，21 条既有任务完整保留，中台 hubConnected=true，5 个稳定 helper 字节一致。此记录更新此前“日用 build26 未替换”的阶段状态，不代表公司归档已通过本机整段验收。独立验收窗口的登录不可转移到日用版，日用 WK 公司登录仍待本人完成；未导出 Cookie 或 token，消息接收继续沿用原配置。
+
+- 2026-10-23 build28 日用公司归档续验：日用 WK 从全新登录事务开始后，本人扫码登录成功，连接页显示归档授权已保存；/api/company archive 经 prepare/activate 核对吴闯本人授权并启用。实际从灵动岛点击直接归档，合成标记 COMPANY-NATIVE-20261023-B、任务 0A6CE1C5-4AF9-4BCD-93B7-EB0645FFF425，文字/链接/TXT/PNG 完整归档；archive.state=succeeded、verifiedAt 存在、written=true、uploaded/media 各2、无 intent/error、连接身份已保存，无 AI 结果或 Dot 派发。文档 R70adIGG0oZ49gxpmdXcTTGjnge 经中台 read_document 独立回读一致，含图片/附件块；原生岛内显示归档完成与文档链接。任务已从 UI 标 done、取消提醒，脱敏检查及截图留在忽略的 .build/company-native-acceptance。此记录覆盖前条“日用 WK 待登录/公司归档待验收”；未重启验证公司登录持久性，公司消息授权未迁移，原消息接收配置继续运行；史天佑设备、其个人 Dot 首次配置仍未验收。
