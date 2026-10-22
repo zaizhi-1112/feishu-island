@@ -52,3 +52,11 @@ bash scripts/check.sh island         # macOS：灵动岛逻辑检查，需兼容
 当前使用与各平台真实验收：[AI工作台接入与验收](docs/AI工作台接入与验收.html)。
 
 本机build19：待办可在岛内编辑、删除并恢复；顶部按明确悬停展开意图触发。操作与验收见[使用说明](docs/预览版使用说明.html)。
+
+## 同事试用准备（尚非安装即全接通）
+
+首位试用者为史天佑（柚子）。[试用准备说明](apps/island/Distribution/开始使用.html)明确安装条件、各自授权与尚未完成的接入环节。现有日用账号的真实验收不能替代同事账号验收。
+
+构建时可指定尚不存在的绝对 `.app` 路径 `ISLAND_APP_OUTPUT`，保留当前运行版本。构建会一并带入当前网页收录扩展。`python3 apps/island/scripts/package-pilot.py /absolute/path/to/application.app` 生成独立试用 ZIP、文件哈希清单和 SHA256SUMS；只接受列明的程序资源，核验签名与所有 helper 架构，不复制 profile、工作区、隧道配置或授权凭据。输出在忽略的 `apps/island/releases`，不上传到源码仓库。
+
+验证：`python3 apps/island/Tests/package-pilot-test.py`；本轮独立 Release 构建、arm64 架构校验、ZIP CRC、桌面/390px 说明阅读检查通过；未替换或重启日用应用，接收仍开启且状态正常。未发布中台、未配置同事真实账号、未合并 main。

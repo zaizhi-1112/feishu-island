@@ -12,7 +12,11 @@ CONFIG="${ISLAND_CONFIGURATION:-release}"
 SCRATCH="${ISLAND_SCRATCH_PATH:-$ROOT/.build}"
 swift build --scratch-path "$SCRATCH" -j 2 --sdk "$SDK" -c "$CONFIG" --product YuIsland
 BIN_DIR="$(swift build --scratch-path "$SCRATCH" --sdk "$SDK" -c "$CONFIG" --show-bin-path)"
-APP="$ROOT/dist/飞书工作岛预览版.app"
+APP="${ISLAND_APP_OUTPUT:-$ROOT/dist/飞书工作岛预览版.app}"
+[[ "$APP" = /* && "$APP" = *.app ]] || { echo 'ISLAND_APP_OUTPUT 必须是绝对 .app 路径' >&2; exit 1; }
+if [[ -n "${ISLAND_APP_OUTPUT:-}" && ( -e "$APP" || -L "$APP" ) ]]; then
+    echo '独立构建路径必须尚不存在，不覆盖已安装或已运行的应用。' >&2; exit 1
+fi
 if pgrep -f "^$APP/Contents/MacOS/YuIsland$" >/dev/null; then
     echo '预览版正在运行，请手动退出后再构建。不会替换运行中的程序。' >&2; exit 1
 fi
@@ -31,6 +35,10 @@ mkdir -p "$APP/Contents/Resources/SettingsWeb"
 cp "$ROOT/SettingsWeb/dist/"* "$APP/Contents/Resources/SettingsWeb/"
 mkdir -p "$APP/Contents/Resources/BrowserBridge"
 cp "$ROOT/BrowserBridge/doubao-work.js" "$APP/Contents/Resources/BrowserBridge/"
+mkdir -p "$APP/Contents/Resources/BrowserBridge/chrome-reader"
+for asset in manifest.json popup.html popup.css popup.js extract.js; do
+    cp "$ROOT/BrowserBridge/chrome-reader/$asset" "$APP/Contents/Resources/BrowserBridge/chrome-reader/"
+done
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 cp "$ROOT/Vendor/OpenNook/LICENSE" "$APP/Contents/Resources/OpenNook-LICENSE"
 cp "$ROOT/Vendor/OpenNook/LICENSE-MIT-NOOKSURFACE" "$APP/Contents/Resources/NookSurface-LICENSE"
