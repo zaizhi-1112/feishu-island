@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Create an uninstalled pilot kit. Never copies profiles, home folders or credentials."""
+"""Create a drag-to-Applications DMG without installing or starting the application.
+
+Only the audited app and Applications shortcut are visible on the volume. The audit
+manifest stays beside the DMG, never inside the user's installation window.
+"""
 import argparse
 import hashlib
 import json
 from pathlib import Path
 import plistlib
-import shutil
+import re
 import subprocess
 import tempfile
 
@@ -15,6 +19,29 @@ RESOURCE_FILES = {'AppIcon.icns', 'LarkCLI-LICENSE', 'OpenNook-LICENSE', 'NookSu
 RESOURCE_DIRS = {'ThirdPartyLicenses', 'TunnelClientLicenses'}
 WEB_FILES = {'index.html', 'app.js', 'style.css'}
 EXTENSION_FILES = {'manifest.json', 'popup.html', 'popup.css', 'popup.js', 'extract.js'}
+VOLUME_NAME = '飞书工作岛'
+VOLUME_METADATA = {'.DS_Store', '.fseventsd', '.Trashes', '.TemporaryItems', '.VolumeIcon.icns'}
+LAYOUT_DIR = ROOT/'scripts/dmg-layout'
+
+
+def layout_template(app_name):
+    metadata = json.loads((LAYOUT_DIR/'layout.json').read_text())
+    if metadata.get('appName') != app_name:
+        raise ValueError('Application name does not match the reviewed Finder layout')
+    template = LAYOUT_DIR/'FinderLayout.dsstore'
+    if template.is_symlink() or not template.is_file():
+        raise ValueError('Finder layout template must be a regular file')
+    data = template.read_bytes()
+    if hashlib.sha256(data).hexdigest() != metadata.get('sha256'):
+        raise ValueError('Finder layout template digest mismatch')
+    return metadata, data
+
+
+def install_layout(root, app_name):
+    metadata, data = layout_template(app_name)
+    with (root/'.DS_Store').open('xb') as file:
+        file.write(data)
+    return metadata
 
 
 def allowed(path):
@@ -65,9 +92,8 @@ def inspect(app):
     return info, entries
 
 
-def package(app, output):
-    app = app.absolute()
-    info, entries = inspect(app)
+def verify_runtime(app):
+    """Read-only verification; preserve the app and every helper's signing bytes."""
     subprocess.run(['codesign', '--verify', '--strict', str(app)], check=True, capture_output=True)
     architectures = set(subprocess.check_output(['lipo', '-archs', str(app/'Contents/MacOS/YuIsland')], text=True).split())
     for name in HELPERS:
@@ -76,27 +102,88 @@ def package(app, output):
             raise ValueError('Helper architecture mismatch: ' + name)
     if not architectures or not architectures.issubset({'arm64', 'x86_64'}):
         raise ValueError('Unsupported architecture')
-    output.mkdir(parents=True, exist_ok=True)
-    # A new directory per invocation; never replaces a prior kit or installation.
-    stage = Path(tempfile.mkdtemp(prefix='pilot-', dir=output))
-    kit = stage/'飞书工作岛试用包'
-    kit.mkdir()
-    subprocess.run(['ditto', '--norsrc', '--noextattr', str(app), str(kit/app.name)], check=True)
-    copied_info, copied_entries = inspect(kit/app.name)
-    if copied_info != info or copied_entries != entries:
+    return sorted(architectures)
+
+
+def inspect_volume(root, app_name, expected_info, expected_entries):
+    visible = {p.name for p in root.iterdir() if not p.name.startswith('.')}
+    if visible != {app_name, 'Applications'}:
+        raise ValueError('DMG must show only the application and Applications shortcut')
+    if any(p.name.startswith('.') and p.name not in VOLUME_METADATA for p in root.iterdir()):
+        raise ValueError('Unexpected hidden material in the DMG root')
+    shortcut = root/'Applications'
+    if not shortcut.is_symlink() or shortcut.readlink().as_posix() != '/Applications':
+        raise ValueError('Invalid Applications shortcut')
+    metadata, _ = layout_template(app_name)
+    stored_layout = root/'.DS_Store'
+    if stored_layout.is_symlink() or not stored_layout.is_file() or hashlib.sha256(stored_layout.read_bytes()).hexdigest() != metadata['sha256']:
+        raise ValueError('DMG Finder icon layout is missing or changed')
+    copied_info, copied_entries = inspect(root/app_name)
+    if copied_info != expected_info or copied_entries != expected_entries:
         raise ValueError('Application changed during packaging; retained for inspection, not released')
-    shutil.copytree(ROOT/'BrowserBridge/chrome-reader', kit/'飞书工作岛网页收录', ignore=lambda d, names: [n for n in names if n not in EXTENSION_FILES])
-    shutil.copyfile(ROOT/'Distribution/开始使用.html', kit/'开始使用.html')
-    manifest = {'version': info['CFBundleShortVersionString'], 'build': info['CFBundleVersion'],
-                'architectures': sorted(architectures), 'minimumMacOS': info['LSMinimumSystemVersion'],
-                'status': 'pilot-preparation', 'colleagueAccountVerified': False,
-                'notarized': False, 'includesPersonalCredentials': False, 'files': entries}
-    (kit/'package-manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+'\n')
-    archive = stage/'飞书工作岛试用包.zip'
-    subprocess.run(['ditto', '-c', '-k', '--norsrc', '--noextattr', '--keepParent', str(kit), str(archive)], check=True)
+
+
+def verify_dmg(archive, mountpoint, app_name, info, entries, architectures):
+    subprocess.run(['hdiutil', 'verify', str(archive)], check=True, capture_output=True)
+    mountpoint.mkdir()
+    attached = subprocess.run(['hdiutil', 'attach', '-readonly', '-nobrowse', '-noautoopen',
+                               '-mountpoint', str(mountpoint), '-plist', str(archive)],
+                              check=True, capture_output=True)
+    # The mountpoint was newly created for this invocation. Always detach this exact mount,
+    # including malformed plist/failed audit paths; never unmount unrelated user volumes.
+    try:
+        details = plistlib.loads(attached.stdout)
+        entities = details.get('system-entities', [])
+        if not any(item.get('mount-point') == str(mountpoint) for item in entities):
+            raise ValueError('DMG did not mount at its isolated verification path')
+        inspect_volume(mountpoint, app_name, info, entries)
+        if verify_runtime(mountpoint/app_name) != architectures:
+            raise ValueError('Mounted application architecture changed')
+    finally:
+        subprocess.run(['hdiutil', 'detach', str(mountpoint)], check=True, capture_output=True)
+
+
+def package(app, output):
+    app = app.absolute()
+    output = output.absolute()
+    info, entries = inspect(app)
+    architectures = verify_runtime(app)
+    version, build = info.get('CFBundleShortVersionString', ''), info.get('CFBundleVersion', '')
+    if not re.fullmatch(r'[0-9]+(?:\.[0-9]+)*', str(version)) or not re.fullmatch(r'[0-9]+', str(build)):
+        raise ValueError('Invalid release version or build number')
+    output.mkdir(parents=True, exist_ok=True)
+    # A new directory per invocation; never replaces a prior artifact or installation.
+    stage = Path(tempfile.mkdtemp(prefix='pilot-', dir=output))
+    image_root = stage/'image-root'
+    image_root.mkdir()
+    subprocess.run(['ditto', '--norsrc', '--noextattr', str(app), str(image_root/app.name)], check=True)
+    (image_root/'Applications').symlink_to('/Applications', target_is_directory=True)
+    layout = install_layout(image_root, app.name)
+    inspect_volume(image_root, app.name, info, entries)
+    verify_runtime(image_root/app.name)
+    archive = stage/f'feishu-island-{version}-build{build}-{"-".join(architectures)}.dmg'
+    subprocess.run(['hdiutil', 'create', '-volname', VOLUME_NAME, '-srcfolder', str(image_root),
+                    '-fs', 'HFS+', '-format', 'UDZO', str(archive)],
+                   check=True, capture_output=True)
+    verify_dmg(archive, stage/'verification-mount', app.name, info, entries, architectures)
+    # Recheck the source without modifying it; a concurrent rebuild is not a valid release.
+    if inspect(app) != (info, entries):
+        raise ValueError('Source application changed while packaging')
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    manifest = {'version': info['CFBundleShortVersionString'], 'build': info['CFBundleVersion'],
+                'architectures': architectures, 'minimumMacOS': info['LSMinimumSystemVersion'],
+                'status': 'pilot-preparation', 'colleagueAccountVerified': False,
+                'notarized': False, 'includesPersonalCredentials': False,
+                'format': 'dmg', 'archive': archive.name, 'sha256': digest,
+                'installation': 'drag-to-applications', 'browserExtensionEmbedded': True,
+                'finderLayout': layout,
+                'verification': {'imageIntegrity': True, 'readOnlyMounted': True,
+                                 'bundleHashesMatch': True, 'signatureValid': True, 'detached': True},
+                'files': entries}
+    manifest_path = stage/'package-manifest.json'
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+'\n')
     (stage/'SHA256SUMS').write_text(digest+'  '+archive.name+'\n')
-    print(json.dumps({'archive': str(archive), 'sha256': digest, 'architectures': sorted(architectures),
+    print(json.dumps({'archive': str(archive), 'manifest': str(manifest_path), 'sha256': digest, 'architectures': architectures,
                       'status': 'pilot-preparation'}, ensure_ascii=False))
 
 

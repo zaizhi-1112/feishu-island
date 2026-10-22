@@ -59,9 +59,11 @@ bash scripts/check.sh island         # macOS：灵动岛逻辑检查，需兼容
 
 首位试用者为史天佑（柚子）。[试用准备说明](apps/island/Distribution/开始使用.html)明确安装条件、各自授权与尚未完成的接入环节。现有日用账号的真实验收不能替代同事账号验收。
 
-构建时可指定尚不存在的绝对 `.app` 路径 `ISLAND_APP_OUTPUT`，保留当前运行版本。构建会一并带入当前网页收录扩展。`python3 apps/island/scripts/package-pilot.py /absolute/path/to/application.app` 生成独立试用 ZIP、文件哈希清单和 SHA256SUMS；只接受列明的程序资源，核验签名与所有 helper 架构，不复制 profile、工作区、隧道配置或授权凭据。输出在忽略的 `apps/island/releases`，不上传到源码仓库。
+构建时可指定尚不存在的绝对 `.app` 路径 `ISLAND_APP_OUTPUT`，保留当前运行版本。当前原生程序仍为 0.7.0 build29，本次仅调整分发包装与安装页。`python3 apps/island/scripts/package-pilot.py /absolute/path/to/application.app` 生成独立试用 DMG、旁置的 `package-manifest.json` 和 `SHA256SUMS`。DMG 中只显示应用和 `Applications` 快捷方式，拖入即可安装；网页收录扩展内嵌于应用 `Contents/Resources/BrowserBridge/chrome-reader`，不再单独散放扩展目录和说明文件。打包仍按白名单核验程序资源、签名及全部 helper 架构，不复制 profile、工作区、隧道配置或授权凭据。输出在忽略的 `apps/island/releases`，不上传到源码仓库。
 
-build27 阶段验证：`python3 apps/island/Tests/package-pilot-test.py`；独立 Release 构建、arm64 架构校验、ZIP CRC、桌面/390px 说明阅读检查通过；未替换或重启日用应用，接收仍开启且状态正常。下载入口当时已上线；该阶段未配置同事真实账号、未合并 main。后续日用 build28 安装与本人公司归档验收见下文。
+`package-download-site.py` 接收上述 DMG 和旁置清单（默认同目录，也可用 `--manifest` 指定），校验版本、架构、包名、SHA-256、内嵌扩展及打包验证记录后生成待发布目录。主安装页只保留一个安装区、三条默认折叠帮助和一个“复制交给 Agent”按钮。复制的是静态安装与连接指引，不发放 token 或新权限；个人首页与数据定制使用本人虚实中台 MCP，灵动岛外观和项目任务仍分别使用原有受限本机 MCP。包装和页面生成不代表新一轮线上发布或同事验收已完成。
+
+历史 ZIP 分发（build27）阶段验证：`python3 apps/island/Tests/package-pilot-test.py`；独立 Release 构建、arm64 架构校验、ZIP CRC、桌面/390px 说明阅读检查通过；未替换或重启日用应用，接收仍开启且状态正常。下载入口当时已上线；该阶段未配置同事真实账号、未合并 main。后续日用 build28 安装与本人公司归档验收见下文。
 
 飞书后台接入范围：消息应用 1.0.2、独立归档应用 1.0.1 已发布，仅宰治与史天佑两位成员，原权限未变；史天佑本人尚未授权/验收。旧中台下载域名已实测无对应应用；新下载入口为 https://feishu-island.virxact.net，仅宰治和柚子可见。公司授权服务已上线；原生接续在 build28 实现，本人日用版首次登录与公司归档已实测；同事账号仍需分别验收。
 
@@ -74,8 +76,12 @@ build27 阶段验证：`python3 apps/island/Tests/package-pilot-test.py`；独�
 
 公司授权服务 release248 已上线，仍只对宰治和柚子开放。消息和归档各自授权，应用密钥与刷新凭据由服务器加密保管。Mac 内置独立 WebKit 公司登录窗口，先 prepare 核对授权，重新检查任务和设置未变化后才 activate；核对期间不切换现有消息或归档连接。有效公司登录会话下，短期访问令牌只在内存中交给官方 CLI 1.0.96 的 `LARKSUITE_CLI_USER_ACCESS_TOKEN` 环境提供方；App Secret 和 refresh token 不回到 Mac。不读取外部浏览器 Cookie，不改既有 CLI profile。
 
-2026-10-23 本人明确要求替换后，已从中台实际下载 SHA-256 为 `c401a0503754a724e3f6b04c56865b75738abb97a3becae00316739f490ee708` 的 ZIP，备份旧 build26 与工作区，再安装日用 build28。接收开启，connection/account/rules/customRules/danmu 配置哈希一致，21 条既有任务完整，中台已连接，5 个稳定 helper 字节一致。594 条融合断言、18 项服务检查与 3 项分发检查通过。
+历史 ZIP 安装验收：2026-10-23 本人明确要求替换后，已从中台实际下载 SHA-256 为 `c401a0503754a724e3f6b04c56865b75738abb97a3becae00316739f490ee708` 的 ZIP，备份旧 build26 与工作区，再安装日用 build28。接收开启，connection/account/rules/customRules/danmu 配置哈希一致，21 条既有任务完整，中台已连接，5 个稳定 helper 字节一致。594 条融合断言、18 项服务检查与 3 项分发检查通过。
 
 日用 WK 重开全新登录事务后，本人扫码登录成功；公司归档授权经 prepare/activate 启用。实际从灵动岛点击“直接归档”，合成任务 `0A6CE1C5-4AF9-4BCD-93B7-EB0645FFF425` 的文字、链接、TXT 与 PNG 已保存到飞书，归档 succeeded、verifiedAt 存在，正文与两项附件回读通过；中台另行读取同一文档核对一致。岛内显示“飞书归档已完成”和打开文档链接。未调用 AI 或派发 Dot，任务已标完成并取消提醒。[本次合成文档](https://datakhazix.feishu.cn/docx/R70adIGG0oZ49gxpmdXcTTGjnge)；[完整验收记录](docs/AI工作台接入与验收.html#company28)。
 
-尚未重启验证公司登录持久性；公司消息授权未迁移，消息继续使用原有正常接收配置。史天佑设备、其个人 Dot 首次配置与完整流程仍未实测，不把本人归档验证说成同事安装即全接通。
+build29 已在重启后核对公司归档授权保留并成功回读，无需重新扫码；公司消息授权未迁移，消息继续使用原有正常接收配置。史天佑设备、其个人 Dot 首次配置与完整流程仍未实测，不把本人归档验证说成同事安装即全接通。
+
+### 当前安装入口验收
+
+2026-10-23 DMG 分发与入口已更新至公司 release251（live），仍仅作者与柚子可见。原生 build29 和日用进程未重启或替换；接收 enabled=true、140/142 会话。10 项分发检查、2 项服务打包检查、26 项服务检查通过；实际桌面/390px/深色页面、折叠帮助、复制按钮成功反馈、线上帮助外链 CSS（20px）和最终 Agent 指南已核对。只读 DMG 双击后实际显示 600×360pt 图标窗口、左 App 右 Applications，签名/架构/包内哈希验证通过。线上 SHA256SUMS 与 DMG b658d2e092f61b86ad43e1f25797211f9f789e5998480d455920364df5e5b141 一致；浏览器文件下载被客户端拦截（ERR_BLOCKED_BY_CLIENT），未取得线上重下文件，不能以线上校验值代替完整下载验证。无同事授权变更、无 main 合并，独立证据在忽略的 .build/dmg29-*。

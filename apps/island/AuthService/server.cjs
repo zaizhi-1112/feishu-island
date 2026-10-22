@@ -1,7 +1,20 @@
 'use strict';
 const http=require('node:http'),fs=require('node:fs/promises'),path=require('node:path');
+const {constants:fsConstants}=require('node:fs');
 const {Vault,Broker,AuthError}=require('./core.cjs');
 const {DesktopAccess}=require('./desktop.cjs');
+const PUBLIC_ASSETS=new Set(['index.html','start.html','start.css','connect.html','connect.js','desktop.html','desktop.js','desktop.css','install.css','install.js','agent-guide.html','agent-guide.js','icon.png','icon.svg','virxact-ui.css','vx.js','SHA256SUMS']);
+const PACKAGE_NAME=/^feishu-island-\d+\.\d+\.\d+-build\d+-arm64(?:-pilot)?\.(?:zip|dmg)$/;
+const STATIC_TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.svg':'image/svg+xml','.zip':'application/zip','.dmg':'application/x-apple-diskimage'};
+function downloadRange(value,size){
+ const match=/^bytes=(\d*)-(\d*)$/.exec(value.trim());
+ if(!match||(!match[1]&&!match[2])||size===0)return null;
+ const first=match[1]?Number(match[1]):null,last=match[2]?Number(match[2]):null;
+ if((first!==null&&!Number.isSafeInteger(first))||(last!==null&&!Number.isSafeInteger(last)))return null;
+ if(first===null)return last>0?{start:Math.max(0,size-last),end:size-1}:null;
+ if(first>=size||(last!==null&&last<first))return null;
+ return {start:first,end:last===null?size-1:Math.min(last,size-1)};
+}
 function createServer({broker,origin='https://feishu-island.virxact.net',root=path.join(__dirname,'public')}){
  const desktop=new DesktopAccess(broker);
  return http.createServer(async(req,res)=>{
@@ -25,14 +38,34 @@ function createServer({broker,origin='https://feishu-island.virxact.net',root=pa
     throw new AuthError(404,'接口不存在');
    }
    if(req.method!=='GET'&&req.method!=='HEAD')throw new AuthError(405,'不支持的操作');
+   // Match the raw path as well: URL normalization must not turn a traversal
+   // request into a permitted asset. Only named release assets are downloadable.
+   if(req.url.split('?')[0]!==url.pathname)throw new AuthError(404,'页面不存在');
    const name=url.pathname==='/'?'index.html':url.pathname.slice(1);
-   if(!/^[\w.-]+$/.test(name))throw new AuthError(404,'页面不存在');
-   const types={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.svg':'image/svg+xml','.zip':'application/zip'};
-   let stat;try{stat=await fs.stat(path.join(root,name));}catch{throw new AuthError(404,'页面不存在');}
-   if(!stat.isFile())throw new AuthError(404,'页面不存在');
-   res.writeHead(200,{'Content-Type':types[path.extname(name)]||'text/plain; charset=utf-8','Content-Length':stat.size});
-   if(req.method==='HEAD')return res.end();
-   require('node:fs').createReadStream(path.join(root,name)).pipe(res);
+   const download=PACKAGE_NAME.test(name);
+   if(!PUBLIC_ASSETS.has(name)&&!download)throw new AuthError(404,'页面不存在');
+   let file,stat;
+   try{file=await fs.open(path.join(root,name),fsConstants.O_RDONLY|fsConstants.O_NOFOLLOW);stat=await file.stat();}
+   catch{if(file)await file.close();throw new AuthError(404,'页面不存在');}
+   if(!stat.isFile()||!Number.isSafeInteger(stat.size)){await file.close();throw new AuthError(404,'页面不存在');}
+   const response={'Content-Type':STATIC_TYPES[path.extname(name)]||'text/plain; charset=utf-8','Content-Length':stat.size};
+   let status=200,range;
+   if(download){
+    const modified=stat.mtime.toUTCString();
+    response['Content-Disposition']='attachment; filename="'+name+'"; filename*=UTF-8\'\''+encodeURIComponent(name);
+    response['Accept-Ranges']='bytes';response['Last-Modified']=modified;
+    // HEAD describes the full object. A mismatching If-Range means send a new
+    // full download, preventing a client from combining different release bytes.
+    if(req.method==='GET'&&req.headers.range&&(!req.headers['if-range']||req.headers['if-range']===modified)){
+     range=downloadRange(req.headers.range,stat.size);
+     if(!range){await file.close();res.writeHead(416,{'Content-Range':'bytes */'+stat.size,'Content-Length':0});return res.end();}
+     status=206;response['Content-Range']='bytes '+range.start+'-'+range.end+'/'+stat.size;response['Content-Length']=range.end-range.start+1;
+    }
+   }
+   if(req.method==='HEAD'||stat.size===0){await file.close();res.writeHead(status,response);return res.end();}
+   const stream=file.createReadStream(range||{});
+   stream.once('error',()=>res.destroy());res.once('close',()=>stream.destroy());
+   res.writeHead(status,response);stream.pipe(res);
   }catch(e){if(!res.headersSent)send(e instanceof AuthError?e.status:503,{error:e instanceof AuthError?e.message:'连接服务暂不可用，请稍后重试'});else res.destroy();}
  });
 }

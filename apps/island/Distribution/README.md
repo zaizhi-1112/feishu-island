@@ -1,18 +1,17 @@
-# 飞书工作岛下载入口
+# 飞书工作岛安装入口
 
-发布目标：feishu-island.virxact.net，名称飞书工作岛，通用分类，用户指定的蓝绿工作岛图标（brand/work-island-original.png）。本人已确认仅宰治和柚子（史天佑）可见。纯静态下载页，不是账号授权后台，不处理消息或凭据。
+公司入口为 https://feishu-island.virxact.net/ ，名称“飞书工作岛”、通用分类、宰治指定蓝绿图标，仅作者与柚子（史天佑）可见。下载页与现有公司授权服务同站部署，服务身份、环境变量和 /data 不随页面改动改变。
 
-源文件在 site/；virxact-ui.css 与 vx.js 来自 virxact-design，保持原样。安装包来自 package-pilot.py 的独立产物。运行：
+`site/` 是精简安装页：一个 DMG 下载入口、一个“复制交给 Agent”、三条默认折叠帮助。详细阅读帮助为 `开始使用.html`；Agent 的操作指引为 `site/agent-guide.html`，只含公开操作路径，没有令牌，也不自动授予权限。外观与项目 MCP 仍使用本机各自受限入口。
+
+原生应用沿用 0.7.0 build29。DMG 只展示 App 与 Applications 拖入目标，网页收录扩展保留在应用的 `Contents/Resources/BrowserBridge/chrome-reader` 内。校验清单在 DMG 旁，用户无需处理 JSON 或额外文件夹。未完成 Developer ID 公证，不承诺首次无系统来源提示；各人的飞书和 Dot 授权仍需本人完成。
 
 ```sh
-python3 apps/island/scripts/package-download-site.py /absolute/path/to/pilot.zip .build/new-download-output
+python3 apps/island/scripts/package-pilot.py /absolute/path/to/application.app
+python3 apps/island/scripts/package-download-site.py /absolute/path/to/feishu-island-0.7.0-build29-arm64.dmg .build/new-download-output
+python3 apps/island/scripts/package-auth-service.py .build/new-download-output .build/new-service-output
 ```
 
-输出目录必须尚不存在；脚本检查 ZIP CRC、版本/架构清单，复制网站、试用说明、版本化 ZIP 与 SHA256SUMS。发布只打包这个输出目录，经 virxact MCP deploy_app 获取一次性上传地址；在上传前 set_app_access 为 people/柚子。禁止整个仓库、个人材料、CLI profile、Dot 配对或 .env 混入。
+输出目录必须尚不存在。第一步白名单审计、检查全部 helper 架构和签名、构建 DMG、只读挂载核对文件哈希与 Finder 布局后卸载，输出旁置 `package-manifest.json` 和 `SHA256SUMS`；第二步核对版本、清单、DMG 哈希与页面，再复制公开文件；第三步加入既有授权服务源码。只经 virxact MCP `deploy_app` 发布最后的服务输出目录，不上传仓库、本机工作区、profile、Dot 配对或 .env，不改变访问范围。
 
-本页明确首次授权与同事 Dot 连接引导仍未完成。上线下载入口不等于同事已经接通或飞书工作台应用入口已配置。本轮独立分发包为 build27（更新图标），本人运行版本仍为 build26，不能以静态页上线冒充新版运行逻辑。
-
-图标原图由宰治提供，保留原始样式。`bash apps/island/scripts/build-app-icon.sh` 生成 Mac ICNS 和入口 PNG，不替换运行中的应用。build27 仅包含图标更新，飞书、Dot 和归档实现保持 build26；首次无命令行授权仍依赖待配置的公司授权服务，不能宣称同事已接通。
-
-实际发布：release245 为 live；授权范围仍仅作者和柚子，无设备凭据、无服务环境变量。公网登录后页面实际显示 build27 和指定 PNG。当前 ZIP SHA-256：3400b00fa0268de7f18ffe32574ed1e0531636d025aa4db8596cbe29bb44caee。
-浏览器实际点击下载，文件 SHA-256 与原包一致、ZIP CRC 全部通过。
+验证入口：`python3 apps/island/Tests/package-pilot-test.py`、`node --test apps/island/AuthService/*.test.cjs`。还需实际检查页面、下载及 Finder 拖拽窗口；合成和开发者验证不替代史天佑本人设备验收。历史 ZIP 发布与真实归档记录保留在根 README/AGENTS 和验收文档。
