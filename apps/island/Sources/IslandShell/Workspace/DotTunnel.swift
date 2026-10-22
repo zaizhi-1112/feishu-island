@@ -13,22 +13,32 @@ struct DotTunnelConfiguration: Codable {
     }
 }
 
+struct DotTunnelHealth {
+    private(set) var failures=0
+    mutating func observe(ready: Bool) -> Bool {
+        failures=ready ? 0 : failures+1
+        return failures>=3
+    }
+}
+
 /// Follows the app's lifetime, uses a separate stable helper and never opens ChatGPT UI.
 /// Configuration contains only tunnel ID, project and enabled; runtime key stays in Keychain.
 @MainActor final class DotTunnel: ObservableObject {
     static let shared=DotTunnel()
     @Published private(set) var status="私人插件尚未配置"
+    private(set) var isReady=false
     private var process: Process?
     private var identity=""
     private var nextStart=Date.distantPast
     private var checking=false
+    private var health=DotTunnelHealth()
     var configurationURL: URL {
         if Bundle.main.bundleIdentifier=="local.zaizhi.feishu-island.dot-sandbox" { return Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("dot-tunnel.json") }
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/FeishuIsland/DotTunnel/config.json")
     }
     func stop() {
         if let process, process.isRunning { process.terminate() }
-        process=nil; identity=""; status="私人连接已暂停"
+        process=nil; identity=""; isReady=false; health=DotTunnelHealth(); status="私人连接已暂停"
     }
     func maintain(pairing: DotPairing, port: UInt16, unlocked: Bool) {
         guard ["local.zaizhi.feishu-island.preview","local.zaizhi.feishu-island.dot-sandbox"].contains(Bundle.main.bundleIdentifier ?? "") else { return }
@@ -49,7 +59,15 @@ struct DotTunnelConfiguration: Codable {
                     var request=URLRequest(url:URL(string:"http://127.0.0.1:18769/readyz")!); request.timeoutInterval=2
                     let reply=try? await URLSession.shared.data(for:request)
                     guard let self, self.process===process, process?.isRunning==true else { return }
-                    self.status=(reply?.1 as? HTTPURLResponse)?.statusCode==200 ? "私人隧道已就绪（Dot订阅状态见下方）" : "私人隧道未就绪，正在连接"
+                    let ready=(reply?.1 as? HTTPURLResponse)?.statusCode==200
+                    self.isReady=ready
+                    if self.health.observe(ready:ready) {
+                        self.stop()
+                        self.nextStart=Date().addingTimeInterval(10)
+                        self.status="私人隧道连接中断，正在自动重连"
+                    } else {
+                        self.status=ready ? "私人隧道已就绪（Dot订阅状态见下方）" : "私人隧道未就绪，正在连接"
+                    }
                 }
             }
             return
@@ -64,7 +82,7 @@ struct DotTunnelConfiguration: Codable {
         do {
             let p=Process(), input=Pipe()
             p.executableURL=executable; p.standardInput=input; p.standardOutput=FileHandle.nullDevice; p.standardError=FileHandle.nullDevice
-            p.terminationHandler={ [weak self, weak p] _ in Task { @MainActor in if let self, self.process===p { self.process=nil; self.status="私人连接未就绪，稍后重试" } } }
+            p.terminationHandler={ [weak self, weak p] _ in Task { @MainActor in if let self, self.process===p { self.process=nil; self.isReady=false; self.status="私人连接未就绪，稍后重试" } } }
             try p.run(); process=p; identity=key
             defer { try? input.fileHandleForWriting.close(); try? input.fileHandleForReading.close() }
             try input.fileHandleForWriting.write(contentsOf:JSONSerialization.data(withJSONObject:["action":"run","tunnel":config.tunnel,"port":Int(port),"token":grant.secret]))

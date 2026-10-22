@@ -10,6 +10,7 @@ struct DotSubscription: Codable, Equatable {
     var previousSecret: String?
     var rotationUntil: Date?
     var verifiedAt: Date?
+    var refreshCount: Int?
 }
 struct DotDelivery: Codable, Equatable {
     var attempts = 0
@@ -27,11 +28,20 @@ struct DotDelivery: Codable, Equatable {
     private let store: WorkspaceStore
     private let transport: any DotWebhookTransport
     var allowed: () -> Bool
+    var deliveryReady: () -> Bool = { true }
     var now: () -> Date
     private var pumping=false
     private var generation: [UUID:Int]=[:]
     // In-memory metadata only: no callback URL, secret, task body or identifiers.
     private(set) var diagnostic: [String:String] = [:]
+    var healthSnapshot: [String:String] {
+        var value=diagnostic
+        let subscriptions=pairing.grants.filter{$0.expires>now()}.compactMap(\.subscription)
+        value["activeSubscriptions"]=String(subscriptions.filter{$0.expires>now()}.count)
+        value["refreshCount"]=String(subscriptions.reduce(0){$0+($1.refreshCount ?? 0)})
+        value["refreshBefore"]=subscriptions.map(\.expires).min()?.ISO8601Format()
+        return value
+    }
     init(pairing: DotPairing, store: WorkspaceStore, transport: any DotWebhookTransport = DotPublicWebhook(), allowed: @escaping () -> Bool = {true}, now: @escaping () -> Date = Date.init) {
         self.pairing=pairing; self.store=store; self.transport=transport; self.allowed=allowed; self.now=now
     }
@@ -85,6 +95,7 @@ struct DotDelivery: Codable, Equatable {
         let instant=now(), challenge=UUID().uuidString+UUID().uuidString
         let expiry=min(grant.expires,instant.addingTimeInterval(ttl))
         var subscription=DotSubscription(id:identity,url:url,secret:secret,expires:expiry)
+        subscription.refreshCount=(pairing.grants.first(where:{$0.id==grant.id})?.subscription?.refreshCount ?? 0)+1
         if let old=pairing.grants.first(where:{$0.id==grant.id})?.subscription, old.id==identity, old.secret != secret {
             subscription.previousSecret=old.secret; subscription.rotationUntil=instant.addingTimeInterval(300)
         }
@@ -117,14 +128,49 @@ struct DotDelivery: Codable, Equatable {
         let x=Array(a.utf8), y=Array(b.utf8); guard x.count==y.count else { return false }
         return zip(x,y).reduce(UInt8(0)){$0 | ($1.0 ^ $1.1)}==0
     }
+    // Only transport failures are recoverable. Revoked/oversized callbacks stay stopped.
+    static func transient(_ status: Int?) -> Bool {
+        guard let status else { return true }
+        return [408,429].contains(status) || (500...599).contains(status)
+    }
+    private func recoverPending(grant: DotGrant, subscription: DotSubscription) async {
+        let pending=store.disk.items.filter {
+            guard $0.state=="dot_waiting", $0.service=="dot", ($0.project ?? "日常工作")==grant.project,
+                  let d=$0.dotDeliveries?[subscription.id] else { return false }
+            return d.stopped && !d.accepted && Self.transient(d.status) && d.nextAttempt<=now()
+        }
+        guard !pending.isEmpty else { return }
+        // Probe once per subscription after cooldown, never replay a completed/claimed task.
+        for item in pending {
+            if let dispatch=item.dotDispatch, var d=item.dotDeliveries?[subscription.id] {
+                d.nextAttempt=now().addingTimeInterval(900)
+                _=store.saveDotDelivery(taskID:item.id,dispatch:dispatch,subscription:subscription.id,value:d)
+            }
+        }
+        do {
+            let challenge=UUID().uuidString, start=now()
+            let body=try JSONSerialization.data(withJSONObject:["type":"verification","challenge":challenge])
+            let reply=try await transport.post(url:subscription.url,headers:DotWebhookSigner.headers(id:"recover_"+UUID().uuidString,subscription:subscription,body:body,now:start),body:body)
+            guard allowed(), subscription.expires>now(), now().timeIntervalSince(start)<30,
+                  pairing.grants.contains(where:{$0.id==grant.id && $0.expires>now() && $0.subscription==subscription}),
+                  (200...299).contains(reply.status), reply.body.count<=16384,
+                  let json=try? JSONSerialization.jsonObject(with:reply.body) as? [String:Any],
+                  let echo=json["challenge"] as? String, Self.equal(echo,challenge) else { return }
+            for item in pending {
+                if let dispatch=item.dotDispatch { _=store.saveDotDelivery(taskID:item.id,dispatch:dispatch,subscription:subscription.id,value:DotDelivery()) }
+            }
+            diagnostic["recovery"]="callback_verified"
+        } catch { diagnostic["recovery"]="waiting_for_connection" }
+    }
     func pump() async {
-        guard !pumping, allowed() else { return }
+        guard !pumping, allowed(), deliveryReady() else { return }
         pumping=true; defer { pumping=false }
         do { try pairing.load() } catch { return }
         // At most four deliveries per tick, yielding to Feishu and the UI throughout HTTPS I/O.
         var sent=0
         for grant in pairing.grants where grant.expires>now() {
             guard let subscription=grant.subscription, subscription.expires>now() else { continue }
+            await recoverPending(grant:grant,subscription:subscription)
             for item in store.disk.items where item.service=="dot" && (item.project ?? "日常工作")==grant.project && item.state=="dot_waiting" {
                 guard sent<4, allowed() else { return }
                 guard let dispatch=item.dotDispatch, let occurred=item.dotQueuedAt else { continue } // No replay of legacy/manual tasks.
@@ -143,9 +189,9 @@ struct DotDelivery: Codable, Equatable {
                     let body=try JSONSerialization.data(withJSONObject:event,options:.sortedKeys)
                     let reply=try await transport.post(url:subscription.url,headers:DotWebhookSigner.headers(id:dispatch.uuidString,subscription:subscription,body:body,now:now()),body:body)
                     delivery.status=reply.status; delivery.accepted=(200...299).contains(reply.status)
-                    delivery.stopped = !delivery.accepted && !([408,429].contains(reply.status) || (500...599).contains(reply.status))
+                    delivery.stopped = !delivery.accepted && !Self.transient(reply.status)
                 } catch { delivery.status=nil }
-                if delivery.attempts>=6 && !delivery.accepted { delivery.stopped=true }
+                if delivery.attempts>=6 && !delivery.accepted { delivery.stopped=true; delivery.nextAttempt=now().addingTimeInterval(900) }
                 _=store.saveDotDelivery(taskID:item.id,dispatch:dispatch,subscription:subscription.id,value:delivery)
             }
         }

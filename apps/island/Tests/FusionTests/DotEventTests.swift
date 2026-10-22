@@ -22,6 +22,10 @@ actor SyntheticDotWebhook: DotWebhookTransport {
 }
 extension FusionTests {
     @MainActor func testDotEvents() async throws {
+        var health=DotTunnelHealth()
+        XCTAssertFalse(health.observe(ready:false)); XCTAssertFalse(health.observe(ready:false))
+        XCTAssertFalse(health.observe(ready:true)); XCTAssertFalse(health.observe(ready:false))
+        XCTAssertFalse(health.observe(ready:false)); XCTAssertTrue(health.observe(ready:false))
         for ip in ["0.0.0.0","10.0.0.1","127.1.2.3","100.64.0.1","169.254.169.254","172.16.0.1","192.168.1.1","192.0.0.1","192.0.2.1","192.88.99.1","198.18.0.1","198.51.100.1","203.0.113.1","224.0.0.1","255.255.255.255","::1"] { XCTAssertFalse(DotPublicWebhook.publicIPv4(ip)) }
         for ip in ["1.1.1.1","8.8.8.8","104.18.1.1"] { XCTAssertTrue(DotPublicWebhook.publicIPv4(ip)) }
         var lookups=0
@@ -109,9 +113,20 @@ extension FusionTests {
         }
         let retryID=try store.add(text:"合成限次重试",minutes:0,project:grant.project,service:"dot"); store.run(retryID)
         await wire.set(status:503)
-        for _ in 0..<7 { clock=clock.addingTimeInterval(1000); await events.pump() }
+        for _ in 0..<7 { clock=clock.addingTimeInterval(400); await events.pump() }
         XCTAssertEqual(store.disk.items.first(where:{$0.id==retryID})?.dotDeliveries?[subscription.id]?.attempts,6)
         XCTAssertTrue(store.disk.items.first(where:{$0.id==retryID})?.dotDeliveries?[subscription.id]?.stopped==true)
+        await wire.set(status:202)
+        await wire.set(badChallenge:true)
+        clock=clock.addingTimeInterval(901)
+        await events.pump()
+        XCTAssertTrue(store.disk.items.first(where:{$0.id==retryID})?.dotDeliveries?[subscription.id]?.stopped==true)
+        await wire.set(badChallenge:false)
+        clock=clock.addingTimeInterval(901)
+        await events.pump()
+        XCTAssertTrue(store.disk.items.first(where:{$0.id==retryID})?.dotDeliveries?[subscription.id]?.accepted==true)
+        XCTAssertEqual(store.disk.items.first(where:{$0.id==retryID})?.dotDeliveries?[subscription.id]?.attempts,1)
+        XCTAssertTrue(store.disk.items.filter{$0.dotDeliveries?[subscription.id]?.status==410 || $0.dotDeliveries?[subscription.id]?.status==413}.allSatisfy{$0.dotDeliveries?[subscription.id]?.stopped==true})
         let cancelled=try store.add(text:"取消不通知",minutes:0,project:grant.project,service:"dot"); store.run(cancelled); store.cancel(cancelled)
         let cancelledCount=(await wire.snapshot()).count
         await events.pump(); XCTAssertEqual((await wire.snapshot()).count,cancelledCount)
@@ -178,6 +193,54 @@ extension FusionTests {
         NSWorkspace.shared.notificationCenter.post(name:NSWorkspace.sessionDidBecomeActiveNotification,object:nil)
         XCTAssertTrue(try await http("events/unsubscribe",unsubscribe).1["result"] != nil)
         try pairing.disconnect(project:grant.project)
+        try await testDotRenewalAcrossDays()
         print("PASS: Dot MCP2 events via real loopback HTTP and synthetic callback; not a real Dot client")
+    }
+    @MainActor private func testDotRenewalAcrossDays() async throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent("dot-renewal-"+UUID().uuidString)
+        let store=WorkspaceStore(root:root,startTimers:false), vault=MemoryDotCredentials(), wire=SyntheticDotWebhook()
+        var clock=Date(), unlocked=true
+        let pairing=DotPairing(credentials:vault,now:{clock})
+        let token=try pairing.pair(project:"合成跨天"), first=try pairing.authenticate(token)!
+        let events=DotEvents(pairing:pairing,store:store,transport:wire,allowed:{unlocked},now:{clock})
+        let params: [String:Any] = ["name":DotEvents.name,"arguments":["project":first.project],"delivery":["mode":"webhook","url":"https://receiver.example/events","secret":"whsec_"+Data(repeating:7,count:32).base64EncodedString()]]
+        func renew(_ target: DotEvents, _ p: DotPairing) async throws -> [String:Any] {
+            let grant=try p.authenticate(token)!
+            return await target.rpc(["jsonrpc":"2.0","id":1,"method":"events/subscribe","params":params],grant:grant)!
+        }
+        XCTAssertTrue(try await renew(events,pairing)["result"] != nil)
+        let original=pairing.grants[0].subscription!
+        for _ in 0..<3 {
+            clock=clock.addingTimeInterval(23*3600)
+            XCTAssertTrue(try await renew(events,pairing)["result"] != nil)
+            XCTAssertEqual(pairing.grants[0].subscription?.id,original.id)
+            XCTAssertTrue(pairing.grants[0].subscription!.expires>clock)
+        }
+        let expiry=pairing.grants[0].subscription!.expires
+        XCTAssertEqual(events.healthSnapshot["refreshCount"],"4")
+        XCTAssertFalse(String(describing:events.healthSnapshot).contains(token))
+        vault.denySave=true
+        // Failed persistence cannot erase or falsely extend the last confirmed subscription.
+        let failure=await events.rpc(["jsonrpc":"2.0","id":1,"method":"events/subscribe","params":params],grant:pairing.grants[0])!
+        XCTAssertTrue(failure["error"] != nil); XCTAssertEqual(pairing.grants[0].subscription!.expires,expiry)
+        vault.denySave=false
+        clock=clock.addingTimeInterval(25*3600)
+        let task=try store.add(text:"跨天断线后仅补发此合成任务",minutes:0,project:first.project,service:"dot"); store.run(task)
+        let count=(await wire.snapshot()).count
+        await events.pump(); XCTAssertEqual((await wire.snapshot()).count,count)
+        let restored=DotPairing(credentials:vault,now:{clock}); try restored.load()
+        let resumed=DotEvents(pairing:restored,store:store,transport:wire,allowed:{unlocked},now:{clock})
+        unlocked=false; XCTAssertTrue(try await renew(resumed,restored)["error"] != nil)
+        unlocked=true; XCTAssertTrue(try await renew(resumed,restored)["result"] != nil)
+        XCTAssertEqual(restored.grants[0].id,first.id)
+        resumed.deliveryReady={false}
+        let offlineCount=(await wire.snapshot()).count
+        await resumed.pump(); XCTAssertEqual((await wire.snapshot()).count,offlineCount)
+        resumed.deliveryReady={true}
+        await resumed.pump()
+        XCTAssertTrue(store.disk.items.first(where:{$0.id==task})?.dotDeliveries?[original.id]?.accepted==true)
+        let accepted=(await wire.snapshot()).count
+        await resumed.pump(); XCTAssertEqual((await wire.snapshot()).count,accepted)
+        print("PASS: simulated 94-hour renewal, expiry, lock, restart and pending recovery with unchanged pairing")
     }
 }

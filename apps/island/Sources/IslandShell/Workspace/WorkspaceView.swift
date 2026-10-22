@@ -271,7 +271,7 @@ struct WorkspaceView: View {
                             if !item.failure.isEmpty { Text(item.failure).font(.system(size:11)).foregroundStyle(.orange) }
                             if item.service=="dot", item.state=="dot_waiting", let deliveries=item.dotDeliveries, !deliveries.isEmpty {
                                 if deliveries.values.contains(where:{$0.accepted}) { Text("通知已送达 · 等待Dot领取").font(.system(size:11)).foregroundStyle(.secondary) }
-                                else if deliveries.values.allSatisfy({$0.stopped}) { HStack { Text("通知未送达"); Button("重试通知") { store.retryDotNotification(item.id) } }.font(.system(size:11)).foregroundStyle(.orange) }
+                                else if deliveries.values.allSatisfy({$0.stopped}) { HStack { Text(deliveries.values.contains(where:{DotEvents.transient($0.status)}) ? "断线等待恢复，稍后自动重试" : "通知被拒绝，需检查Dot连接"); Button("重试通知") { store.retryDotNotification(item.id) } }.font(.system(size:11)).foregroundStyle(.orange) }
                                 else { Text("通知正在重试").font(.system(size:11)).foregroundStyle(.secondary) }
                             }
                             HStack {

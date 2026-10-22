@@ -42,6 +42,7 @@ final class SettingsServer {
         if dotEventTimer == nil {
             let workspace=workspaceOverride ?? WorkspaceStore.shared
             workspace.dotQueued={ [weak self] in Task { @MainActor in await self?.dotEvents.pump() } }
+            dotEvents.deliveryReady={ [weak self] in self?.workspaceOverride != nil || DotTunnel.shared.isReady }
             dotEventTimer=Timer.scheduledTimer(withTimeInterval:5,repeats:true) { [weak self] _ in Task { @MainActor in
                 guard let self else { return }
                 if self.ready { DotTunnel.shared.maintain(pairing:self.dotPairing,port:self.port,unlocked:!self.sessionLocked) }
@@ -168,7 +169,7 @@ final class SettingsServer {
         }
         if url.path == "/api/dot-diagnostics" {
             guard method=="GET", !sessionLocked else { return .error(403,"Unavailable") }
-            return .json(dotEvents.diagnostic)
+            return .json(dotEvents.healthSnapshot)
         }
         if url.path == "/mcp/dot" {
             guard headers["origin"] == nil, !sessionLocked, method=="POST",
