@@ -52,6 +52,35 @@ import Foundation
         let loaded=WorkspaceStore(root:root,startTimers:false); XCTAssertTrue(loaded.readWebLinks)
         store.draftText="https://example.com/changed"; XCTAssertTrue(store.webPages.isEmpty)
         store.readWebLinks=false; XCTAssertFalse(WorkspaceStore(root:root,startTimers:false).readWebLinks)
+        let chrome=WorkspaceStore(root:root.appendingPathComponent("chrome"),startTimers:false)
+        let server=SettingsServer(workspace:chrome)
+        let payload=try JSONSerialization.data(withJSONObject:["url":"https://example.com/private?token=synthetic#section","title":"已登录合成材料","text":parsed.1])
+        let headers=["host":"127.0.0.1:18766","origin":WorkChromeImport.origin,"content-type":"application/json"]
+        XCTAssertFalse(chrome.chromeImportEnabled)
+        XCTAssertEqual(await server.respond(method:"POST",path:"/api/chrome-import",headers:headers,body:payload).status,409)
+        chrome.chromeImportEnabled=true
+        XCTAssertTrue(WorkspaceStore(root:root.appendingPathComponent("chrome"),startTimers:false).chromeImportEnabled)
+        for origin in ["http://evil.example","null",""] {
+            var h=headers; h["origin"]=origin
+            XCTAssertEqual(await server.respond(method:"POST",path:"/api/chrome-import",headers:h,body:payload).status,403)
+        }
+        XCTAssertEqual(await server.respond(method:"GET",path:"/api/chrome-import",headers:headers,body:Data()).status,405)
+        XCTAssertEqual(await server.respond(method:"OPTIONS",path:"/api/chrome-import",headers:headers,body:Data()).status,200)
+        chrome.readWebLinks=true
+        let imported=await server.respond(method:"POST",path:"/api/chrome-import",headers:headers,body:payload)
+        XCTAssertEqual(imported.status,200); XCTAssertTrue(chrome.chromeDraft)
+        XCTAssertFalse(chrome.draftText.contains("token=synthetic")); XCTAssertFalse(chrome.draftText.contains("#section"))
+        XCTAssertTrue(chrome.draftText.contains("日期筛选")); XCTAssertEqual(chrome.disk.items.count,0)
+        XCTAssertEqual(try await chrome.preparedLinkInput {_ in throw WorkError.message("登录页不应重抓")},chrome.draftText)
+        let original=chrome.draftText
+        XCTAssertEqual(await server.respond(method:"POST",path:"/api/chrome-import",headers:headers,body:payload).status,409)
+        XCTAssertEqual(chrome.draftText,original)
+        chrome.draftText += "\n补充要求"
+        XCTAssertEqual(try await chrome.preparedLinkInput {_ in throw WorkError.message("修改后也不重抓")},chrome.draftText)
+        chrome.draftText=""; XCTAssertFalse(chrome.chromeDraft)
+        for bad in [Data(),Data(repeating:65,count:120001),try JSONSerialization.data(withJSONObject:["url":"file:///secret","title":"x","text":"xxx"])] {
+            XCTAssertEqual(await server.respond(method:"POST",path:"/api/chrome-import",headers:headers,body:bad).status,409)
+        }
         try Data(html.utf8).write(to:URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent(".build/web-material-synthetic.html"))
     }
 }

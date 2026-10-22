@@ -190,7 +190,10 @@ struct WorkspaceView: View {
                     }
                 }.frame(height:62)
             }
-            Toggle("读取链接正文",isOn:$store.readWebLinks).font(.system(size:12)).disabled(store.webBusy)
+            Toggle("接收Chrome当前网页",isOn:$store.chromeImportEnabled).font(.system(size:12))
+            if store.chromeImportEnabled { Text("在Chrome点工作岛收录按钮，预览后送入此处；只收录当前页面，不读取登录凭据。").font(.system(size:10)).foregroundStyle(.secondary) }
+            if store.chromeDraft { Text("已从Chrome读取正文，可编辑后分析或直接归档；不会再次联网抓取其中链接。").font(.system(size:11)).foregroundStyle(.secondary) }
+            Toggle("读取公开链接正文",isOn:$store.readWebLinks).font(.system(size:12)).disabled(store.webBusy)
             if store.readWebLinks {
                 HStack {
                     Button(store.webBusy ? "正在提取…" : "提取并查看正文") { store.previewLinks() }.disabled(store.webBusy)

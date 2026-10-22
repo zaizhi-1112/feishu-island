@@ -52,6 +52,7 @@ struct WorkDisk: Codable {
     var preferredService: String?
     var archiveTarget: WorkArchiveTarget?
     var readWebLinks: Bool?
+    var chromeImportEnabled: Bool?
 }
 enum WorkError: LocalizedError {
     case message(String)
@@ -160,7 +161,10 @@ final class WorkspaceStore: ObservableObject {
     @Published var selected: UUID?
     @Published var boardTab = 0
     @Published var draftText = "" {
-        didSet { if oldValue != draftText { webPages=[]; webInput=nil } }
+        didSet { if oldValue != draftText { webPages=[]; webInput=nil; if draftText.isEmpty { chromeDraft=false } } }
+    }
+    @Published var chromeImportEnabled = false {
+        didSet { if oldValue != chromeImportEnabled { _ = mutate { $0.chromeImportEnabled=chromeImportEnabled } } }
     }
     @Published var readWebLinks = false {
         didSet { if oldValue != readWebLinks { _ = mutate { $0.readWebLinks=readWebLinks }; webPages=[]; webInput=nil } }
@@ -168,6 +172,12 @@ final class WorkspaceStore: ObservableObject {
     @Published private(set) var webPages: [WorkWebPage] = []
     @Published private(set) var webBusy = false
     private var webInput: String?
+    @Published private(set) var chromeDraft = false
+    func importChrome(_ data: Data) throws {
+        guard chromeImportEnabled else { throw WorkError.message("请先在工作岛材料页开启接收Chrome网页。") }
+        guard draftText.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty, draftImages.isEmpty, draftFiles.isEmpty, !webBusy else { throw WorkError.message("工作岛已有草稿，请先处理或清空；本次没有覆盖。") }
+        draftText = try WorkChromeImport.material(data); chromeDraft=true; boardTab=0; error=""
+    }
     @Published var draftProject = "日常工作"
     @Published var draftArchive = WorkArchiveTarget(mode:"new")
     @Published var draftFiles: [URL] = []
@@ -215,6 +225,7 @@ final class WorkspaceStore: ObservableObject {
             if FileManager.default.fileExists(atPath:file.path) { disk = try JSONDecoder().decode(WorkDisk.self,from:Data(contentsOf:file)) }
             if let service=disk.preferredService, ["codex","doubao","dot"].contains(service) { draftService=service }
             readWebLinks = disk.readWebLinks ?? false
+            chromeImportEnabled = disk.chromeImportEnabled ?? false
             draftArchive = disk.archiveTarget ?? WorkArchiveTarget(mode:"new")
             if !disk.recipes.contains(where:{$0.id == "work"}) { disk.recipes.insert(WorkRecipe.presets.first(where:{$0.id == "work"})!,at:0) }
             for i in disk.items.indices {
@@ -294,7 +305,7 @@ final class WorkspaceStore: ObservableObject {
     /// Only explicit draft links are fetched. Files, webpage links and chat messages never recurse.
     func preparedLinkInput(reader: @escaping @Sendable (URL) throws -> WorkWebPage = { try WorkWebReader.read($0) }) async throws -> String {
         let original=draftText
-        guard readWebLinks else { return original }
+        guard readWebLinks, !chromeDraft else { return original }
         guard !webBusy else { throw WorkError.message("正在提取正文，请稍候。") }
         if webInput == original, !webPages.isEmpty { return original+"\n\n"+webPages.map(\.material).joined(separator:"\n\n") }
         let urls=try WorkWebReader.links(in:original)

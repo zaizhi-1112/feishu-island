@@ -136,6 +136,16 @@ final class SettingsServer {
         let host = "127.0.0.1:\(port)"
         guard headers["host"] == host else { return .error(403, "仅接受本机地址") }
         guard let url = URLComponents(string: path) else { return .error(400, "地址不正确") }
+        if url.path == "/api/chrome-import" {
+            guard headers["origin"] == WorkChromeImport.origin, !sessionLocked else { return .error(403,"请解锁并使用工作岛Chrome收录扩展。") }
+            if method == "OPTIONS" { return SettingsResponse(status:200,contentType:"text/plain",body:Data(),chromeCORS:true) }
+            let workspace=workspaceOverride ?? WorkspaceStore.shared
+            guard method == "POST", headers["content-type"]?.hasPrefix("application/json") == true else { return .error(405,"仅接受网页材料提交").withChromeCORS() }
+            do {
+                try workspace.importChrome(body)
+                return SettingsResponse.json(["saved":true,"destination":"draft"]).withChromeCORS()
+            } catch { return SettingsResponse.error(409,error.localizedDescription).withChromeCORS() }
+        }
         if url.path == "/oauth/virxact/callback" {
             guard method == "GET", !sessionLocked else { return .error(403,"请解锁Mac后重新连接。") }
             do {
@@ -283,6 +293,8 @@ struct SettingsResponse {
     let status: Int
     let contentType: String
     let body: Data
+    var chromeCORS = false
+    func withChromeCORS() -> Self { var copy=self; copy.chromeCORS=true; return copy }
     static func json(_ object: [String: Any], status: Int = 200) -> Self {
         guard JSONSerialization.isValidJSONObject(object), let bytes = try? JSONSerialization.data(withJSONObject:object) else {
             return Self(status:500,contentType:"application/json; charset=utf-8",body:Data("{\"error\":\"应用响应格式不正确\"}".utf8))
@@ -292,7 +304,8 @@ struct SettingsResponse {
     static func error(_ status: Int, _ message: String) -> Self { .json(["error": message], status: status) }
     var data: Data {
         let reason = status == 200 ? "OK" : "Error"
-        let headers = "HTTP/1.1 \(status) \(reason)\r\nContent-Type: \(contentType)\r\nContent-Length: \(body.count)\r\nConnection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nX-Frame-Options: DENY\r\nReferrer-Policy: no-referrer\r\nContent-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'\r\n\r\n"
+        let cors = chromeCORS ? "Access-Control-Allow-Origin: \(WorkChromeImport.origin)\r\nAccess-Control-Allow-Methods: POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type\r\nVary: Origin\r\n" : ""
+        let headers = "HTTP/1.1 \(status) \(reason)\r\n\(cors)Content-Type: \(contentType)\r\nContent-Length: \(body.count)\r\nConnection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nX-Frame-Options: DENY\r\nReferrer-Policy: no-referrer\r\nContent-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'\r\n\r\n"
         return Data(headers.utf8) + body
     }
 }
