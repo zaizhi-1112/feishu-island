@@ -261,17 +261,25 @@ final class FusionTests {
         s.receive(m);XCTAssertEqual(s.messages.count,1);XCTAssertNil(s.playback.overlay)
         s.updateDanmu(.init(enabled:true));let second=fixture("two");s.receive(second);s.receive(second)
         XCTAssertEqual(s.messages.count,2);XCTAssertEqual(s.readingAccepted,2);XCTAssertEqual(s.readingQueue.count,2)
-        XCTAssertEqual(s.playback.accepted,0);XCTAssertNil(s.playback.overlay)
+        XCTAssertEqual(s.playback.accepted,1);XCTAssertEqual(s.playback.queued,1)
+        XCTAssertEqual(FeishuStore(defaults:d).danmu,.init(enabled:true))
+        s.updateDanmu(.init());s.receive(fixture("island-only"))
+        XCTAssertEqual(s.readingAccepted,3);XCTAssertEqual(s.playback.accepted,1);XCTAssertNil(s.playback.overlay)
+        XCTAssertFalse(FeishuStore(defaults:d).danmu.enabled)
         XCTAssertFalse(s.playback.windowVisible)
     }
     func testMutePauseStopAndRulesAreSeparate() async {
         let (s,d,suite)=store();defer { d.removePersistentDomain(forName:suite) }
         s.updateDanmu(.init(enabled:true,paused:true));s.receive(fixture("paused"))
-        XCTAssertEqual(s.readingQueue.count,1);XCTAssertFalse(s.danmu.enabled);XCTAssertNil(s.playback.overlay)
+        XCTAssertEqual(s.readingQueue.count,1);XCTAssertTrue(s.danmu.enabled);XCTAssertEqual(s.playback.queued,1)
+        s.playback.overlay?.tick();XCTAssertEqual(s.playback.visible,0)
+        XCTAssertEqual(FeishuStore(defaults:d).danmu,.init(enabled:true,paused:true))
         s.toggleMute();XCTAssertEqual(s.readingQueue.count,0);s.receive(fixture("muted"));XCTAssertEqual(s.messages.count,2);XCTAssertEqual(s.readingAccepted,1)
         s.toggleMute();s.updateDanmu(.init(enabled:true));s.receive(fixture("active"));XCTAssertEqual(s.readingQueue.count,1)
         s.toggleReceiving();s.receive(fixture("late"));XCTAssertEqual(s.messages.count,3);XCTAssertEqual(s.playback.queued,0)
         s.playback.suspend(true);XCTAssertFalse(s.playback.windowVisible)
+        s.toggleReceiving();s.receive(fixture("locked"))
+        XCTAssertEqual(s.playback.queued,0);XCTAssertEqual(s.readingQueue.count,0)
     }
     func testExpandedIslandStillReceivesAndPresentsDesktopDanmu() async {
         let (s,d,suite)=store();defer { d.removePersistentDomain(forName:suite) }
@@ -279,10 +287,34 @@ final class FusionTests {
         s.updateDanmu(.init(enabled:true));let message=fixture("while-reading")
         s.receive(message);s.receive(message)
         XCTAssertEqual(s.messages.count,1);XCTAssertEqual(s.readingAccepted,1)
-        XCTAssertEqual(s.readingID,"while-reading");XCTAssertNil(s.playback.overlay)
+        XCTAssertEqual(s.readingID,"while-reading");XCTAssertEqual(s.playback.accepted,1)
+        var staticAppearance=s.appearance;staticAppearance["motion"]="static";_ = s.updateAppearance(staticAppearance)
+        let overlay=s.playback.overlay!, t=ProcessInfo.processInfo.systemUptime
+        overlay.tick(now:t);overlay.tick(now:t+0.01)
+        XCTAssertEqual(s.playback.presented,1);XCTAssertEqual(overlay.flying.count,1)
+        XCTAssertFalse(overlay.allowsCards);XCTAssertFalse(overlay.flying[0].card);XCTAssertFalse(overlay.flying[0].backdrop)
+        XCTAssertTrue(overlay.window.ignoresMouseEvents);XCTAssertFalse(overlay.window.canBecomeKey);XCTAssertFalse(overlay.window.isOpaque)
+        XCTAssertEqual(overlay.window.backgroundColor?.alphaComponent,0)
+        let x=overlay.flying[0].frame.minX;overlay.tick(now:t+0.1)
+        XCTAssertLessThan(overlay.flying[0].frame.minX,x)
         XCTAssertFalse(s.playback.windowVisible)
         s.toggleMute();s.receive(fixture("reading-muted"))
         XCTAssertEqual(s.messages.count,2);XCTAssertEqual(s.readingAccepted,1)
+    }
+    func testDesktopSkipsReadAndLongMessagesWithoutLosingIslandContent() async {
+        let (s,d,suite)=store();defer { d.removePersistentDomain(forName:suite) }
+        s.updateDanmu(.init(enabled:true,paused:true));s.receive(fixture("read-before-flight"))
+        s.openReader("read-before-flight")
+        s.updateDanmu(.init(enabled:true));s.playback.overlay?.tick()
+        XCTAssertEqual(s.playback.skippedRead,1);XCTAssertEqual(s.playback.visible,0)
+        let long=String(repeating:"长",count:81)
+        s.receive(fixture("long-only",text:long));s.receive(fixture("multiline-only",text:"第一行\n第二行"))
+        XCTAssertEqual(s.playback.accepted,1);XCTAssertEqual(s.playback.queued,0)
+        XCTAssertEqual(s.messages.first(where:{$0.id=="long-only"})?.text,long)
+        XCTAssertTrue(s.readingQueue.contains("long-only"));XCTAssertTrue(s.readingQueue.contains("multiline-only"))
+        XCTAssertTrue(DanmuPlayback.isShortMessage(fixture(text:String(repeating:"短",count:80))))
+        XCTAssertFalse(DanmuPlayback.isShortMessage(fixture(text:long)))
+        XCTAssertFalse(DanmuPlayback.isShortMessage(fixture(text:" ")))
     }
     func testOrdinaryAndBlockedMessagesDoNotBecomeDanmu() async {
         let (s,d,suite)=store();defer { d.removePersistentDomain(forName:suite) }
@@ -401,8 +433,8 @@ final class FusionTests {
         s.closeReader();s.openReader("island-long-1")
         XCTAssertEqual(s.readingPages["island-long-1"],2);s.closeReader()
         s.receive(fixture("short-island",text:"短消息"));XCTAssertEqual(s.readingAccepted,3)
-        XCTAssertEqual(s.readingID,"short-island");XCTAssertNil(s.playback.overlay)
-        XCTAssertEqual(s.playback.accepted,0)
+        XCTAssertEqual(s.readingID,"short-island");XCTAssertEqual(s.playback.queued,1)
+        XCTAssertEqual(s.playback.accepted,1)
         s.toggleMute();s.receive(fixture("muted-long",text:text))
         XCTAssertNil(s.readingID);XCTAssertEqual(s.readingAccepted,3)
         s.toggleMute();s.receive(fixture("stoppable-long",text:text));s.toggleReceiving()
@@ -429,7 +461,9 @@ final class FusionTests {
         XCTAssertEqual(s.messages.count,7)
         XCTAssertTrue(s.messages.contains(where:{$0.id == "unknown"}))
         XCTAssertEqual(s.readingAccepted,s.important.count)
-        XCTAssertGreaterThan(s.readingAccepted,0);XCTAssertEqual(s.playback.accepted,0);XCTAssertFalse(s.playback.windowVisible)
+        XCTAssertGreaterThan(s.readingAccepted,0)
+        XCTAssertEqual(s.playback.accepted,s.important.filter(DanmuPlayback.isShortMessage).count)
+        XCTAssertGreaterThan(s.playback.accepted,0);XCTAssertFalse(s.playback.windowVisible)
         let state=try JSONSerialization.jsonObject(with:Data(contentsOf:temp.appendingPathComponent("state.json"))) as! [String:Any]
         XCTAssertEqual((state["bad"] as! [String]).count,0)
         s.toggleReceiving();let count=s.messages.count
@@ -508,6 +542,25 @@ final class FusionTests {
             } catch { print("FAIL: "+error.localizedDescription);exit(1) }; return
         }
         let tests = FusionTests()
+        if CommandLine.arguments.contains("--show-workbench-fixture") {
+            do { try await tests.showWorkspaceDeskFixture() }
+            catch { print("FAIL: synthetic workbench fixture: " + error.localizedDescription); exit(1) }
+            return
+        }
+        if CommandLine.arguments.contains("--workbench-layout-check") {
+            do { try await tests.testWorkspaceDeskLayout() }
+            catch { failures.append("Synthetic workbench rendering failed: " + error.localizedDescription) }
+            if failures.isEmpty { print("PASS: \(checks) workbench layout assertions; every native window remained hidden") }
+            else { print("FAIL: " + failures.joined(separator: ", ")); exit(1) }
+            return
+        }
+        if CommandLine.arguments.contains("--screen-reminder-check") {
+            do { try await tests.testScreenReminderSchedulingAndTransparency() }
+            catch { failures.append("Synthetic screen reminder check failed: " + error.localizedDescription) }
+            if failures.isEmpty { print("PASS: \(checks) screen reminder assertions; every reminder window remained hidden") }
+            else { print("FAIL: " + failures.joined(separator:", ")); exit(1) }
+            return
+        }
         if CommandLine.arguments.contains("--workspace-layout-check") {
             do { try await tests.testWorkspaceIslandHeightContract() }
             catch { failures.append("Synthetic workspace layout rendering failed") }
@@ -528,6 +581,7 @@ final class FusionTests {
             do { try await tests.testArchiveLive() } catch { print("FAIL: "+error.localizedDescription); exit(1) }; return
         }
         do {
+            try await tests.testScreenReminderSchedulingAndTransparency()
             try await tests.testWorkspaceIslandHeightContract()
             try tests.testCompanyConnectionBoundary()
             try await tests.testCompanyActivationIsolation()
@@ -541,6 +595,8 @@ final class FusionTests {
             await tests.testOneEventFeedsListAndOptionalRendererWithoutDuplicates()
             await tests.testMutePauseStopAndRulesAreSeparate()
             await tests.testExpandedIslandStillReceivesAndPresentsDesktopDanmu()
+            await tests.testDesktopSkipsReadAndLongMessagesWithoutLosingIslandContent()
+            tests.testIslandHorizontalSwipeIntentAndLifetime()
             await tests.testOrdinaryAndBlockedMessagesDoNotBecomeDanmu()
             await tests.testConnectionSwitchStopsAndClearsOldAccount()
             await tests.testHiddenRealRendererMovesAndPreservesCompleteLongText()

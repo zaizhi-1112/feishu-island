@@ -39,6 +39,10 @@ mkdir -p "$APP/Contents/Resources/BrowserBridge/chrome-reader"
 for asset in manifest.json popup.html popup.css popup.js extract.js; do
     cp "$ROOT/BrowserBridge/chrome-reader/$asset" "$APP/Contents/Resources/BrowserBridge/chrome-reader/"
 done
+mkdir -p "$APP/Contents/Resources/ScreenReminder"
+for asset in rick-portal.mov SOURCE.txt; do
+    cp "$ROOT/Resources/ScreenReminder/$asset" "$APP/Contents/Resources/ScreenReminder/"
+done
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 cp "$ROOT/Vendor/OpenNook/LICENSE" "$APP/Contents/Resources/OpenNook-LICENSE"
 cp "$ROOT/Vendor/OpenNook/LICENSE-MIT-NOOKSURFACE" "$APP/Contents/Resources/NookSurface-LICENSE"

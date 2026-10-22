@@ -13,3 +13,10 @@
 @media(max-width:650px){.shell{min-width:0;width:100%}main{min-width:0}.page{padding-inline:14px}.topbar{padding-inline:14px}.page-title{gap:10px;flex-wrap:wrap}.fusion-controls{padding:16px}.fusion-controls p{overflow-wrap:anywhere}.fusion-heading h2{font-size:16px}.tab-bar{gap:14px;overflow-x:auto}.columns,.right-column,.rules-grid,.modules-grid{grid-template-columns:minmax(0,1fr)}.save-bar{flex-wrap:wrap;gap:12px}.fusion-fields input{width:100%}.module-badge,.local-chip{display:none}.fusion-actions{gap:8px}.page-footer{padding-inline:14px}}
 
 .workspace-card {padding:24px;margin-top:20px}.workspace-card label {display:block;margin:14px 0}.workspace-card textarea{display:block;width:100%;font:inherit;padding:12px;background:var(--bg);color:inherit;border:1px solid var(--border);border-radius:8px}
+
+/* Native workbench owns navigation; retain the same authenticated local settings API. */
+.embedded .sidebar,.embedded .topbar,.embedded .page-footer{display:none}
+.embedded main{margin:0;min-height:100vh}.embedded .shell{min-width:0}
+.embedded .page{padding:24px;max-width:1000px}.embedded .columns{grid-template-columns:minmax(0,1fr)}
+.embedded .right-column{display:none}.embedded .page-title{display:none}
+.embedded .fusion-controls{margin-top:0}.embedded .connection-error{margin:16px 24px 0}

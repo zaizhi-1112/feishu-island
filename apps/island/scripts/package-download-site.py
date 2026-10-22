@@ -12,10 +12,10 @@ manifest_path = a.manifest or a.package.parent/'package-manifest.json'
 if a.package.is_symlink() or not a.package.is_file() or a.package.suffix != '.dmg':
     raise SystemExit('Expected an audited DMG file')
 manifest = json.loads(manifest_path.read_text())
-expected = ('0.7.0','29',['arm64'],'pilot-preparation','dmg')
+expected = ('0.7.0','30',['arm64'],'pilot-preparation','dmg')
 if tuple(manifest.get(k) for k in ['version','build','architectures','status','format']) != expected:
     raise SystemExit('Update page version and package rules before publishing a different release')
-name = 'feishu-island-0.7.0-build29-arm64.dmg'
+name = 'feishu-island-0.7.0-build30-arm64.dmg'
 digest = hashlib.sha256(a.package.read_bytes()).hexdigest()
 if manifest.get('archive') != name or a.package.name != name or manifest.get('sha256') != digest:
     raise SystemExit('DMG does not match its audit manifest')
@@ -25,7 +25,7 @@ checks = ['imageIntegrity','readOnlyMounted','bundleHashesMatch','signatureValid
 if any(manifest.get('verification',{}).get(k) is not True for k in checks):
     raise SystemExit('Incomplete DMG verification')
 page = (ROOT/'Distribution/site/index.html').read_text()
-if name not in page or 'content="0.7.0/29/arm64"' not in page:
+if name not in page or 'content="0.7.0/30/arm64"' not in page:
     raise SystemExit('Page and release metadata differ')
 a.output.mkdir(parents=True,exist_ok=False)
 for asset in (ROOT/'Distribution/site').iterdir():

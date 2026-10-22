@@ -97,7 +97,7 @@ final class SettingsServer {
             if listener == nil, let store { start(store: store) }
             return
         }
-        if let url = URL(string: "http://127.0.0.1:\(port)/") { NSWorkspace.shared.open(url) }
+        WorkspaceWindow.shared.openSettings(store:.shared)
     }
     func copyWorkspaceConnection(store: WorkspaceStore) {
         guard !sessionLocked, let address else { store.error = "工作台未就绪，请解锁后重试。"; return }

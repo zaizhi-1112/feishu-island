@@ -25,7 +25,7 @@ final class FeishuModule: NookModule {
     }
     func makeConfiguration() -> NookConfiguration {
         var config = IslandHost.baseConfiguration(title: "飞书消息", symbol: "paperplane.fill")
-        config.expandedWidth = 380
+        config.expandedWidth = 400
         config.onFileDrop = { WorkspaceDrop.acceptFiles($0,store:.shared) }
         let store = store
         config.setCompactLeading { WorkspaceDropMark(store:.shared) }
@@ -33,6 +33,7 @@ final class FeishuModule: NookModule {
         config.setHome { WorkspaceDropSurface(store:.shared) { FeishuView(store:store) } }
         config.onReady = { [weak self] coordinator in
             guard let self else { return }
+            IslandModuleNavigation.shared.bind(coordinator: coordinator)
             if !self.context.defaults.bool(forKey: "hoverAutoCollapseV1") {
                 if coordinator.appState.keepNookOpen { coordinator.toggleKeepNookOpen() }
                 self.context.defaults.set(true, forKey: "hoverAutoCollapseV1")

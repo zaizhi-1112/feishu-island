@@ -43,7 +43,7 @@ public final class FeishuStore: ObservableObject {
         customRules = defaults.data(forKey: "customRules").flatMap { try? JSONDecoder().decode(FeishuCustomRules.self, from: $0) } ?? .init()
         settingsRevision = defaults.integer(forKey: "settingsRevision")
         enabled = defaults.object(forKey: "enabled") as? Bool ?? receivingDefault
-        danmu = .init() // Desktop presentation retired: all live display belongs to the island.
+        danmu = defaults.data(forKey: "danmu").flatMap { try? JSONDecoder().decode(DanmuOptions.self, from: $0) } ?? .init()
         let initialConnection = defaults.data(forKey:"connection").flatMap { try? JSONDecoder().decode(FeishuConnection.self,from:$0) }.flatMap { $0.valid ? $0 : nil } ?? .init()
         connection = initialConnection
         appearance = defaults.data(forKey:"danmuAppearance").flatMap { try? JSONSerialization.jsonObject(with:$0) as? [String:Any] }.flatMap(AppearanceMCP.validate) ?? AppearanceMCP.defaults
@@ -87,8 +87,11 @@ public final class FeishuStore: ObservableObject {
         status = "连接配置已保存，请先完成本人只读授权，再开始接收"; account = "尚未连接"; bumpSettingsRevision(); return true
     }
     public func updateDanmu(_ value: DanmuOptions) {
-        // Preserve the legacy settings field without permitting old clients to re-enable overlays.
-        playback.configure(.init(),appearance:appearance)
+        guard value != danmu else { return }
+        danmu = value
+        defaults.set(try? JSONEncoder().encode(value), forKey: "danmu")
+        playback.configure(value, appearance: appearance)
+        bumpSettingsRevision()
     }
     @discardableResult
     func updateAppearance(_ input:[String:Any]) -> Bool {
@@ -129,6 +132,9 @@ public final class FeishuStore: ObservableObject {
         }
         if message.isImportant(followed: followed, rules: rules, custom: customRules) {
             if !isMuted && !playback.suspended {
+                // The island and desktop are independent outputs of one read-only event.
+                // Opening the island must not suppress a short floating message.
+                playback.enqueue(message)
                 readingQueue = readingQueue.filter { id in messages.contains { $0.id == id } }
                 readingQueue.append(message.id); readingAccepted += 1
                 if readingID == nil { readingID = readingQueue.first; onOpenReader() }

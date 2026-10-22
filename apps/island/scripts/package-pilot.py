@@ -19,6 +19,7 @@ RESOURCE_FILES = {'AppIcon.icns', 'LarkCLI-LICENSE', 'OpenNook-LICENSE', 'NookSu
 RESOURCE_DIRS = {'ThirdPartyLicenses', 'TunnelClientLicenses'}
 WEB_FILES = {'index.html', 'app.js', 'style.css'}
 EXTENSION_FILES = {'manifest.json', 'popup.html', 'popup.css', 'popup.js', 'extract.js'}
+REMINDER_FILES = {'rick-portal.mov', 'SOURCE.txt'}
 VOLUME_NAME = '飞书工作岛'
 VOLUME_METADATA = {'.DS_Store', '.fseventsd', '.Trashes', '.TemporaryItems', '.VolumeIcon.icns'}
 LAYOUT_DIR = ROOT/'scripts/dmg-layout'
@@ -59,6 +60,8 @@ def allowed(path):
         return parts[2] in RESOURCE_FILES
     if len(parts) == 4 and parts[2] == 'SettingsWeb':
         return parts[3] in WEB_FILES
+    if len(parts) == 4 and parts[2] == 'ScreenReminder':
+        return parts[3] in REMINDER_FILES
     if name == 'Contents/Resources/BrowserBridge/doubao-work.js':
         return True
     if len(parts) == 5 and parts[2:4] == ('BrowserBridge', 'chrome-reader'):
@@ -83,6 +86,7 @@ def inspect(app):
         entries.append({'path': relative.as_posix(), 'sha256': hashlib.sha256(item.read_bytes()).hexdigest()})
     required = {'Contents/Info.plist', 'Contents/MacOS/YuIsland', 'Contents/Resources/AppIcon.icns'} | {'Contents/Helpers/' + x for x in HELPERS}
     required |= {'Contents/Resources/BrowserBridge/chrome-reader/' + x for x in EXTENSION_FILES}
+    required |= {'Contents/Resources/ScreenReminder/' + x for x in REMINDER_FILES}
     if not required.issubset({e['path'] for e in entries}):
         raise ValueError('Required runtime helpers or browser extension are missing')
     with (app / 'Contents/Info.plist').open('rb') as f:

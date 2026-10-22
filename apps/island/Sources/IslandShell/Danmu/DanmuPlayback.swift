@@ -45,11 +45,20 @@ public final class DanmuPlayback {
         }
         overlay.skinForeground = color("foreground"); overlay.skinBackground = color("background"); overlay.skinBorder = color("border")
         overlay.skinCorner = CGFloat((appearance["corner"] as? NSNumber)?.doubleValue ?? 12)
-        overlay.preferStatic = appearance["motion"] as? String == "static"
+        // Desktop output is always a small moving line. Static/long reading stays
+        // inside the island, even if an older appearance requested a desktop card.
+        overlay.preferStatic = false
+        overlay.allowsCards = false
+        overlay.backdrop = false
+    }
+    static func isShortMessage(_ message: FeishuMessage) -> Bool {
+        let body = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !body.isEmpty && body.count <= 80 && message.danmuText.count <= 140
+            && message.danmuText.rangeOfCharacter(from: .newlines) == nil
     }
     @discardableResult
     func enqueue(_ message: FeishuMessage, demo: Bool = false) -> Bool {
-        guard options.enabled, !suspended, !seen.contains(message.id) else { return false }
+        guard options.enabled, !suspended, Self.isShortMessage(message), !seen.contains(message.id) else { return false }
         if overlay == nil {
             overlay = Overlay(showsWindow: !headless, frame: headless ? NSRect(x:0,y:0,width:640,height:480) : nil)
             overlay?.allowsCards = false // Long messages are read in the actual island surface.

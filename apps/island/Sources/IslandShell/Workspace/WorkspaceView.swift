@@ -22,6 +22,7 @@ final class WorkspaceModule: NookModule {
         c.setHome { WorkspaceDropSurface(store:.shared) { WorkspaceView(store:.shared) } }
         c.onReady = { [context] coordinator in
             let store = WorkspaceStore.shared
+            IslandModuleNavigation.shared.bind(coordinator:coordinator)
             store.openBoard = { [weak coordinator] in coordinator?.switchModule(to:IslandHost.workspaceID); coordinator?.showNook() }
             store.notify = { title in
                 var activity = NookLiveActivity(id:"work-result",priority:.high,lifetime:.transient(.seconds(20)),alert:.peek(.seconds(5)),accessibilityLabel:title) {
@@ -130,6 +131,9 @@ enum WorkspaceDrop {
 struct WorkspaceView: View {
     @ObservedObject var store: WorkspaceStore
     var desktop = false
+    var pageOverride: Int? = nil
+    var onTaskCreated: (() -> Void)? = nil
+    private var currentTab: Int { pageOverride ?? store.boardTab }
     @ObservedObject var dotPairing = SettingsServer.shared.dotPairing
     @ObservedObject var dotTunnel = DotTunnel.shared
     @State private var confirmDot = false
@@ -142,10 +146,10 @@ struct WorkspaceView: View {
         Group {
             if desktop {
                 VStack(alignment:.leading,spacing:10) {
-                    navigation
+                    if pageOverride == nil { navigation }
                     errorMessage
                     page
-                }.padding(24).frame(width:760)
+                }.padding(24).frame(maxWidth:.infinity,alignment:.leading)
             } else {
                 WorkspaceIslandFrame(preferredHeight:islandHeight) { bodyHeight in
                     VStack(alignment:.leading,spacing:10) {
@@ -158,6 +162,13 @@ struct WorkspaceView: View {
                         }.frame(height:bodyHeight)
                     }.padding(12)
                 }.font(.system(size:12))
+                .islandHorizontalSwipe { direction in
+                    if direction == .previous {
+                        if store.boardTab == 0 { IslandModuleNavigation.shared.openFeishu() } else { store.boardTab -= 1 }
+                    } else {
+                        if store.boardTab == 2 { IslandModuleNavigation.shared.openFeishu() } else { store.boardTab += 1 }
+                    }
+                }
             }
         }.foregroundStyle(.white)
             .onAppear { if Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview" { do { try dotPairing.load() } catch { store.error=error.localizedDescription } } }
@@ -184,8 +195,9 @@ struct WorkspaceView: View {
         if !store.error.isEmpty { Text(store.error).font(.system(size:12)).foregroundStyle(.orange).textSelection(.enabled).fixedSize(horizontal:false,vertical:true) }
     }
     @ViewBuilder private var page: some View {
-        if store.boardTab == 0 { if desktop { materials } else { quickMaterials } }
-        else if store.boardTab == 1 { tasks }
+        if currentTab == 0 { if desktop { materials } else { quickMaterials } }
+        else if currentTab == 1 { tasks }
+        else if currentTab == 3 { processingSettings }
         else { cards }
     }
     private var archiveSummary: String {
@@ -227,7 +239,7 @@ struct WorkspaceView: View {
                     }.font(.system(size:11))
                 }.frame(height:34)
             }
-            Button { WorkspaceWindow.shared.open(store:store) } label: {
+            Button { WorkspaceWindow.shared.openProcessing(store:store) } label: {
                 HStack(spacing:4) {
                     Text(archiveSummary).lineLimit(1)
                     Text("· "+(store.draftReminderMinutes == 0 ? "不提醒" : "\(store.draftReminderMinutes)分钟提醒")).lineLimit(1)
@@ -236,7 +248,7 @@ struct WorkspaceView: View {
                 }.font(.system(size:11)).foregroundStyle(.secondary)
             }.buttonStyle(.plain).help("配置处理方式、归档位置和提醒").accessibilityLabel("处理与归档设置")
             if dotNeedsAttention {
-                Button("Dot连接需检查 · 打开工作台") { WorkspaceWindow.shared.open(store:store) }.font(.system(size:11)).foregroundStyle(.orange)
+                Button("检查 Dot 连接") { WorkspaceWindow.shared.openProcessing(store:store) }.font(.system(size:11)).foregroundStyle(.orange)
             }
             HStack(spacing:7) {
                 Button { store.pickFiles() } label: { Image(systemName:"paperclip") }.help("添加附件").accessibilityLabel("添加附件")
@@ -272,6 +284,32 @@ struct WorkspaceView: View {
                     }
                 }.frame(height:62)
             }
+            HStack(spacing:12) {
+                Picker("交给谁",selection:$store.draftService) {
+                    Text(WorkAI.displayName).tag("codex"); Text("豆包工作").tag("doubao"); Text("Dot").tag("dot")
+                }
+                Picker("处理方式",selection:$store.draftRecipe) { ForEach(store.disk.recipes) { Text($0.title).tag($0.id) } }
+            }.font(.system(size:13))
+            Button { WorkspaceWindow.shared.openProcessing(store:store) } label: {
+                HStack { Text(archiveSummary); Text("· \(store.draftReminderMinutes)分钟提醒"); Spacer(); Image(systemName:"slider.horizontal.3") }
+            }.buttonStyle(.plain).font(.system(size:12)).foregroundStyle(.secondary).padding(.vertical,8)
+            if store.chromeDraft { Text("网页正文已放入，可直接编辑。").font(.system(size:12)).foregroundStyle(.secondary) }
+            if dotNeedsAttention { Button("检查 Dot 连接") { WorkspaceWindow.shared.openProcessing(store:store) }.font(.system(size:12)).foregroundStyle(.orange) }
+            HStack {
+                Button("添加附件") { store.pickFiles() }
+                Button("粘贴") { store.pasteMaterial() }
+                Button("存待办") { add(run:false) }
+                Spacer()
+                if store.draftArchive.mode != "off" { Button("直接归档") { add(run:false,archiveOnly:true) }.disabled(store.webBusy) }
+                Button(store.webBusy ? "提取中…" : "交给AI") { add(run:true) }.disabled(store.webBusy).buttonStyle(.borderedProminent).tint(.orange)
+            }.font(.system(size:13)).padding(.vertical,6)
+            Button("读取上方飞书文档链接") { store.readFeishuMaterial(input,instruction:store.disk.recipes.first(where:{$0.id == store.draftRecipe})?.instruction); store.boardTab = 1; onTaskCreated?() }.font(.system(size:11))
+            HStack { Text("\(store.disk.items.filter{$0.state != "done"}.count)项未完成").foregroundStyle(.secondary); Spacer() }.font(.system(size:11))
+        }
+    }
+    private var processingSettings: some View {
+        VStack(alignment:.leading,spacing:14) {
+            Text("网页收录").font(.system(size:16,weight:.semibold))
             Toggle("接收Chrome当前网页",isOn:$store.chromeImportEnabled).font(.system(size:12))
             if store.chromeImportEnabled { Text("在Chrome点工作岛收录按钮，预览后送入此处；只收录当前页面，不读取登录凭据。").font(.system(size:10)).foregroundStyle(.secondary) }
             if store.chromeDraft { Text("已从Chrome读取正文，可编辑后分析或直接归档；不会再次联网抓取其中链接。").font(.system(size:11)).foregroundStyle(.secondary) }
@@ -288,6 +326,8 @@ struct WorkspaceView: View {
                 }
                 Text("交给AI或直接归档时，会先提取正文；失败时保留输入，不提交。存待办只保存原材料。").font(.system(size:10)).foregroundStyle(.secondary)
             }
+            Divider().padding(.vertical,8)
+            Text("AI 连接与处理").font(.system(size:16,weight:.semibold))
             Picker("交给谁",selection:$store.draftService) {
                 Text(WorkAI.displayName+" · 本机").tag("codex")
                 Text("豆包工作 · 本人已登录网页").tag("doubao")
@@ -301,11 +341,15 @@ struct WorkspaceView: View {
                         Button("断开") { do { try dotPairing.disconnect(project:store.draftProject); DotTunnel.shared.stop(); dotCopied=false } catch { store.error=error.localizedDescription } }.disabled(dotPairing.grant(project:store.draftProject)==nil)
                     } else { Button("连接设置") { WorkspaceWindow.shared.open(store:store) } }
                 }.font(.system(size:11))
+                DisclosureGroup("连接详情") {
                 if let seen=dotPairing.grant(project:store.draftProject)?.lastSeen { Text("最后连接："+seen.formatted(date:.abbreviated,time:.shortened)).font(.system(size:10)).foregroundStyle(.secondary) }
                 Text(dotTunnel.status).font(.system(size:10)).foregroundStyle(.secondary)
                 Text(dotPairing.grant(project:store.draftProject)?.subscription.map { $0.expires>Date() ? "任务通知已订阅：交给AI后自动通知Dot；通知送达后仍需Dot领取处理。Mac和ChatGPT须在线。" : "Dot通知订阅已过期，需在Dot中恢复订阅。" } ?? "尚未订阅自动通知：需先在Dot安装私人插件并订阅本项目；配对本身不会唤醒Dot。").font(.system(size:10)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+                }.font(.system(size:12))
             }
             Picker("处理方式",selection:$store.draftRecipe) { ForEach(store.disk.recipes) { r in Text(r.title).tag(r.id) } }.font(.system(size:12))
+            Divider().padding(.vertical,8)
+            Text("归档到哪里").font(.system(size:16,weight:.semibold))
             Picker("处理后归档",selection:$store.draftArchive.mode) {
                 Text("仅保留本机").tag("off")
                 Text("新建飞书文档").tag("new")
@@ -325,25 +369,21 @@ struct WorkspaceView: View {
                 Text("归档由程序执行，不调用AI分类。需要独立飞书归档授权。").font(.system(size:10)).foregroundStyle(.secondary)
                 Button("直接归档，不调用AI") { add(run:false,archiveOnly:true) }.disabled(store.webBusy).font(.system(size:12))
             }
+            Divider().padding(.vertical,8)
+            Text("新待办的默认提醒").font(.system(size:16,weight:.semibold))
             HStack {
                 Text("提醒").font(.system(size:12))
                 Picker("提醒时间",selection:$store.draftReminderMinutes) { ForEach(Array(Set([0,5,20,60,store.draftReminderMinutes])).sorted(),id:\.self) { value in Text(value == 0 ? "不提醒" : "\(value)分钟").tag(value) } }.labelsHidden().frame(width:100)
                 Spacer()
             }.font(.system(size:12))
-            HStack {
-                Button("添加附件") { store.pickFiles() }
-                Button("粘贴") { store.pasteMaterial() }
-                Button("存待办") { add(run:false) }
-                Button("交给AI") { add(run:true) }.disabled(store.webBusy)
-            }.font(.system(size:12))
-            Button("读取上方飞书文档链接") { store.readFeishuMaterial(input,instruction:store.disk.recipes.first(where:{$0.id == store.draftRecipe})?.instruction); store.boardTab = 1 }.font(.system(size:11))
-            Text("当前处理工具：\(store.draftService == "dot" ? "Dot（项目派单）" : store.draftService == "doubao" ? "豆包工作（本人网页）" : WorkAI.displayName)。拖入只保存本机。点击“交给AI”才把材料交给你本机已登录的AI服务；可按需开启读取链接正文。支持图片/截图（⌘V粘贴）、Word、PDF、文字；最多6张图片，交给AI前可移除。").font(.system(size:10)).foregroundStyle(.white.opacity(0.55)).fixedSize(horizontal:false,vertical:true)
-            HStack { Button("导入材料Skill") { store.importSkill() }; Spacer(); Text("\(store.disk.items.filter{$0.state != "done"}.count)项未完成").foregroundStyle(.secondary) }.font(.system(size:11))
-        }
+
+            ScreenReminderChoice(store:store,selection:$store.draftScreenReminder)
+            Button("导入材料 Skill") { store.importSkill() }
+        }.frame(maxWidth:680,alignment:.leading)
     }
     private func add(run: Bool,archiveOnly:Bool = false) {
         guard !store.webBusy else { return }
-        let original=input, target=store.draftArchive, files=store.draftFiles, images=store.draftImages
+        let original=input, target=store.draftArchive, files=store.draftFiles, images=store.draftImages, screenStyle=store.draftScreenReminder
         let project=store.draftProject, service=store.draftService, reminder=store.draftReminderMinutes, recipe=store.draftRecipe
         let instruction=store.disk.recipes.first(where:{$0.id == recipe})?.instruction
         Task {
@@ -351,24 +391,37 @@ struct WorkspaceView: View {
                 try target.validate()
                 let material = (run || archiveOnly) ? try await store.preparedLinkInput() : original
                 guard store.draftText==original, store.draftArchive==target, store.draftProject==project,
-                      store.draftService==service, store.draftRecipe==recipe, store.draftReminderMinutes==reminder,
+                      store.draftService==service, store.draftRecipe==recipe, store.draftReminderMinutes==reminder, store.draftScreenReminder==screenStyle,
                       store.draftFiles==files, store.draftImages.map(\.id)==images.map(\.id) else { throw WorkError.message("材料或选项已变化，本次未提交。") }
                 let id = try store.add(text:material,files:files,instruction:instruction,minutes:reminder,images:images,project:project,service:service)
                 try store.configureArchive(id,target:target)
                 store.draftText = ""; store.draftImages = []; store.draftFiles = []; store.boardTab = 1
+                onTaskCreated?()
                 if archiveOnly { store.queueArchive(id) } else if run { store.run(id) }
             } catch { store.error = error.localizedDescription }
         }
     }
     private var tasks: some View {
-            VStack(alignment:.leading,spacing:10) {
+            VStack(alignment:.leading,spacing:12) {
+                WorkspaceReminderShelf(store:store,compact:!desktop)
+                HStack { Text("待办").font(.system(size:desktop ? 17 : 13,weight:.semibold)); Spacer(); Text("\(store.disk.items.filter{$0.state != "done"}.count)项待处理").font(.system(size:11)).foregroundStyle(.secondary) }.padding(.top,4)
                 if store.disk.items.isEmpty { Text("把材料拖进来，或在“材料”里存一条待办。").font(.system(size:13)).foregroundStyle(.secondary).padding(.vertical,20) }
                 ForEach(store.disk.items) { item in
                     VStack(alignment:.leading,spacing:7) {
-                        Button { store.selected = store.selected == item.id ? nil : item.id } label: {
-                            HStack { Text(item.title).lineLimit(2).multilineTextAlignment(.leading); Spacer(); Text(label(item.state)).font(.system(size:10)).foregroundStyle(.secondary) }
-                        }.buttonStyle(.plain)
+                        HStack(alignment:.top,spacing:8) {
+                            Button { store.selected = store.selected == item.id ? nil : item.id } label: {
+                                VStack(alignment:.leading,spacing:5) {
+                                    Text(item.title).font(.system(size:desktop ? 15 : 12,weight:.medium)).lineLimit(2).multilineTextAlignment(.leading)
+                                    Text(label(item.state)+(item.screenReminder == nil ? "" : " · 冲屏提醒")).font(.system(size:10)).foregroundStyle(.secondary)
+                                }.frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle())
+                            }.buttonStyle(.plain)
+                            Button { store.selected=item.id; store.beginEdit(item.id) } label: { Image(systemName:"pencil") }.buttonStyle(.plain).padding(4).disabled(!WorkspaceStore.canEdit(item)).help("编辑待办").accessibilityLabel("编辑："+item.title)
+                            Button(role:.destructive) { store.deleteItem(item.id) } label: { Image(systemName:"trash") }.buttonStyle(.plain).padding(4).disabled(["running","queued","dot_running"].contains(item.state)).help("删除待办（可恢复）").accessibilityLabel("删除："+item.title)
+                        }
                         if store.selected == item.id {
+                            Divider().padding(.vertical,4)
+                            ScreenReminderChoice(store:store,selection:Binding(get:{item.screenReminder},set:{store.setTaskScreenReminder(item.id,style:$0)}))
+                            if item.due == nil && item.state != "done" { Button("设置提醒时间") { store.setReminder(item.id,date:Date().addingTimeInterval(1200)) }.font(.system(size:11)) }
                             if let due = item.due { DatePicker(item.reminded ? "再次提醒" : "提醒时间",selection:Binding(get:{due},set:{store.setReminder(item.id,date:$0)}),displayedComponents:[.date,.hourAndMinute]).datePickerStyle(.field).font(.system(size:10)) }
                             Text((item.project ?? "日常工作")+" · "+item.created.formatted(date:.abbreviated,time:.shortened)).font(.system(size:10)).foregroundStyle(.secondary)
                             if store.editingID == item.id {
@@ -419,10 +472,6 @@ struct WorkspaceView: View {
                                 if ["running","queued","dot_waiting","dot_running"].contains(item.state) { Button(item.service == "doubao" ? "停止等候" : "取消") { store.cancel(item.id) } }
                                 else if item.state != "done" { Button(item.result.isEmpty ? "交给AI" : "重新处理") { store.run(item.id) }; Button("完成") { store.complete(item.id) } }
                                 Button("稍后20分") { store.snooze(item.id) }
-                            }.font(.system(size:11))
-                            HStack {
-                                Button("编辑") { store.beginEdit(item.id) }.disabled(!WorkspaceStore.canEdit(item))
-                                Button("删除",role:.destructive) { store.deleteItem(item.id) }.disabled(["running","queued","dot_running"].contains(item.state))
                             }.font(.system(size:11))
                             if !item.result.isEmpty { HStack { Button("复制结果") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(item.result,forType:.string) }; Button("存文档") { store.exportDocument(item) }; Button("存到飞书") { store.saveToFeishu(item) } }.font(.system(size:11)) }
                         }

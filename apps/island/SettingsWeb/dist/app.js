@@ -1,3 +1,4 @@
+if (new URLSearchParams(location.search).get('embedded') === '1') { document.documentElement.classList.add('embedded'); document.documentElement.dataset.theme='dark'; }
 'use strict';
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];

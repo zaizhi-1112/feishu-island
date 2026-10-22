@@ -47,6 +47,9 @@ public enum IslandHost {
         }
         config.topBar.leadingTitle = { _ in title }
         config.topBar.leadingIcon = symbol
+        // The island is a quick surface; the ordinary workbench owns all settings.
+        config.topBar.showsSettings = false
+        config.topBar.trailingItems = { AnyView(IslandToolbarActions(title: title)) }
         config.setCompactLeading {
             IslandCompactGlyph(symbol: symbol)
         }
@@ -107,7 +110,31 @@ public final class SampleState: ObservableObject {
 
 private struct WebSettingsButton: View, Sendable {
     var body: some View {
-        Button("打开网页版设置") { SettingsServer.shared.open() }
+        Button("打开工作台设置") { WorkspaceWindow.shared.openSettings(store: .shared) }
             .buttonStyle(.bordered).accessibilityIdentifier("island.webSettings")
+    }
+}
+
+private struct IslandToolbarActions: View {
+    let title: String
+    @Environment(\.nookResolvedTheme) private var theme
+    var body: some View {
+        HStack(spacing: 10) {
+            if title == "飞书消息" || title == "工作台" {
+                Button {
+                    if title == "飞书消息" { IslandModuleNavigation.shared.openWorkspace() }
+                    else { IslandModuleNavigation.shared.openFeishu() }
+                } label: {
+                    Label(title == "飞书消息" ? "工作台" : "消息",
+                          systemImage: title == "飞书消息" ? "tray.and.arrow.down" : "paperplane")
+                        .font(.system(size: 10, weight: .medium))
+                }.buttonStyle(.plain).help(title == "飞书消息" ? "切换到工作台" : "切换到飞书消息")
+                    .accessibilityIdentifier("island.switchModule")
+            }
+            Button { WorkspaceWindow.shared.openSettings(store: .shared) } label: {
+                Image(systemName: "gearshape").font(.system(size: 12))
+            }.buttonStyle(.plain).help("工作台设置").accessibilityLabel("工作台设置")
+                .accessibilityIdentifier("island.settings")
+        }.foregroundStyle(theme.secondaryLabel)
     }
 }

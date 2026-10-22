@@ -5,46 +5,50 @@ struct FeishuView: View {
     @ObservedObject var store: FeishuStore
     @Environment(\.nookResolvedTheme) private var theme
     @State private var showAll = false
-    @State private var showConnection = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let id = store.readingID, let message = store.visibleMessages.first(where: { $0.id == id }) {
-                detail(message)
-            } else {
-                header
-                if showConnection { connection }
-                let list = showAll ? store.visibleMessages : store.important
-                if list.isEmpty {
-                    emptyState
-                } else {
+        WorkspaceIslandFrame { bodyHeight in
+            VStack(alignment: .leading, spacing: 10) {
+                if let id = store.readingID, let message = store.visibleMessages.first(where: { $0.id == id }) {
                     ScrollView {
-                        LazyVStack(spacing: 8) {
-                            ForEach(list) { message in
-                                Button {
-                                    store.openReader(message.id)
-                                } label: { row(message) }
-                                    .buttonStyle(.plain)
-                                    .accessibilityIdentifier("feishu.message.\(message.id)")
+                        detail(message)
+                        errorBanner
+                    }.frame(height: bodyHeight + WorkspaceLayout.headerHeight + WorkspaceLayout.sectionSpacing)
+                } else {
+                    header.frame(height: 28)
+                    ScrollView {
+                        let list = showAll ? store.visibleMessages : store.important
+                        if list.isEmpty { emptyState }
+                        else {
+                            LazyVStack(spacing: 8) {
+                                ForEach(list) { message in
+                                    Button { store.openReader(message.id) } label: { row(message) }
+                                        .buttonStyle(.plain)
+                                        .accessibilityIdentifier("feishu.message.\(message.id)")
+                                }
                             }
                         }
-                    }.frame(height: min(CGFloat(list.count) * 88, 256))
+                        if !store.status.hasPrefix("账号接收中") && !store.status.hasPrefix("演示模式") {
+                            Button { WorkspaceWindow.shared.openSettings(store: .shared) } label: {
+                                Text(store.status).font(.system(size: 10)).lineLimit(2)
+                                    .foregroundStyle(store.status.contains("失败") || store.status.contains("异常") || store.status.contains("暂缓") ? theme.warning : theme.tertiaryLabel)
+                            }.buttonStyle(.plain)
+                        }
+                        errorBanner
+                    }.frame(height: max(0, bodyHeight - 30))
+                    footer.frame(height: 24)
                 }
-                footer
-                if !store.status.hasPrefix("账号接收中") && !store.status.hasPrefix("演示模式") {
-                    Button { showConnection = true } label: {
-                        Text(store.status).font(.system(size: 10)).lineLimit(2)
-                            .foregroundStyle(store.status.contains("失败") || store.status.contains("异常") || store.status.contains("暂缓") ? theme.warning : theme.tertiaryLabel)
-                    }.buttonStyle(.plain)
-                }
-            }
-            if let error = store.actionError {
-                Text(error).font(.system(size: 11)).foregroundStyle(theme.warning)
-                    .onTapGesture { store.actionError = nil }
-            }
+            }.padding(WorkspaceLayout.padding)
         }
-        .padding(.horizontal, 12).padding(.top, 7).padding(.bottom, 10)
         .accessibilityIdentifier("feishu.home")
+        .islandHorizontalSwipe { _ in IslandModuleNavigation.shared.openWorkspace() }
+    }
+
+    @ViewBuilder private var errorBanner: some View {
+        if let error = store.actionError {
+            Text(error).font(.system(size: 11)).foregroundStyle(theme.warning)
+                .onTapGesture { store.actionError = nil }
+        }
     }
 
     private var header: some View {
@@ -57,12 +61,6 @@ struct FeishuView: View {
             }
             .padding(3).background(theme.subtleFill, in: RoundedRectangle(cornerRadius: 8))
             Spacer()
-            Button { showConnection.toggle() } label: {
-                Image(systemName: "ellipsis").font(.system(size: 13, weight: .medium))
-                    .frame(width: 28, height: 27)
-                    .foregroundStyle(showConnection ? theme.accent : theme.secondaryLabel)
-                    .background(showConnection ? theme.accent.opacity(0.1) : Color.clear, in: RoundedRectangle(cornerRadius: 7))
-            }.buttonStyle(.plain).help("连接与接收设置").accessibilityLabel("连接与接收设置")
         }
     }
 
@@ -90,27 +88,10 @@ struct FeishuView: View {
                 .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 11))
             Text(!store.enabled ? "接收已停止" : showAll ? "等待新的消息" : "暂时没有重要消息")
                 .font(.system(size: 13, weight: .medium)).foregroundStyle(theme.primaryLabel)
-            Text(!store.enabled ? "在连接设置中，可以重新开始接收。" : "按你的规则筛选，继续遵守免打扰。")
+            Text(!store.enabled ? "在工作台设置中，可以重新开始接收。" : "按你的规则筛选，继续遵守免打扰。")
                 .font(.system(size: 10)).foregroundStyle(theme.tertiaryLabel)
         }
         .frame(maxWidth: .infinity).frame(height: 157).modifier(IslandCard())
-    }
-
-    private var connection: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(spacing: 6) {
-                Circle().fill(store.enabled ? theme.accent : theme.tertiaryLabel).frame(width: 5, height: 5)
-                Text("\(store.account) · 本机连接").font(.system(size: 12, weight: .medium))
-            }
-            Text(store.status).font(.system(size: 10)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 8) {
-                Button(store.enabled ? "停止接收" : "开始接收") { store.toggleReceiving() }.buttonStyle(IslandButtonStyle())
-                if store.enabled { Button("重新连接") { store.reconnect() }.buttonStyle(IslandButtonStyle(prominent: true)) }
-            }
-            Text("使用本机已有飞书授权；授权失效时请在终端完成lark-cli auth login，再点重新连接。")
-                .font(.system(size: 10)).foregroundStyle(theme.tertiaryLabel)
-        }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
-            .foregroundStyle(theme.primaryLabel).modifier(IslandCard())
     }
 
     private func row(_ message: FeishuMessage) -> some View {
@@ -155,7 +136,7 @@ struct FeishuView: View {
             }.buttonStyle(.plain).foregroundStyle(store.isMuted ? theme.accent : theme.secondaryLabel)
                 .accessibilityIdentifier("feishu.mute")
             Spacer()
-            Button { SettingsServer.shared.open() } label: { Label("设置面板", systemImage: "slider.horizontal.3") }
+            Button { WorkspaceWindow.shared.openSettings(store: .shared) } label: { Label("工作台设置", systemImage: "slider.horizontal.3") }
                 .buttonStyle(.plain).foregroundStyle(theme.secondaryLabel).accessibilityIdentifier("feishu.webSettings")
         }
         .font(.system(size: 10, weight: .medium)).padding(.top, 10)

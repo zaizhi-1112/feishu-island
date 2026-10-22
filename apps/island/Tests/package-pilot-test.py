@@ -19,6 +19,7 @@ class DistributionChecks(unittest.TestCase):
         files = {'Contents/MacOS/YuIsland', 'Contents/Resources/AppIcon.icns'}
         files |= {'Contents/Helpers/'+name for name in m.HELPERS}
         files |= {'Contents/Resources/BrowserBridge/chrome-reader/'+name for name in m.EXTENSION_FILES}
+        files |= {'Contents/Resources/ScreenReminder/'+name for name in m.REMINDER_FILES}
         for name in files:
             target = app/name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -52,6 +53,15 @@ class DistributionChecks(unittest.TestCase):
         directory, app = self.fixture()
         (app/'Contents/Resources/personal').symlink_to(directory)
         with self.assertRaisesRegex(ValueError, 'symlinks'): m.inspect(app)
+
+    def test_reminders_require_exact_packaged_media_and_reject_personal_videos(self):
+        directory, app = self.fixture()
+        m.inspect(app)
+        source = app/'Contents/Resources/ScreenReminder/rick-portal.mov'
+        source.rename(directory/'retained-video.mov')
+        with self.assertRaisesRegex(ValueError, 'Required runtime'): m.inspect(app)
+        for value in ['Contents/Resources/ScreenReminder/personal.mov', 'Contents/Resources/ScreenReminder/neko1.mov', 'Contents/Resources/ScreenReminder/ScreenReminderMedia/config.json']:
+            self.assertFalse(m.allowed(Path(value)))
 
     def test_dmg_has_exactly_two_visible_items_and_embedded_extension(self):
         directory, app = self.fixture()
