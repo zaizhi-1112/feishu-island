@@ -504,9 +504,13 @@ final class FusionTests {
             } catch { print("FAIL: "+error.localizedDescription);exit(1) }; return
         }
         let tests = FusionTests()
+        if CommandLine.arguments.contains("--archive-live-check") {
+            do { try await tests.testArchiveLive() } catch { print("FAIL: "+error.localizedDescription); exit(1) }; return
+        }
         do {
             try await tests.testDotPairingAndDelegation()
             try await tests.testDotEvents()
+            try tests.testArchiveAutomation()
             try tests.testTaskEditingTrashAndRestore()
             try await tests.testWorkspacePersistenceRemindersAndOAuthBoundary()
             await tests.testFreshInstallIsStoppedAndRendererIsLazy()

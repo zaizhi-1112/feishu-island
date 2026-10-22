@@ -16,6 +16,9 @@ struct WorkItem: Codable, Identifiable, Equatable {
     var remoteTaskURL: String?
     var remoteSubmissionPending: Bool?
     var cloudDocuments: [String]?
+    var archiveTarget: WorkArchiveTarget?
+    var archive: WorkArchiveReceipt?
+    var archiveFiles: [WorkFile]?
     var exportSourceID: UUID?
     var exportDigest: String?
     var exportVerifiedAt: Date?
@@ -47,6 +50,7 @@ struct WorkDisk: Codable {
     var reminderMinutes = 20
     var selectedCards: [String] = []
     var preferredService: String?
+    var archiveTarget: WorkArchiveTarget?
 }
 enum WorkError: LocalizedError {
     case message(String)
@@ -156,6 +160,11 @@ final class WorkspaceStore: ObservableObject {
     @Published var boardTab = 0
     @Published var draftText = ""
     @Published var draftProject = "日常工作"
+    @Published var draftArchive = WorkArchiveTarget(mode:"new")
+    @Published var draftFiles: [URL] = []
+    @Published var archiveFields: [String] = []
+    @Published var archiveFieldsBusy = false
+    private var archiveBusy = false
     @Published var draftService = "codex" {
         didSet {
             guard ["codex","doubao","dot"].contains(draftService), draftService != oldValue else { return }
@@ -196,8 +205,15 @@ final class WorkspaceStore: ObservableObject {
             let file = self.root.appendingPathComponent("workspace.json")
             if FileManager.default.fileExists(atPath:file.path) { disk = try JSONDecoder().decode(WorkDisk.self,from:Data(contentsOf:file)) }
             if let service=disk.preferredService, ["codex","doubao","dot"].contains(service) { draftService=service }
+            draftArchive = disk.archiveTarget ?? WorkArchiveTarget(mode:"new")
             if !disk.recipes.contains(where:{$0.id == "work"}) { disk.recipes.insert(WorkRecipe.presets.first(where:{$0.id == "work"})!,at:0) }
-            for i in disk.items.indices where ["running","queued"].contains(disk.items[i].state) { disk.items[i].state = "interrupted"; disk.items[i].failure = "上次运行已中断，请确认后重试。" }
+            for i in disk.items.indices {
+                if ["running","queued"].contains(disk.items[i].state) { disk.items[i].state = "interrupted"; disk.items[i].failure = "上次运行已中断，请确认后重试。" }
+                if disk.items[i].archive?.state == "running" {
+                    disk.items[i].archive?.state = disk.items[i].archive?.intent == nil ? "pending" : "failed"
+                    disk.items[i].archive?.error = "归档中断，保留进度；写入不明时不自动重复。"
+                }
+            }
             try save()
         } catch { self.writable = false; self.error = "本机工作区未能载入或保存；原文件保留，已停止写入。" }
         integrationEnabled = startTimers && Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview"
@@ -233,7 +249,19 @@ final class WorkspaceStore: ObservableObject {
         let reminder = minutes ?? disk.reminderMinutes
         guard (0...10080).contains(reminder) else { throw WorkError.message("提醒时间请设为0到10080分钟，0表示不提醒。") }
         let title = String((files.first?.lastPathComponent ?? images.first?.image.name ?? text.split(separator:"\n").first.map(String.init) ?? "材料").prefix(48))
-        let item = WorkItem(title:title.isEmpty ? "图片材料" : title,input:input,files:files.map(\.lastPathComponent),instruction:instruction ?? disk.recipes.first?.instruction ?? "整理要点",images:images.isEmpty ? nil : images.map(\.image),project:String((project ?? draftProject).prefix(60)),service:service ?? draftService,due:reminder == 0 ? nil : Date().addingTimeInterval(Double(reminder)*60))
+        var item = WorkItem(title:title.isEmpty ? "图片材料" : title,input:input,files:files.map(\.lastPathComponent),instruction:instruction ?? disk.recipes.first?.instruction ?? "整理要点",images:images.isEmpty ? nil : images.map(\.image),project:String((project ?? draftProject).prefix(60)),service:service ?? draftService,due:reminder == 0 ? nil : Date().addingTimeInterval(Double(reminder)*60))
+        if !files.isEmpty {
+            let directory = root.appendingPathComponent("Files/"+item.id.uuidString,isDirectory:true)
+            try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+            item.archiveFiles = try files.map { file in
+                let access = file.startAccessingSecurityScopedResource(); defer { if access { file.stopAccessingSecurityScopedResource() } }
+                let filename = UUID().uuidString+"-"+file.lastPathComponent
+                let destination = directory.appendingPathComponent(filename)
+                try Data(contentsOf:file).write(to:destination,options:.atomic)
+                try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:destination.path)
+                return WorkFile(name:file.lastPathComponent,filename:filename)
+            }
+        }
         if !images.isEmpty {
             let directory = root.appendingPathComponent("Images/"+item.id.uuidString,isDirectory:true)
             try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
@@ -292,10 +320,13 @@ final class WorkspaceStore: ObservableObject {
                 }
                 return (texts.joined(separator:"\n\n"),images)
             }.value
+            guard draftFiles.count+urls.filter({!Self.isImage($0)}).count <= 20 else { throw WorkError.message("一次最多20个文件。") }
             guard draftImages.count+result.1.count <= 6, (draftImages+result.1).reduce(0,{$0+$1.data.count})<=20_000_000 else { throw WorkError.message("一次最多6张图片，总大小不超过20MB。") }
             guard draftText.utf8.count+result.0.utf8.count<=200_000 else { throw WorkError.message("文字材料超过200KB。") }
             draftImages += result.1
-            if !result.0.isEmpty { draftText += (draftText.isEmpty ? "" : "\n\n")+result.0 }
+            draftFiles += urls.filter{!Self.isImage($0)}
+            // File text is extracted exactly once when committing the draft. Retain
+            // the original path only until then; the task owns a private copy afterwards.
             error = ""
         } catch { self.error = error.localizedDescription } }
     }
@@ -305,20 +336,71 @@ final class WorkspaceStore: ObservableObject {
         guard WorkBrowser.validTask(url), let item=disk.items.first(where:{$0.id==id}), item.service == "doubao", item.remoteTaskURL == nil || item.remoteTaskURL == url else { return }
         _ = mutate { state in if let i=state.items.firstIndex(where:{$0.id==id}) { state.items[i].remoteTaskURL=url; state.items[i].remoteSubmissionPending=false } }
     }
-    static func exportHash(_ value: String) -> String { SHA256.hash(data:Data(value.utf8)).map{String(format:"%02x",$0)}.joined() }
+    nonisolated static func exportHash(_ value: String) -> String { SHA256.hash(data:Data(value.utf8)).map{String(format:"%02x",$0)}.joined() }
     func saveToFeishu(_ item: WorkItem) {
-        guard !item.result.isEmpty else { error = "先生成或填写文档内容。"; return }
-        let digest = Self.exportHash(item.result)
-        if let existing = disk.items.first(where:{$0.exportSourceID==item.id && $0.exportDigest==digest}) {
-            selected=existing.id; boardTab=1
-            if ["failed","interrupted"].contains(existing.state) { run(existing.id) }
-            return
+        if item.archive != nil { retryArchive(item.id); return }
+        do { try configureArchive(item.id,target:draftArchive.mode == "off" ? WorkArchiveTarget(mode:"new") : draftArchive); queueArchive(item.id) }
+        catch { self.error = error.localizedDescription }
+    }
+    func configureArchive(_ id:UUID,target:WorkArchiveTarget) throws {
+        try target.validate()
+        guard let item=disk.items.first(where:{$0.id==id}), item.archive?.intent == nil, item.archive?.state != "running" else { throw WorkError.message("归档进行中或写入待核对，不能改目标。") }
+        if let receipt=item.archive, receipt.state == "succeeded", receipt.digest == WorkArchive.digest(item) { return }
+        guard mutate({ s in if let i=s.items.firstIndex(where:{$0.id==id}) { s.items[i].archiveTarget=target; s.items[i].archive=nil }; s.archiveTarget=target }) else { throw WorkError.message(error) }
+    }
+    func loadArchiveFields() {
+        guard !archiveFieldsBusy else { return }
+        archiveFieldsBusy=true; archiveFields=[]
+        var target=draftArchive; target.field="lookup"
+        Task {
+            do {
+                let names=try await Task.detached { () -> [String] in
+                    let cli=WorkArchiveCLI(), resolved=try WorkArchive.resolve(target,cli:cli)
+                    guard let t=resolved.table else { throw WorkError.message("请粘贴包含 table 参数的表格链接。") }
+                    let response=WorkArchive.data(try cli.api("GET","/open-apis/bitable/v1/apps/\(t.base)/tables/\(t.table)/fields",params:["page_size":100]))
+                    return (response["items"] as? [[String:Any]] ?? []).filter{$0["type"] as? Int == 1}.compactMap{$0["field_name"] as? String}
+                }.value
+                guard draftArchive.url == target.url else { archiveFieldsBusy=false; return }
+                archiveFields=names
+                if let first=names.first { draftArchive.field=first } else { error="这个表没有可收录内容的多行文本字段。请在飞书新增文本字段后再读取。" }
+            } catch { self.error=error.localizedDescription }
+            archiveFieldsBusy=false
         }
-        do {
-            let id = try add(text:"新建飞书文档："+item.title+"\n\n"+item.result,instruction:"在本人个人云空间新建一份飞书云文档，将本条给出的结果写入，保留标题与原意。正文开头注明本次工作岛任务编号（系统给你的任务编号），用于回读核对。只创建新文件，不修改已有文档，不读取其他资料；返回真实链接，没有能力或权限就明确说明。",minutes:0,project:item.project,service:"doubao")
-            guard mutate({state in if let i=state.items.firstIndex(where:{$0.id==id}) { state.items[i].exportSourceID=item.id; state.items[i].exportDigest=digest }}) else { throw WorkError.message(error) }
-            boardTab = 1; run(id)
-        } catch { self.error = error.localizedDescription }
+    }
+    func queueArchive(_ id:UUID) {
+        guard let item=disk.items.first(where:{$0.id==id}), let target=item.archiveTarget, target.mode != "off" else { return }
+        if let old=item.archive, old.digest != WorkArchive.digest(item) { error="结果已变化；原归档保留，请另存新任务。"; return }
+        if item.archive == nil { _ = mutate { s in if let i=s.items.firstIndex(where:{$0.id==id}) { s.items[i].archive=WorkArchiveReceipt(target:target,digest:WorkArchive.digest(item)) } } }
+        startNextArchive()
+    }
+    func retryArchive(_ id:UUID) {
+        guard let item=disk.items.first(where:{$0.id==id}), item.archive?.intent == nil, item.archive?.state == "failed" else { return }
+        _ = mutate { s in if let i=s.items.firstIndex(where:{$0.id==id}) { s.items[i].archive?.state="pending" } }; startNextArchive()
+    }
+    private func startNextArchive() {
+        guard !archiveBusy, let item=disk.items.reversed().first(where:{$0.archive?.state == "pending"}), let receipt=item.archive else { return }
+        archiveBusy=true
+        let attachments = (item.images ?? []).map { ArchiveAttachment(key:$0.id.uuidString,name:$0.name,url:imageURL(item:item,image:$0),image:true) } + (item.archiveFiles ?? []).map { ArchiveAttachment(key:$0.filename,name:$0.name,url:root.appendingPathComponent("Files/"+item.id.uuidString+"/"+$0.filename),image:false) }
+        Task {
+            let result = await Task.detached { () -> Result<WorkArchiveReceipt,Error> in
+                Result { try WorkArchive.run(item:item,initial:receipt,attachments:attachments,cli:WorkArchiveCLI()) { checkpoint in
+                    let semaphore=DispatchSemaphore(value:0)
+                    let box=ArchiveSaveBox()
+                    Task { @MainActor in
+                        box.saved=self.mutate { s in if let i=s.items.firstIndex(where:{$0.id==item.id}) { s.items[i].archive=checkpoint } }
+                        semaphore.signal()
+                    }
+                    semaphore.wait()
+                    if !box.saved { throw WorkError.message("本机归档进度未保存，停止外部写入。") }
+                } }
+            }.value
+            self.archiveBusy=false
+            switch result {
+            case .success: self.selected=item.id; self.notify("飞书归档完成，点开查看链接")
+            case .failure(let e): _ = self.mutate { s in if let i=s.items.firstIndex(where:{$0.id==item.id}) { s.items[i].archive?.state="failed"; s.items[i].archive?.error=e.localizedDescription } }
+            }
+            self.startNextArchive()
+        }
     }
     func enqueueDot(_ id: UUID) throws {
         guard let item=disk.items.first(where:{$0.id==id}), item.service == "dot",
@@ -367,6 +449,7 @@ final class WorkspaceStore: ObservableObject {
             s.items[i].state=target; s.items[i].result=failed ? "" : text; s.items[i].failure=failed ? text : ""; s.items[i].resultSource="Dot回传"
         }}) else { throw WorkError.message(error) }
         selected=id; boardTab=1; notify(failed ? "Dot处理未完成，点开查看" : "Dot处理完成，点开取结果")
+        if !failed { queueArchive(id) }
     }
     func heartbeatDot(_ id: UUID, grant: UUID, claim: UUID, now: Date = Date()) throws {
         guard let item=disk.items.first(where:{$0.id==id}), item.state=="dot_running", let lease=item.dotClaim,
@@ -379,6 +462,7 @@ final class WorkspaceStore: ObservableObject {
         if item.result == text && item.state == "succeeded" { return }
         guard mutate({ s in if let i=s.items.firstIndex(where:{$0.id==id}) { s.items[i].result=text;s.items[i].resultSource="外部Agent回传";s.items[i].state="succeeded";s.items[i].failure="" } }) else { throw WorkError.message(error) }
         selected = id; boardTab = 1; notify("Agent处理完成，点开取结果")
+        queueArchive(id)
     }
     func summarizeProject() {
         let project = draftProject.trimmingCharacters(in:.whitespacesAndNewlines)
@@ -396,6 +480,10 @@ final class WorkspaceStore: ObservableObject {
         do { try (item.result.isEmpty ? item.input : item.result).write(to:url,atomically:true,encoding:.utf8) } catch { self.error = "文档保存失败。" }
     }
     func run(_ id: UUID) {
+        guard let original=disk.items.first(where:{$0.id==id}), original.archive?.state != "running", original.archive?.state != "pending", original.archive?.intent == nil else { error="请先完成或核对归档，再重新处理。"; return }
+        if original.archiveTarget == nil {
+            do { try configureArchive(id,target:draftArchive) } catch { self.error=error.localizedDescription; return }
+        }
         if disk.items.first(where:{$0.id==id})?.service == "dot" { do { try enqueueDot(id) } catch { self.error=error.localizedDescription }; return }
         guard let item = disk.items.first(where: { $0.id == id }), !["done","running","queued"].contains(item.state) else { return }
         if item.service == "doubao", item.remoteSubmissionPending == true, item.remoteTaskURL == nil { error = "豆包提交结果尚未确认，未重复创建。请先在豆包核对原任务并关联链接。"; return }
@@ -442,6 +530,7 @@ final class WorkspaceStore: ObservableObject {
                 case .failure(let e): if let remoteValue { state.items[i].result=remoteValue; state.items[i].cloudDocuments=links }; state.items[i].failure = e.localizedDescription; state.items[i].state = "failed" }
             }
             if saved { self.selected = id; self.boardTab = 1; self.notify(result.isSuccess ? "材料处理完成，点开取结果" : "材料处理未完成，点开查看") }
+            if saved && result.isSuccess { self.queueArchive(id) }
             if saved, let next=self.disk.items.reversed().first(where:{$0.state=="queued"}) {
                 if self.mutate({s in if let i=s.items.firstIndex(where:{$0.id==next.id}){s.items[i].state="todo"}}){self.run(next.id)}
             }
@@ -456,7 +545,7 @@ final class WorkspaceStore: ObservableObject {
     }
     func setReminder(_ id: UUID, date: Date) { guard abs(date.timeIntervalSinceNow) < 366*86400 else{return};_ = mutate { s in if let i=s.items.firstIndex(where:{$0.id==id}){s.items[i].due=date;s.items[i].reminded=false} } }
     static func canEdit(_ item: WorkItem) -> Bool {
-        !["running","queued","dot_running"].contains(item.state) && !(item.remoteSubmissionPending == true && item.remoteTaskURL == nil)
+        !["running","queued","dot_running"].contains(item.state) && !["running","pending"].contains(item.archive?.state ?? "") && item.archive?.intent == nil && !(item.remoteSubmissionPending == true && item.remoteTaskURL == nil)
     }
     func beginEdit(_ id: UUID) {
         guard let item = disk.items.first(where:{$0.id == id}), Self.canEdit(item) else { error = "先停止处理或核对原任务，再修改材料。"; return }
@@ -476,11 +565,12 @@ final class WorkspaceStore: ObservableObject {
                 state.items[i].state="todo"; state.items[i].dotClaim=nil; state.items[i].result=""; state.items[i].resultSource=nil; state.items[i].failure=""
                 state.items[i].remoteTaskURL=nil; state.items[i].remoteSubmissionPending=nil; state.items[i].cloudDocuments=nil
                 state.items[i].exportSourceID=nil; state.items[i].exportDigest=nil; state.items[i].exportVerifiedAt=nil
+                state.items[i].archive=nil
             }
         }) { cancelEdit() }
     }
     func deleteItem(_ id: UUID) {
-        guard let item=disk.items.first(where:{$0.id==id}), !["running","queued","dot_running"].contains(item.state) else { error = "请先停止处理，再删除这条本机记录。"; return }
+        guard let item=disk.items.first(where:{$0.id==id}), Self.canEdit(item) else { error = "请先停止处理或核对归档，再删除这条本机记录。"; return }
         if mutate({ state in state.items.removeAll{$0.id==id}; state.trash=(state.trash ?? []).filter{$0.id != id}; var archived=item; if archived.state=="dot_waiting" { archived.state="todo"; archived.dotClaim=nil }; state.trash!.insert(archived,at:0) }) {
             if selected==id { selected=nil }; if editingID==id { cancelEdit() }
         }
@@ -492,6 +582,7 @@ final class WorkspaceStore: ObservableObject {
     func complete(_ id: UUID) { guard let item=disk.items.first(where:{$0.id==id}), !["running","dot_running"].contains(item.state) else { return }; _ = mutate { s in if let i = s.items.firstIndex(where:{$0.id == id}) { s.items[i].state = "done"; s.items[i].due = nil } } }
     func snooze(_ id: UUID, minutes: Int = 20) { guard (1...10080).contains(minutes) else { return }; _ = mutate { s in if let i = s.items.firstIndex(where:{$0.id == id}) { s.items[i].due = Date().addingTimeInterval(Double(minutes)*60); s.items[i].reminded = false } } }
     func tick(now: Date = Date()) {
+        if integrationEnabled { startNextArchive() }
         expireDotClaims(now:now)
         let due = disk.items.filter { $0.state != "done" && !$0.reminded && ($0.due.map{$0 <= now} ?? false) }
         if !due.isEmpty, mutate({ s in for i in s.items.indices where due.contains(where:{$0.id == s.items[i].id}) { s.items[i].reminded = true } }) { selected = due.first?.id; boardTab = 1; notify("\(due.count)项待办到提醒时间了") }

@@ -175,6 +175,9 @@ struct WorkspaceView: View {
             }.font(.system(size:12))
             HStack { WorkspaceDropMark(store:store).frame(width:32,height:32); Text("放下材料，接着做你的事").font(.system(size:15,weight:.semibold)); Spacer() }
             WorkInputEditor(text:$store.draftText,pasteImage:{store.attachImage($0)}).padding(6).frame(height:desktop ? 160 : 72).background(.white.opacity(0.08),in:RoundedRectangle(cornerRadius:8))
+            ForEach(store.draftFiles,id:\.self) { file in
+                HStack { Text(file.lastPathComponent).lineLimit(1); Button("移除") { store.draftFiles.removeAll{$0==file} } }.font(.system(size:11))
+            }
             if !store.draftImages.isEmpty {
                 ScrollView(.horizontal) {
                     HStack(spacing:8) {
@@ -205,6 +208,25 @@ struct WorkspaceView: View {
                 Text(dotPairing.grant(project:store.draftProject)?.subscription.map { $0.expires>Date() ? "任务通知已订阅：交给AI后自动通知Dot；通知送达后仍需Dot领取处理。Mac和ChatGPT须在线。" : "Dot通知订阅已过期，需在Dot中恢复订阅。" } ?? "尚未订阅自动通知：需先在Dot安装私人插件并订阅本项目；配对本身不会唤醒Dot。").font(.system(size:10)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             }
             Picker("处理方式",selection:$recipe) { ForEach(store.disk.recipes) { r in Text(r.title).tag(r.id) } }.font(.system(size:12))
+            Picker("处理后归档",selection:$store.draftArchive.mode) {
+                Text("仅保留本机").tag("off")
+                Text("新建飞书文档").tag("new")
+                Text("追加到已有文档").tag("append")
+                Text("多维表格新增记录").tag("base")
+            }.font(.system(size:12))
+            if ["append","base"].contains(store.draftArchive.mode) {
+                TextField(store.draftArchive.mode == "base" ? "多维表格链接（含 table）" : "飞书云文档链接",text:$store.draftArchive.url).textFieldStyle(.roundedBorder)
+            }
+            if store.draftArchive.mode == "base" {
+                Button(store.archiveFieldsBusy ? "正在读取…" : "读取表格，选择收录列") { store.loadArchiveFields() }.disabled(store.archiveFieldsBusy)
+                if !store.archiveFields.isEmpty { Picker("收录到",selection:$store.draftArchive.field) { ForEach(store.archiveFields,id:\.self) { Text($0).tag($0) } } }
+                else { TextField("收录列名称",text:$store.draftArchive.field).textFieldStyle(.roundedBorder) }
+                Text("新增一条记录，附归档文档链接；完整材料与图片附件保存在该文档。不会修改已有记录。").font(.system(size:10)).foregroundStyle(.secondary)
+            }
+            if store.draftArchive.mode != "off" {
+                Text("归档由程序执行，不调用AI分类。需要独立飞书归档授权。").font(.system(size:10)).foregroundStyle(.secondary)
+                Button("直接归档，不调用AI") { add(run:false,archiveOnly:true) }.font(.system(size:12))
+            }
             HStack {
                 Text("提醒").font(.system(size:12))
                 Picker("提醒时间",selection:$minutes) { ForEach(Array(Set([0,5,20,60,minutes])).sorted(),id:\.self) { value in Text(value == 0 ? "不提醒" : "\(value)分钟").tag(value) } }.labelsHidden().frame(width:100)
@@ -221,8 +243,14 @@ struct WorkspaceView: View {
             HStack { Button("导入材料Skill") { store.importSkill() }; Spacer(); Text("\(store.disk.items.filter{$0.state != "done"}.count)项未完成").foregroundStyle(.secondary) }.font(.system(size:11))
         }
     }
-    private func add(run: Bool) {
-        do { let id = try store.add(text:input,instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction,minutes:minutes,images:store.draftImages,project:store.draftProject); store.draftText = ""; store.draftImages = []; store.boardTab = 1; if run { store.run(id) } } catch { store.error = error.localizedDescription }
+    private func add(run: Bool,archiveOnly:Bool = false) {
+        do {
+            try store.draftArchive.validate()
+            let id = try store.add(text:input,files:store.draftFiles,instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction,minutes:minutes,images:store.draftImages,project:store.draftProject)
+            try store.configureArchive(id,target:store.draftArchive)
+            store.draftText = ""; store.draftImages = []; store.draftFiles = []; store.boardTab = 1
+            if archiveOnly { store.queueArchive(id) } else if run { store.run(id) }
+        } catch { store.error = error.localizedDescription }
     }
     private var tasks: some View {
         ScrollView {
@@ -268,6 +296,12 @@ struct WorkspaceView: View {
                             if let link = item.remoteTaskURL, WorkBrowser.validTask(link), let url = URL(string:link) { Link("打开豆包原任务",destination:url).font(.system(size:11)) }
                             ForEach(item.cloudDocuments ?? [],id:\.self) { link in if WorkBrowser.validDocument(link), let url=URL(string:link) { Link(item.exportVerifiedAt == nil ? "查看飞书文档（待回读核对）" : "打开飞书文档（已回读核对）",destination:url).font(.system(size:11)) } }
                             if let source = item.resultSource { Text("结果来源："+source).font(.system(size:10)).foregroundStyle(.secondary) }
+                            if let archive=item.archive {
+                                Text(archive.state == "succeeded" ? "飞书归档已完成" : archive.state == "running" ? "正在归档到飞书…" : archive.state == "pending" ? "等待归档" : "归档未完成："+archive.error).font(.system(size:11)).foregroundStyle(archive.state == "failed" ? .orange : .secondary)
+                                if let doc=archive.document, let url=URL(string:doc) { Link("打开归档文档",destination:url).font(.system(size:11)) }
+                                if archive.target.mode == "base", archive.record != nil, let url=URL(string:archive.target.url) { Link("打开多维表格",destination:url).font(.system(size:11)) }
+                                if archive.state == "failed", archive.intent == nil { Button("只重试归档") { store.retryArchive(item.id) }.font(.system(size:11)) }
+                            }
                             if !item.failure.isEmpty { Text(item.failure).font(.system(size:11)).foregroundStyle(.orange) }
                             if item.service=="dot", item.state=="dot_waiting", let deliveries=item.dotDeliveries, !deliveries.isEmpty {
                                 if deliveries.values.contains(where:{$0.accepted}) { Text("通知已送达 · 等待Dot领取").font(.system(size:11)).foregroundStyle(.secondary) }
