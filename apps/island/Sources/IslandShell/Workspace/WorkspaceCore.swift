@@ -51,6 +51,7 @@ struct WorkDisk: Codable {
     var selectedCards: [String] = []
     var preferredService: String?
     var archiveTarget: WorkArchiveTarget?
+    var readWebLinks: Bool?
 }
 enum WorkError: LocalizedError {
     case message(String)
@@ -158,7 +159,15 @@ final class WorkspaceStore: ObservableObject {
     @Published var error = ""
     @Published var selected: UUID?
     @Published var boardTab = 0
-    @Published var draftText = ""
+    @Published var draftText = "" {
+        didSet { if oldValue != draftText { webPages=[]; webInput=nil } }
+    }
+    @Published var readWebLinks = false {
+        didSet { if oldValue != readWebLinks { _ = mutate { $0.readWebLinks=readWebLinks }; webPages=[]; webInput=nil } }
+    }
+    @Published private(set) var webPages: [WorkWebPage] = []
+    @Published private(set) var webBusy = false
+    private var webInput: String?
     @Published var draftProject = "日常工作"
     @Published var draftArchive = WorkArchiveTarget(mode:"new")
     @Published var draftFiles: [URL] = []
@@ -205,6 +214,7 @@ final class WorkspaceStore: ObservableObject {
             let file = self.root.appendingPathComponent("workspace.json")
             if FileManager.default.fileExists(atPath:file.path) { disk = try JSONDecoder().decode(WorkDisk.self,from:Data(contentsOf:file)) }
             if let service=disk.preferredService, ["codex","doubao","dot"].contains(service) { draftService=service }
+            readWebLinks = disk.readWebLinks ?? false
             draftArchive = disk.archiveTarget ?? WorkArchiveTarget(mode:"new")
             if !disk.recipes.contains(where:{$0.id == "work"}) { disk.recipes.insert(WorkRecipe.presets.first(where:{$0.id == "work"})!,at:0) }
             for i in disk.items.indices {
@@ -280,6 +290,25 @@ final class WorkspaceStore: ObservableObject {
             self.ingestActive = false
         }
         openBoard(); return item.id
+    }
+    /// Only explicit draft links are fetched. Files, webpage links and chat messages never recurse.
+    func preparedLinkInput(reader: @escaping @Sendable (URL) throws -> WorkWebPage = { try WorkWebReader.read($0) }) async throws -> String {
+        let original=draftText
+        guard readWebLinks else { return original }
+        guard !webBusy else { throw WorkError.message("正在提取正文，请稍候。") }
+        if webInput == original, !webPages.isEmpty { return original+"\n\n"+webPages.map(\.material).joined(separator:"\n\n") }
+        let urls=try WorkWebReader.links(in:original)
+        guard !urls.isEmpty else { return original }
+        webBusy=true; defer { webBusy=false }
+        let pages=try await Task.detached(priority:.utility) { try urls.map { try reader($0) } }.value
+        guard readWebLinks, draftText==original else { throw WorkError.message("输入或读取选项已变化，本次未提交，请重新提取。") }
+        let combined=original+"\n\n"+pages.map(\.material).joined(separator:"\n\n")
+        guard combined.utf8.count<=200_000 else { throw WorkError.message("合并正文超过200KB，请减少链接或拆分。") }
+        webInput=original; webPages=pages
+        return combined
+    }
+    func previewLinks() {
+        Task { do { guard try !WorkWebReader.links(in:draftText).isEmpty else { throw WorkError.message("请先放入HTTPS网页链接。") }; _ = try await preparedLinkInput(); error="" } catch { self.error=error.localizedDescription } }
     }
     func setMinutes(_ minutes: Int) { guard (0...10080).contains(minutes) else { return }; _ = mutate { $0.reminderMinutes = minutes } }
     func addRecipe(title: String, instruction: String) throws {

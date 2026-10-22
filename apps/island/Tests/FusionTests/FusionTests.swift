@@ -504,6 +504,15 @@ final class FusionTests {
             } catch { print("FAIL: "+error.localizedDescription);exit(1) }; return
         }
         let tests = FusionTests()
+        if CommandLine.arguments.contains("--web-live-check") {
+            do {
+                guard let value=ProcessInfo.processInfo.environment["ISLAND_WEB_SYNTHETIC_URL"] else { throw WorkError.message("Missing synthetic URL") }
+                let page=try await Task.detached { try WorkWebReader.read(WorkWebReader.url(value)) }.value
+                guard page.text.contains("日期筛选"), page.text.contains("导出进度"), !page.text.contains("导航不应收录") else { throw WorkError.message("Synthetic article extraction mismatch") }
+                try Data(page.material.utf8).write(to:URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent(".build/web-live-material.txt"))
+                print("PASS: real HTTPS synthetic article extracted; no AI used")
+            } catch { print("FAIL: "+error.localizedDescription); exit(1) }; return
+        }
         if CommandLine.arguments.contains("--archive-live-check") {
             do { try await tests.testArchiveLive() } catch { print("FAIL: "+error.localizedDescription); exit(1) }; return
         }
@@ -511,6 +520,7 @@ final class FusionTests {
             try await tests.testDotPairingAndDelegation()
             try await tests.testDotEvents()
             try tests.testArchiveAutomation()
+            try await tests.testWebMaterial()
             try tests.testTaskEditingTrashAndRestore()
             try await tests.testWorkspacePersistenceRemindersAndOAuthBoundary()
             await tests.testFreshInstallIsStoppedAndRendererIsLazy()

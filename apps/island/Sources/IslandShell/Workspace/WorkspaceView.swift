@@ -190,6 +190,19 @@ struct WorkspaceView: View {
                     }
                 }.frame(height:62)
             }
+            Toggle("读取链接正文",isOn:$store.readWebLinks).font(.system(size:12)).disabled(store.webBusy)
+            if store.readWebLinks {
+                HStack {
+                    Button(store.webBusy ? "正在提取…" : "提取并查看正文") { store.previewLinks() }.disabled(store.webBusy)
+                    Text("仅公开网页；不带登录信息，不执行网页脚本").font(.system(size:10)).foregroundStyle(.secondary)
+                }
+                ForEach(store.webPages,id:\.source) { page in
+                    DisclosureGroup(page.title+" · "+String(page.text.count)+"字") {
+                        ScrollView { Text(page.material).font(.system(size:12)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading) }.frame(maxHeight:desktop ? 220 : 100)
+                    }.font(.system(size:12))
+                }
+                Text("交给AI或直接归档时，会先提取正文；失败时保留输入，不提交。存待办只保存原材料。").font(.system(size:10)).foregroundStyle(.secondary)
+            }
             Picker("交给谁",selection:$store.draftService) {
                 Text(WorkAI.displayName+" · 本机").tag("codex")
                 Text("豆包工作 · 本人已登录网页").tag("doubao")
@@ -225,7 +238,7 @@ struct WorkspaceView: View {
             }
             if store.draftArchive.mode != "off" {
                 Text("归档由程序执行，不调用AI分类。需要独立飞书归档授权。").font(.system(size:10)).foregroundStyle(.secondary)
-                Button("直接归档，不调用AI") { add(run:false,archiveOnly:true) }.font(.system(size:12))
+                Button("直接归档，不调用AI") { add(run:false,archiveOnly:true) }.disabled(store.webBusy).font(.system(size:12))
             }
             HStack {
                 Text("提醒").font(.system(size:12))
@@ -236,21 +249,30 @@ struct WorkspaceView: View {
                 Button("添加附件") { store.pickFiles() }
                 Button("粘贴") { store.pasteMaterial() }
                 Button("存待办") { add(run:false) }
-                Button("交给AI") { add(run:true) }
+                Button("交给AI") { add(run:true) }.disabled(store.webBusy)
             }.font(.system(size:12))
             Button("读取上方飞书文档链接") { store.readFeishuMaterial(input,instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction); store.boardTab = 1 }.font(.system(size:11))
-            Text("当前处理工具：\(store.draftService == "dot" ? "Dot（项目派单）" : store.draftService == "doubao" ? "豆包工作（本人网页）" : WorkAI.displayName)。拖入只保存本机。点击“交给AI”才把材料交给你本机已登录的AI服务；链接先作为文字，不自动抓取。支持图片/截图（⌘V粘贴）、Word、PDF、文字；最多6张图片，交给AI前可移除。").font(.system(size:10)).foregroundStyle(.white.opacity(0.55)).fixedSize(horizontal:false,vertical:true)
+            Text("当前处理工具：\(store.draftService == "dot" ? "Dot（项目派单）" : store.draftService == "doubao" ? "豆包工作（本人网页）" : WorkAI.displayName)。拖入只保存本机。点击“交给AI”才把材料交给你本机已登录的AI服务；可按需开启读取链接正文。支持图片/截图（⌘V粘贴）、Word、PDF、文字；最多6张图片，交给AI前可移除。").font(.system(size:10)).foregroundStyle(.white.opacity(0.55)).fixedSize(horizontal:false,vertical:true)
             HStack { Button("导入材料Skill") { store.importSkill() }; Spacer(); Text("\(store.disk.items.filter{$0.state != "done"}.count)项未完成").foregroundStyle(.secondary) }.font(.system(size:11))
         }
     }
     private func add(run: Bool,archiveOnly:Bool = false) {
-        do {
-            try store.draftArchive.validate()
-            let id = try store.add(text:input,files:store.draftFiles,instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction,minutes:minutes,images:store.draftImages,project:store.draftProject)
-            try store.configureArchive(id,target:store.draftArchive)
-            store.draftText = ""; store.draftImages = []; store.draftFiles = []; store.boardTab = 1
-            if archiveOnly { store.queueArchive(id) } else if run { store.run(id) }
-        } catch { store.error = error.localizedDescription }
+        guard !store.webBusy else { return }
+        let original=input, target=store.draftArchive, files=store.draftFiles, images=store.draftImages
+        let project=store.draftProject, service=store.draftService, reminder=minutes
+        let instruction=store.disk.recipes.first(where:{$0.id == recipe})?.instruction
+        Task {
+            do {
+                try target.validate()
+                let material = (run || archiveOnly) ? try await store.preparedLinkInput() : original
+                guard store.draftText==original, store.draftArchive==target, store.draftProject==project,
+                      store.draftService==service, store.draftFiles==files, store.draftImages.map(\.id)==images.map(\.id) else { throw WorkError.message("材料或选项已变化，本次未提交。") }
+                let id = try store.add(text:material,files:files,instruction:instruction,minutes:reminder,images:images,project:project,service:service)
+                try store.configureArchive(id,target:target)
+                store.draftText = ""; store.draftImages = []; store.draftFiles = []; store.boardTab = 1
+                if archiveOnly { store.queueArchive(id) } else if run { store.run(id) }
+            } catch { store.error = error.localizedDescription }
+        }
     }
     private var tasks: some View {
         ScrollView {
