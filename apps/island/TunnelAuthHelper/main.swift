@@ -39,7 +39,7 @@ case "run":
     guard SecItemCopyMatching(next as CFDictionary,&found)==errSecSuccess, let bytes=found as? Data, let key=String(data:bytes,encoding:.utf8) else { finish(false) }
     let child=Process()
     child.executableURL=client
-    child.arguments=["run","--control-plane.tunnel-id",tunnel,"--mcp.server-url","http://127.0.0.1:\(port)/mcp/dot","--mcp.extra-headers","Authorization: env:ISLAND_DOT_AUTH","--mcp.discovery-extra-headers","Authorization: env:ISLAND_DOT_AUTH","--health.listen-addr","127.0.0.1:18769","--log.level","error"]
+    child.arguments=["run","--control-plane.tunnel-id",tunnel,"--mcp.server-url","http://127.0.0.1:\(port)/mcp/dot","--mcp.extra-headers","Authorization: env:ISLAND_DOT_AUTH","--mcp.discovery-extra-headers","Authorization: env:ISLAND_DOT_AUTH","--health.listen-addr","127.0.0.1:18769","--log.format","json","--log.level","error"]
     child.environment=["PATH":"/usr/bin:/bin","HOME":NSHomeDirectory(),"CONTROL_PLANE_API_KEY":key,"ISLAND_DOT_AUTH":"Bearer "+token]
     child.standardInput=FileHandle.nullDevice; child.standardOutput=FileHandle.nullDevice; child.standardError=FileHandle.nullDevice
     // UI exit/crash, lock or disconnect must not leave an orphan tunnel process.
