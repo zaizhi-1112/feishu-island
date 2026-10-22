@@ -59,8 +59,10 @@ bash scripts/check.sh island         # macOS：灵动岛逻辑检查，需兼容
 
 构建时可指定尚不存在的绝对 `.app` 路径 `ISLAND_APP_OUTPUT`，保留当前运行版本。构建会一并带入当前网页收录扩展。`python3 apps/island/scripts/package-pilot.py /absolute/path/to/application.app` 生成独立试用 ZIP、文件哈希清单和 SHA256SUMS；只接受列明的程序资源，核验签名与所有 helper 架构，不复制 profile、工作区、隧道配置或授权凭据。输出在忽略的 `apps/island/releases`，不上传到源码仓库。
 
-验证：`python3 apps/island/Tests/package-pilot-test.py`；本轮独立 Release 构建、arm64 架构校验、ZIP CRC、桌面/390px 说明阅读检查通过；未替换或重启日用应用，接收仍开启且状态正常。未发布中台、未配置同事真实账号、未合并 main。
+验证：`python3 apps/island/Tests/package-pilot-test.py`；本轮独立 Release 构建、arm64 架构校验、ZIP CRC、桌面/390px 说明阅读检查通过；未替换或重启日用应用，接收仍开启且状态正常。下载入口已上线；未配置同事真实账号、未合并 main。
 
-飞书后台接入范围：消息应用 1.0.2、独立归档应用 1.0.1 已发布，仅宰治与史天佑两位成员，原权限未变；史天佑本人尚未授权/验收。旧中台下载域名已实测无对应应用，新下载与连接入口待确认。
+飞书后台接入范围：消息应用 1.0.2、独立归档应用 1.0.1 已发布，仅宰治与史天佑两位成员，原权限未变；史天佑本人尚未授权/验收。旧中台下载域名已实测无对应应用；新下载入口为 https://feishu-island.virxact.net，仅宰治和柚子可见。首次连接服务尚未上线。
 
 首次授权的技术边界：飞书官方 [v3 用户令牌说明](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/authentication-management/access-token/get-user-access-token-v3)明确，自建应用为 Confidential Client，换取用户令牌仍需要应用密钥；不能把共享 App Secret 装进可分发包。后续需实现合规的公司授权服务与本机个人凭据接续，不能通过复制开发者 CLI profile 冒充一键接入。
+
+独立分发 build27 使用宰治指定图标，运行逻辑沿用 build26；图标、白名单打包与静态入口可复现。3 项分发检查、538 条融合合成断言通过，日用接收未重启。当前不能让史天佑仅安装就完成首次连接：公司授权服务、本人 Dot 首次配置和同事实机验收仍是必需的未完成项。Windows 版按本人决定延期，当前只交付 M 系列 Mac 试用包。

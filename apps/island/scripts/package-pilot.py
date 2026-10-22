@@ -54,7 +54,7 @@ def inspect(app):
         if not item.is_file() or not allowed(relative):
             raise ValueError('Unexpected application file; distribution stopped: ' + relative.as_posix())
         entries.append({'path': relative.as_posix(), 'sha256': hashlib.sha256(item.read_bytes()).hexdigest()})
-    required = {'Contents/Info.plist', 'Contents/MacOS/YuIsland'} | {'Contents/Helpers/' + x for x in HELPERS}
+    required = {'Contents/Info.plist', 'Contents/MacOS/YuIsland', 'Contents/Resources/AppIcon.icns'} | {'Contents/Helpers/' + x for x in HELPERS}
     required |= {'Contents/Resources/BrowserBridge/chrome-reader/' + x for x in EXTENSION_FILES}
     if not required.issubset({e['path'] for e in entries}):
         raise ValueError('Required runtime helpers or browser extension are missing')
