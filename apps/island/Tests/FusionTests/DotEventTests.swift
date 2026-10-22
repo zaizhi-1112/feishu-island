@@ -24,6 +24,15 @@ extension FusionTests {
     @MainActor func testDotEvents() async throws {
         for ip in ["0.0.0.0","10.0.0.1","127.1.2.3","100.64.0.1","169.254.169.254","172.16.0.1","192.168.1.1","192.0.0.1","192.0.2.1","192.88.99.1","198.18.0.1","198.51.100.1","203.0.113.1","224.0.0.1","255.255.255.255","::1"] { XCTAssertFalse(DotPublicWebhook.publicIPv4(ip)) }
         for ip in ["1.1.1.1","8.8.8.8","104.18.1.1"] { XCTAssertTrue(DotPublicWebhook.publicIPv4(ip)) }
+        var lookups=0
+        let resolver: (String) throws -> [String] = { _ in lookups+=1; return ["104.18.1.1"] }
+        XCTAssertEqual(try DotPublicWebhook.validatedAddress(host:"receiver.example",addresses:["198.18.0.39"],publicDNS:resolver),"104.18.1.1")
+        XCTAssertEqual(lookups,1)
+        for (host,addresses) in [("198.18.0.39",["198.18.0.39"]),("receiver.example",["127.0.0.1"]),("receiver.example",["198.18.0.39","10.0.0.1"])] {
+            do { _=try DotPublicWebhook.validatedAddress(host:host,addresses:addresses,publicDNS:resolver); XCTAssertTrue(false) } catch { XCTAssertTrue(true) }
+        }
+        XCTAssertEqual(lookups,1)
+        do { _=try DotPublicWebhook.validatedAddress(host:"receiver.example",addresses:["198.19.0.1"],publicDNS:{_ in ["104.18.1.1","127.0.0.1"]}); XCTAssertTrue(false) } catch { XCTAssertTrue(true) }
         for url in ["http://receiver.example/", "https://user:pass@receiver.example/", "https://receiver.example:8443/", "https://receiver.example/#fragment", "file:///tmp/a"] {
             do { _=try DotPublicWebhook.destination(url); XCTAssertTrue(false) } catch { XCTAssertTrue(true) }
         }
@@ -31,6 +40,8 @@ extension FusionTests {
         do { _=try DotPublicWebhook.resolve("127.0.0.1"); XCTAssertTrue(false) } catch { XCTAssertTrue(true) }
         let root=FileManager.default.temporaryDirectory.appendingPathComponent("island-dot-events-"+UUID().uuidString)
         let store=WorkspaceStore(root:root,startTimers:false), vault=MemoryDotCredentials()
+        store.draftService="dot"
+        XCTAssertEqual(WorkspaceStore(root:root,startTimers:false).draftService,"dot")
         var clock=Date(), unlocked=true
         let pairing=DotPairing(credentials:vault,now:{clock}), wire=SyntheticDotWebhook()
         let token=try pairing.pair(project:"合成订阅项目"), grant=try pairing.authenticate(token)!

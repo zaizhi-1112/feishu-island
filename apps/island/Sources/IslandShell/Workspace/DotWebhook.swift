@@ -41,8 +41,38 @@ struct DotPublicWebhook: DotWebhookTransport {
             if getnameinfo(node.pointee.ai_addr,node.pointee.ai_addrlen,&bytes,socklen_t(bytes.count),nil,0,NI_NUMERICHOST)==0 { addresses.append(String(cString:bytes)) }
             current=node.pointee.ai_next
         }
-        guard !addresses.isEmpty, addresses.allSatisfy(publicIPv4) else { throw WorkError.message("Dot回调地址不是允许的公网地址。") }
-        return addresses[0]
+        return try validatedAddress(host:host,addresses:addresses,publicDNS:resolvePublicDNS)
+    }
+    static func validatedAddress(host: String, addresses: [String], publicDNS: (String) throws -> [String]) throws -> String {
+        var resolved=addresses
+        // Some local VPNs synthesize benchmark-range addresses. Resolve only DNS names
+        // through a pinned public resolver; never connect to the synthetic address.
+        let isName=host.contains(where:{$0.isLetter}) && host.contains(".")
+        if isName && !addresses.isEmpty && addresses.allSatisfy({$0.hasPrefix("198.18.") || $0.hasPrefix("198.19.")}) {
+            resolved=try publicDNS(host)
+        }
+        guard !resolved.isEmpty, resolved.allSatisfy(publicIPv4) else { throw WorkError.message("Dot回调地址不是允许的公网地址。") }
+        return resolved[0]
+    }
+    static func resolvePublicDNS(_ host: String) throws -> [String] {
+        var url=URLComponents(string:"https://dns.google/resolve")!
+        url.queryItems=[URLQueryItem(name:"name",value:host),URLQueryItem(name:"type",value:"A"),URLQueryItem(name:"edns_client_subnet",value:"0.0.0.0/0")]
+        let p=Process(), output=Pipe()
+        p.executableURL=URL(fileURLWithPath:"/usr/bin/curl")
+        p.arguments=["-q","--silent","--noproxy","*","--proto","=https","--max-redirs","0","--max-time","5","--max-filesize","16384","--resolve","dns.google:443:8.8.8.8",url.string!]
+        p.environment=["PATH":"/usr/bin:/bin","HOME":"/var/empty"]
+        p.standardInput=FileHandle.nullDevice; p.standardOutput=output; p.standardError=FileHandle.nullDevice
+        defer { try? output.fileHandleForReading.close(); try? output.fileHandleForWriting.close() }
+        try p.run()
+        var data=Data()
+        while let chunk=try output.fileHandleForReading.read(upToCount:4096), !chunk.isEmpty {
+            data.append(chunk)
+            if data.count>20000 { p.terminate(); throw WorkError.message("Dot公共DNS响应过大。") }
+        }
+        p.waitUntilExit()
+        guard p.terminationStatus==0, let json=try? JSONSerialization.jsonObject(with:data) as? [String:Any], json["Status"] as? Int==0,
+              let answers=json["Answer"] as? [[String:Any]] else { throw WorkError.message("Dot公共DNS解析失败。") }
+        return answers.filter{$0["type"] as? Int==1}.compactMap{$0["data"] as? String}
     }
     func post(url: String, headers: [String:String], body: Data) async throws -> DotWebhookReply {
         let (host,port)=try Self.destination(url)

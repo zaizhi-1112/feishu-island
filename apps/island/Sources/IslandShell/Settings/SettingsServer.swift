@@ -166,6 +166,10 @@ final class SettingsServer {
             } else if method != "GET" { return .error(405,"不支持的操作。") }
             return .json(["aiTool":WorkAI.displayName,"aiAvailable":WorkAI.executable != nil,"reminderMinutes":workspace.disk.reminderMinutes,"taskCount":workspace.disk.items.count,"hubConnected":workspace.hub.connected,"hubError":workspace.hub.error,"error":workspace.error])
         }
+        if url.path == "/api/dot-diagnostics" {
+            guard method=="GET", !sessionLocked else { return .error(403,"Unavailable") }
+            return .json(dotEvents.diagnostic)
+        }
         if url.path == "/mcp/dot" {
             guard headers["origin"] == nil, !sessionLocked, method=="POST",
                   headers["content-type"]?.hasPrefix("application/json")==true,

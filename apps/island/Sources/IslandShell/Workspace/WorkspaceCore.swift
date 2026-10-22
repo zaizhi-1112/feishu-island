@@ -46,6 +46,7 @@ struct WorkDisk: Codable {
     var recipes = WorkRecipe.presets
     var reminderMinutes = 20
     var selectedCards: [String] = []
+    var preferredService: String?
 }
 enum WorkError: LocalizedError {
     case message(String)
@@ -155,7 +156,12 @@ final class WorkspaceStore: ObservableObject {
     @Published var boardTab = 0
     @Published var draftText = ""
     @Published var draftProject = "日常工作"
-    @Published var draftService = "codex"
+    @Published var draftService = "codex" {
+        didSet {
+            guard ["codex","doubao","dot"].contains(draftService), draftService != oldValue else { return }
+            _ = mutate { $0.preferredService = draftService }
+        }
+    }
     @Published var editingID: UUID?
     @Published var editTitle = ""
     @Published var editInput = ""
@@ -189,6 +195,7 @@ final class WorkspaceStore: ObservableObject {
             try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:self.root.path)
             let file = self.root.appendingPathComponent("workspace.json")
             if FileManager.default.fileExists(atPath:file.path) { disk = try JSONDecoder().decode(WorkDisk.self,from:Data(contentsOf:file)) }
+            if let service=disk.preferredService, ["codex","doubao","dot"].contains(service) { draftService=service }
             if !disk.recipes.contains(where:{$0.id == "work"}) { disk.recipes.insert(WorkRecipe.presets.first(where:{$0.id == "work"})!,at:0) }
             for i in disk.items.indices where ["running","queued"].contains(disk.items[i].state) { disk.items[i].state = "interrupted"; disk.items[i].failure = "上次运行已中断，请确认后重试。" }
             try save()

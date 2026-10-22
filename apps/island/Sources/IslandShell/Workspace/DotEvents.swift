@@ -30,6 +30,8 @@ struct DotDelivery: Codable, Equatable {
     var now: () -> Date
     private var pumping=false
     private var generation: [UUID:Int]=[:]
+    // In-memory metadata only: no callback URL, secret, task body or identifiers.
+    private(set) var diagnostic: [String:String] = [:]
     init(pairing: DotPairing, store: WorkspaceStore, transport: any DotWebhookTransport = DotPublicWebhook(), allowed: @escaping () -> Bool = {true}, now: @escaping () -> Date = Date.init) {
         self.pairing=pairing; self.store=store; self.transport=transport; self.allowed=allowed; self.now=now
     }
@@ -45,7 +47,10 @@ struct DotDelivery: Codable, Equatable {
     func rpc(_ request: [String:Any], grant: DotGrant) async -> [String:Any]? {
         guard let id=request["id"] else { return nil }
         func result(_ value: [String:Any]) -> [String:Any] { var value=value; value["resultType"]="complete"; return ["jsonrpc":"2.0","id":id,"result":value] }
-        func failure(_ message: String, callback: Bool = false) -> [String:Any] { ["jsonrpc":"2.0","id":id,"error":["code":callback ? -32015 : -32602,"message":message,"data":["reason":callback ? "challenge_failed" : "invalid_subscription"]]] }
+        func failure(_ message: String, callback: Bool = false) -> [String:Any] {
+            diagnostic["error"]=message; diagnostic["at"]=now().ISO8601Format()
+            return ["jsonrpc":"2.0","id":id,"error":["code":callback ? -32015 : -32602,"message":message,"data":["reason":callback ? "challenge_failed" : "invalid_subscription"]]]
+        }
         guard allowed(), request["jsonrpc"] as? String=="2.0" else { return failure("Mac is locked or invalid request") }
         let method=request["method"] as? String ?? ""
         var p=request["params"] as? [String:Any] ?? [:]; p.removeValue(forKey:"_meta")
@@ -59,6 +64,7 @@ struct DotDelivery: Codable, Equatable {
         do { _=try DotPublicWebhook.destination(url) } catch { return failure("Callback must be public HTTPS") }
         let identity=Self.identity(grant:grant.id,url:url,project:grant.project)
         if method=="events/unsubscribe" {
+            diagnostic["lastAction"]="unsubscribe"
             guard Set(p.keys)==["name","arguments","delivery"], Set(delivery.keys)==["mode","url"] else { return failure("Unknown unsubscribe fields") }
             generation[grant.id,default:0]+=1
             do {
@@ -70,6 +76,7 @@ struct DotDelivery: Codable, Equatable {
               p["cursor"]==nil || p["cursor"] is NSNull, Set(delivery.keys)==["mode","url","secret"], let secret=delivery["secret"] as? String,
               (try? DotWebhookSigner.key(secret)) != nil else { return failure("Invalid subscription fields or signing key") }
         var ttl=86400.0
+        diagnostic=["lastAction":"subscribe","stage":"validated","at":now().ISO8601Format()]
         if let raw=p["ttlMs"], !(raw is NSNull) {
             guard let milliseconds=raw as? NSNumber, CFGetTypeID(milliseconds) != CFBooleanGetTypeID(), milliseconds.doubleValue.isFinite, milliseconds.doubleValue>=1000 else { return failure("ttlMs must be at least 1000") }
             ttl=min(ttl,milliseconds.doubleValue/1000)
@@ -89,7 +96,9 @@ struct DotDelivery: Codable, Equatable {
                 subscription.previousSecret=previous.previousSecret; subscription.rotationUntil=previous.rotationUntil
             } else {
                 let body=try JSONSerialization.data(withJSONObject:["type":"verification","challenge":challenge],options:.sortedKeys)
+                diagnostic["stage"]="callback"
                 let reply=try await transport.post(url:url,headers:DotWebhookSigner.headers(id:"verify_"+UUID().uuidString,subscription:subscription,body:body,now:instant),body:body)
+                diagnostic["callbackHTTP"]=String(reply.status)
                 guard (200...299).contains(reply.status), reply.body.count<=16384,
                       let value=try? JSONSerialization.jsonObject(with:reply.body) as? [String:Any], let echo=value["challenge"] as? String,
                       Self.equal(challenge,echo), now().timeIntervalSince(instant)<30 else { return failure("Callback challenge failed",callback:true) }
@@ -97,8 +106,12 @@ struct DotDelivery: Codable, Equatable {
             }
             guard allowed(), generation[grant.id]==version, expiry>now() else { return failure("Subscription cancelled or expired during verification") }
             try pairing.setSubscription(subscription,grantID:grant.id)
+            diagnostic["stage"]="saved"
             return result(["id":identity,"refreshBefore":expiry.ISO8601Format(),"cursor":NSNull(),"truncated":false])
-        } catch { return failure("Callback verification or secure storage failed",callback:true) }
+        } catch {
+            if let error=error as? WorkError { diagnostic["detail"]=error.localizedDescription }
+            return failure("Callback verification or secure storage failed",callback:true)
+        }
     }
     static func equal(_ a: String,_ b: String) -> Bool {
         let x=Array(a.utf8), y=Array(b.utf8); guard x.count==y.count else { return false }
