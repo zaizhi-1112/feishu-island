@@ -179,6 +179,8 @@ final class WorkspaceStore: ObservableObject {
         draftText = try WorkChromeImport.material(data); chromeDraft=true; boardTab=0; error=""
     }
     @Published var draftProject = "日常工作"
+    @Published var draftRecipe = "work"
+    @Published var draftReminderMinutes = 20
     @Published var draftArchive = WorkArchiveTarget(mode:"new")
     @Published var draftFiles: [URL] = []
     @Published var archiveFields: [String] = []
@@ -227,6 +229,7 @@ final class WorkspaceStore: ObservableObject {
             readWebLinks = disk.readWebLinks ?? false
             chromeImportEnabled = disk.chromeImportEnabled ?? false
             draftArchive = disk.archiveTarget ?? WorkArchiveTarget(mode:"new")
+            draftReminderMinutes = disk.reminderMinutes
             if !disk.recipes.contains(where:{$0.id == "work"}) { disk.recipes.insert(WorkRecipe.presets.first(where:{$0.id == "work"})!,at:0) }
             for i in disk.items.indices {
                 if ["running","queued"].contains(disk.items[i].state) { disk.items[i].state = "interrupted"; disk.items[i].failure = "上次运行已中断，请确认后重试。" }
@@ -321,7 +324,12 @@ final class WorkspaceStore: ObservableObject {
     func previewLinks() {
         Task { do { guard try !WorkWebReader.links(in:draftText).isEmpty else { throw WorkError.message("请先放入HTTPS网页链接。") }; _ = try await preparedLinkInput(); error="" } catch { self.error=error.localizedDescription } }
     }
-    func setMinutes(_ minutes: Int) { guard (0...10080).contains(minutes) else { return }; _ = mutate { $0.reminderMinutes = minutes } }
+    func setMinutes(_ minutes: Int) {
+        guard (0...10080).contains(minutes) else { return }
+        let followsDefault = draftReminderMinutes == disk.reminderMinutes
+        guard mutate({ $0.reminderMinutes = minutes }) else { return }
+        if followsDefault { draftReminderMinutes = minutes }
+    }
     func addRecipe(title: String, instruction: String) throws {
         guard !title.isEmpty, title.count <= 40, !instruction.isEmpty, instruction.count <= 12000, disk.recipes.count < 40 else { throw WorkError.message("请填写40字以内名称和12000字以内处理要求。") }
         _ = mutate { $0.recipes.append(.init(id:UUID().uuidString,title:title,instruction:instruction)) }

@@ -14,6 +14,8 @@ final class WorkspaceModule: NookModule {
     func makeConfiguration() -> NookConfiguration {
         var c = IslandHost.baseConfiguration(title:"工作台",symbol:"tray.and.arrow.down.fill")
         c.expandedWidth = 400
+        c.topBar.showsStatusBanner = false
+        c.topBar.showsSettings = false
         c.onFileDrop = { WorkspaceDrop.acceptFiles($0,store:.shared) }
         c.setCompactLeading { WorkspaceDropMark(store:.shared) }
         c.setCompactTrailing { WorkspaceCompact(store:.shared) }
@@ -136,26 +138,29 @@ struct WorkspaceView: View {
     private var input: String { store.draftText }
     @State private var agentCopied = false
     @State private var recoveryURL = ""
-    @State private var recipe = "work"
-    @State private var minutes = 20
     var body: some View {
-        VStack(alignment:.leading,spacing:10) {
-            HStack {
-                ForEach(Array(["材料","待办","中台"].enumerated()),id:\.offset) { i,title in
-                    Button(title) { store.boardTab = i }.buttonStyle(.plain).padding(.horizontal,10).padding(.vertical,6).background(store.boardTab == i ? Color.white.opacity(0.16) : .clear,in:Capsule())
-                }
-                Spacer()
-                if !desktop { Button { WorkspaceWindow.shared.open(store:store) } label: { Image(systemName:"macwindow") }.help("打开独立工作台") }
-                Button { SettingsServer.shared.open() } label:{ Image(systemName:"gearshape") }.buttonStyle(.plain).help("设置与连接")
+        Group {
+            if desktop {
+                VStack(alignment:.leading,spacing:10) {
+                    navigation
+                    errorMessage
+                    page
+                }.padding(24).frame(width:760)
+            } else {
+                WorkspaceIslandFrame(preferredHeight:islandHeight) { bodyHeight in
+                    VStack(alignment:.leading,spacing:10) {
+                        navigation.frame(height:32)
+                        ScrollView {
+                            VStack(alignment:.leading,spacing:8) {
+                                errorMessage
+                                page
+                            }.frame(maxWidth:.infinity,alignment:.leading)
+                        }.frame(height:bodyHeight)
+                    }.padding(12)
+                }.font(.system(size:12))
             }
-            if !store.error.isEmpty { Text(store.error).font(.system(size:12)).foregroundStyle(.orange).textSelection(.enabled) }
-            Group {
-                if store.boardTab == 0 { materials }
-                else if store.boardTab == 1 { tasks }
-                else { cards }
-            }.frame(maxWidth:.infinity,alignment:.leading)
-        }.padding(desktop ? 24 : 12).frame(width:desktop ? 760 : 376).foregroundStyle(.white)
-            .onAppear { minutes = store.disk.reminderMinutes; if Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview" { do { try dotPairing.load() } catch { store.error=error.localizedDescription } } }
+        }.foregroundStyle(.white)
+            .onAppear { if Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview" { do { try dotPairing.load() } catch { store.error=error.localizedDescription } } }
             .onChange(of:store.draftProject) { _,_ in dotCopied=false; agentCopied=false }
             .confirmationDialog("连接Dot到「\(confirmedProject)」？",isPresented:$confirmDot,titleVisibility:.visible) {
                 Button("允许此项目长期连接并复制") {
@@ -164,7 +169,84 @@ struct WorkspaceView: View {
                 }
                 Button("取消",role:.cancel) {}
             } message: { Text("仅能领取你主动交给Dot的本项目任务和附件、回传结果。凭据放本机钥匙串，连接时自动续期；30天不连接失效。锁屏暂停，可随时断开。不会读取飞书消息或其他项目。") }
-
+    }
+    private var navigation: some View {
+            HStack(spacing:4) {
+                ForEach(Array(["材料","待办","中台"].enumerated()),id:\.offset) { i,title in
+                    Button(title) { store.boardTab = i }.buttonStyle(.plain).padding(.horizontal,10).padding(.vertical,6).background(store.boardTab == i ? Color.white.opacity(0.16) : .clear,in:Capsule())
+                }
+                Spacer()
+                if !desktop { Button { WorkspaceWindow.shared.open(store:store) } label: { Label("工作台",systemImage:"macwindow") }.buttonStyle(.plain).help("打开完整工作台，继续当前草稿").accessibilityLabel("打开完整工作台") }
+                else { Button { SettingsServer.shared.open() } label:{ Image(systemName:"gearshape") }.buttonStyle(.plain).help("设置与连接") }
+            }
+    }
+    @ViewBuilder private var errorMessage: some View {
+        if !store.error.isEmpty { Text(store.error).font(.system(size:12)).foregroundStyle(.orange).textSelection(.enabled).fixedSize(horizontal:false,vertical:true) }
+    }
+    @ViewBuilder private var page: some View {
+        if store.boardTab == 0 { if desktop { materials } else { quickMaterials } }
+        else if store.boardTab == 1 { tasks }
+        else { cards }
+    }
+    private var archiveSummary: String {
+        ["off":"仅保留本机","new":"新建飞书文档","append":"追加飞书文档","base":"收录到多维表格"][store.draftArchive.mode] ?? "归档设置"
+    }
+    private var dotNeedsAttention: Bool {
+        store.draftService == "dot" && dotPairing.grant(project:store.draftProject)?.subscription.map({$0.expires>Date()}) != true
+    }
+    private var islandHeight: CGFloat {
+        guard store.boardTab == 0, store.error.isEmpty else { return WorkspaceLayout.maximumHeight }
+        return 236 + ((!store.draftFiles.isEmpty || !store.draftImages.isEmpty) ? 42 : 0) + (dotNeedsAttention ? 24 : 0)
+    }
+    private var quickMaterials: some View {
+        VStack(alignment:.leading,spacing:8) {
+            HStack(spacing:8) {
+                TextField("项目",text:$store.draftProject).textFieldStyle(.roundedBorder).accessibilityLabel("当前项目")
+                Picker("交给谁",selection:$store.draftService) {
+                    Text(WorkAI.displayName).tag("codex"); Text("豆包工作").tag("doubao"); Text("Dot").tag("dot")
+                }.labelsHidden().frame(width:110).accessibilityLabel("处理工具")
+            }
+            WorkInputEditor(text:$store.draftText,pasteImage:{store.attachImage($0)})
+                .padding(6).frame(height:82).background(.white.opacity(0.08),in:RoundedRectangle(cornerRadius:8)).accessibilityLabel("材料输入")
+            if !store.draftFiles.isEmpty || !store.draftImages.isEmpty {
+                ScrollView(.horizontal) {
+                    HStack(spacing:6) {
+                        ForEach(store.draftFiles,id:\.self) { file in
+                            HStack(spacing:4) {
+                                Image(systemName:"doc")
+                                Text(file.lastPathComponent).lineLimit(1).frame(maxWidth:112)
+                                Button { store.draftFiles.removeAll{$0==file} } label: { Image(systemName:"xmark.circle.fill") }.buttonStyle(.plain).accessibilityLabel("移除附件："+file.lastPathComponent)
+                            }.padding(5).background(.white.opacity(0.08),in:RoundedRectangle(cornerRadius:6))
+                        }
+                        ForEach(store.draftImages) { image in
+                            HStack(spacing:4) {
+                                if let ns=NSImage(data:image.data) { Image(nsImage:ns).resizable().scaledToFit().frame(width:30,height:24) }
+                                Button { store.draftImages.removeAll{$0.id==image.id} } label: { Image(systemName:"xmark.circle.fill") }.buttonStyle(.plain).accessibilityLabel("移除图片："+image.image.name)
+                            }.padding(3).background(.white.opacity(0.08),in:RoundedRectangle(cornerRadius:6))
+                        }
+                    }.font(.system(size:11))
+                }.frame(height:34)
+            }
+            Button { WorkspaceWindow.shared.open(store:store) } label: {
+                HStack(spacing:4) {
+                    Text(archiveSummary).lineLimit(1)
+                    Text("· "+(store.draftReminderMinutes == 0 ? "不提醒" : "\(store.draftReminderMinutes)分钟提醒")).lineLimit(1)
+                    Spacer(minLength:0)
+                    Image(systemName:"slider.horizontal.3")
+                }.font(.system(size:11)).foregroundStyle(.secondary)
+            }.buttonStyle(.plain).help("配置处理方式、归档位置和提醒").accessibilityLabel("处理与归档设置")
+            if dotNeedsAttention {
+                Button("Dot连接需检查 · 打开工作台") { WorkspaceWindow.shared.open(store:store) }.font(.system(size:11)).foregroundStyle(.orange)
+            }
+            HStack(spacing:7) {
+                Button { store.pickFiles() } label: { Image(systemName:"paperclip") }.help("添加附件").accessibilityLabel("添加附件")
+                Button { store.pasteMaterial() } label: { Image(systemName:"doc.on.clipboard") }.help("粘贴文字或图片").accessibilityLabel("粘贴")
+                Spacer(minLength:0)
+                Button("存待办") { add(run:false) }
+                if store.draftArchive.mode != "off" { Button("归档") { add(run:false,archiveOnly:true) }.help("直接归档，不调用AI").accessibilityLabel("直接归档，不调用AI").disabled(store.webBusy) }
+                Button(store.webBusy ? "提取中…" : "交给AI") { add(run:true) }.disabled(store.webBusy).buttonStyle(.borderedProminent).tint(.orange)
+            }.controlSize(.small)
+        }
     }
     private var materials: some View {
         VStack(alignment:.leading,spacing:9) {
@@ -223,7 +305,7 @@ struct WorkspaceView: View {
                 Text(dotTunnel.status).font(.system(size:10)).foregroundStyle(.secondary)
                 Text(dotPairing.grant(project:store.draftProject)?.subscription.map { $0.expires>Date() ? "任务通知已订阅：交给AI后自动通知Dot；通知送达后仍需Dot领取处理。Mac和ChatGPT须在线。" : "Dot通知订阅已过期，需在Dot中恢复订阅。" } ?? "尚未订阅自动通知：需先在Dot安装私人插件并订阅本项目；配对本身不会唤醒Dot。").font(.system(size:10)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             }
-            Picker("处理方式",selection:$recipe) { ForEach(store.disk.recipes) { r in Text(r.title).tag(r.id) } }.font(.system(size:12))
+            Picker("处理方式",selection:$store.draftRecipe) { ForEach(store.disk.recipes) { r in Text(r.title).tag(r.id) } }.font(.system(size:12))
             Picker("处理后归档",selection:$store.draftArchive.mode) {
                 Text("仅保留本机").tag("off")
                 Text("新建飞书文档").tag("new")
@@ -245,7 +327,7 @@ struct WorkspaceView: View {
             }
             HStack {
                 Text("提醒").font(.system(size:12))
-                Picker("提醒时间",selection:$minutes) { ForEach(Array(Set([0,5,20,60,minutes])).sorted(),id:\.self) { value in Text(value == 0 ? "不提醒" : "\(value)分钟").tag(value) } }.labelsHidden().frame(width:100)
+                Picker("提醒时间",selection:$store.draftReminderMinutes) { ForEach(Array(Set([0,5,20,60,store.draftReminderMinutes])).sorted(),id:\.self) { value in Text(value == 0 ? "不提醒" : "\(value)分钟").tag(value) } }.labelsHidden().frame(width:100)
                 Spacer()
             }.font(.system(size:12))
             HStack {
@@ -254,7 +336,7 @@ struct WorkspaceView: View {
                 Button("存待办") { add(run:false) }
                 Button("交给AI") { add(run:true) }.disabled(store.webBusy)
             }.font(.system(size:12))
-            Button("读取上方飞书文档链接") { store.readFeishuMaterial(input,instruction:store.disk.recipes.first(where:{$0.id == recipe})?.instruction); store.boardTab = 1 }.font(.system(size:11))
+            Button("读取上方飞书文档链接") { store.readFeishuMaterial(input,instruction:store.disk.recipes.first(where:{$0.id == store.draftRecipe})?.instruction); store.boardTab = 1 }.font(.system(size:11))
             Text("当前处理工具：\(store.draftService == "dot" ? "Dot（项目派单）" : store.draftService == "doubao" ? "豆包工作（本人网页）" : WorkAI.displayName)。拖入只保存本机。点击“交给AI”才把材料交给你本机已登录的AI服务；可按需开启读取链接正文。支持图片/截图（⌘V粘贴）、Word、PDF、文字；最多6张图片，交给AI前可移除。").font(.system(size:10)).foregroundStyle(.white.opacity(0.55)).fixedSize(horizontal:false,vertical:true)
             HStack { Button("导入材料Skill") { store.importSkill() }; Spacer(); Text("\(store.disk.items.filter{$0.state != "done"}.count)项未完成").foregroundStyle(.secondary) }.font(.system(size:11))
         }
@@ -262,14 +344,15 @@ struct WorkspaceView: View {
     private func add(run: Bool,archiveOnly:Bool = false) {
         guard !store.webBusy else { return }
         let original=input, target=store.draftArchive, files=store.draftFiles, images=store.draftImages
-        let project=store.draftProject, service=store.draftService, reminder=minutes
+        let project=store.draftProject, service=store.draftService, reminder=store.draftReminderMinutes, recipe=store.draftRecipe
         let instruction=store.disk.recipes.first(where:{$0.id == recipe})?.instruction
         Task {
             do {
                 try target.validate()
                 let material = (run || archiveOnly) ? try await store.preparedLinkInput() : original
                 guard store.draftText==original, store.draftArchive==target, store.draftProject==project,
-                      store.draftService==service, store.draftFiles==files, store.draftImages.map(\.id)==images.map(\.id) else { throw WorkError.message("材料或选项已变化，本次未提交。") }
+                      store.draftService==service, store.draftRecipe==recipe, store.draftReminderMinutes==reminder,
+                      store.draftFiles==files, store.draftImages.map(\.id)==images.map(\.id) else { throw WorkError.message("材料或选项已变化，本次未提交。") }
                 let id = try store.add(text:material,files:files,instruction:instruction,minutes:reminder,images:images,project:project,service:service)
                 try store.configureArchive(id,target:target)
                 store.draftText = ""; store.draftImages = []; store.draftFiles = []; store.boardTab = 1
@@ -278,7 +361,6 @@ struct WorkspaceView: View {
         }
     }
     private var tasks: some View {
-        ScrollView {
             VStack(alignment:.leading,spacing:10) {
                 if store.disk.items.isEmpty { Text("把材料拖进来，或在“材料”里存一条待办。").font(.system(size:13)).foregroundStyle(.secondary).padding(.vertical,20) }
                 ForEach(store.disk.items) { item in
@@ -352,7 +434,6 @@ struct WorkspaceView: View {
                     }.font(.system(size:12)).padding(8)
                 }
             }
-        }.frame(height:desktop ? 440 : 290)
     }
     private func label(_ state: String) -> String { ["dot_waiting":"等待Dot领取","dot_running":"Dot处理中","todo":"待办","queued":"排队中","running":"处理中","succeeded":"已完成 · 可取结果","failed":"处理失败","interrupted":"上次中断","done":"已处理"][state] ?? state }
     private var cards: some View {
@@ -364,7 +445,6 @@ struct WorkspaceView: View {
                 Text("本人在浏览器确认授权，钥匙串保管凭据。只读首页和数据，不改公司业务记录。").font(.system(size:11)).foregroundStyle(.secondary)
             } else {
                 if let at = store.hub.readAt { Text("读取于 \(at.formatted(date:.abbreviated,time:.shortened)) · 每10分钟更新").font(.system(size:10)).foregroundStyle(.secondary) }
-                ScrollView {
                     VStack(alignment:.leading,spacing:8) {
                         ForEach(store.visibleCards) { card in
                             VStack(alignment:.leading,spacing:6) {
@@ -377,7 +457,6 @@ struct WorkspaceView: View {
                             Button { store.toggleCard(card.id) } label:{ Label(card.title,systemImage:store.disk.selectedCards.contains(card.id) ? "checkmark.square.fill" : "square") }.buttonStyle(.plain).font(.system(size:12))
                         }
                     }
-                }.frame(height:240)
             }
         }
     }

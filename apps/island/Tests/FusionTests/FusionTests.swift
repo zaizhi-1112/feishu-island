@@ -61,6 +61,10 @@ final class FusionTests {
         XCTAssertEqual(SettingsResponse.json(["url":URL(string:"https://example.invalid")!]).status,500)
         XCTAssertEqual(SettingsResponse.json(["url":"https://example.invalid"]).status,200)
         let s = WorkspaceStore(root:root,startTimers:false)
+        s.setMinutes(35)
+        XCTAssertEqual([s.disk.reminderMinutes,s.draftReminderMinutes,WorkspaceStore(root:root,startTimers:false).draftReminderMinutes],[35,35,35])
+        s.draftReminderMinutes = 0; s.setMinutes(60)
+        XCTAssertEqual([s.disk.reminderMinutes,s.draftReminderMinutes],[60,0])
         let id = try s.add(text:"合成客户反馈：搜索结果没有日期。",minutes:1)
         XCTAssertEqual(s.disk.items.count,1); XCTAssertEqual(s.disk.items[0].state,"todo")
         var alerts = 0; s.notify = {_ in alerts += 1}
@@ -504,6 +508,13 @@ final class FusionTests {
             } catch { print("FAIL: "+error.localizedDescription);exit(1) }; return
         }
         let tests = FusionTests()
+        if CommandLine.arguments.contains("--workspace-layout-check") {
+            do { try await tests.testWorkspaceIslandHeightContract() }
+            catch { failures.append("Synthetic workspace layout rendering failed") }
+            if failures.isEmpty { print("PASS: \(checks) workspace layout assertions; every native window remained hidden") }
+            else { print("FAIL: " + failures.joined(separator:", ")); exit(1) }
+            return
+        }
         if CommandLine.arguments.contains("--web-live-check") {
             do {
                 guard let value=ProcessInfo.processInfo.environment["ISLAND_WEB_SYNTHETIC_URL"] else { throw WorkError.message("Missing synthetic URL") }
@@ -517,6 +528,7 @@ final class FusionTests {
             do { try await tests.testArchiveLive() } catch { print("FAIL: "+error.localizedDescription); exit(1) }; return
         }
         do {
+            try await tests.testWorkspaceIslandHeightContract()
             try tests.testCompanyConnectionBoundary()
             try await tests.testCompanyActivationIsolation()
             try await tests.testDotPairingAndDelegation()
