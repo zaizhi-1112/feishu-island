@@ -328,6 +328,7 @@ struct WorkspaceView: View {
             }
             Divider().padding(.vertical,8)
             Text("AI 连接与处理").font(.system(size:16,weight:.semibold))
+            Text(store.draftService == "dot" ? "Dot 在后台领取任务，完整结果回到待办，成功摘要出现在自己的 Dot 主对话。" : store.draftService == "doubao" ? "豆包在你的专属工作伙伴中新建任务；处理后可从待办打开原任务继续查看。" : "Codex 在后台逐条处理材料，不打开桌面聊天窗口；每次为独立任务，完整结果保存在本项目待办。").font(.system(size:13)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             Picker("交给谁",selection:$store.draftService) {
                 Text(WorkAI.displayName+" · 本机").tag("codex")
                 Text("豆包工作 · 本人已登录网页").tag("doubao")
@@ -455,6 +456,7 @@ struct WorkspaceView: View {
                             }
                             if let link = item.remoteTaskURL, WorkBrowser.validTask(link), let url = URL(string:link) { Link("打开豆包原任务",destination:url).font(.system(size:11)) }
                             ForEach(item.cloudDocuments ?? [],id:\.self) { link in if WorkBrowser.validDocument(link), let url=URL(string:link) { Link(item.exportVerifiedAt == nil ? "查看飞书文档（待回读核对）" : "打开飞书文档（已回读核对）",destination:url).font(.system(size:11)) } }
+                            if let timing=WorkTaskTiming.summary(item) { Text(timing).font(.system(size:12)).foregroundStyle(.secondary) }
                             if let source = item.resultSource { Text("结果来源："+source).font(.system(size:10)).foregroundStyle(.secondary) }
                             if item.service == "dot", !item.result.isEmpty { Text("Dot 后台结果已返回；成功摘要同步到你自己的 Dot 主对话。").font(.system(size:10)).foregroundStyle(.secondary) }
                             if let archive=item.archive {
@@ -486,28 +488,5 @@ struct WorkspaceView: View {
             }
     }
     private func label(_ state: String) -> String { ["dot_waiting":"等待Dot领取","dot_running":"Dot处理中","todo":"待办","queued":"排队中","running":"处理中","succeeded":"已完成 · 可取结果","failed":"处理失败","interrupted":"上次中断","done":"已处理"][state] ?? state }
-    private var cards: some View {
-        VStack(alignment:.leading,spacing:8) {
-            HStack { Text(store.hub.connected ? store.hub.name : "本人虚实中台").font(.system(size:14,weight:.semibold)); Spacer(); Button("刷新") { Task { await store.refreshHub() } } }
-            if !store.hub.error.isEmpty { Text(store.hub.error).font(.system(size:12)).foregroundStyle(.orange) }
-            if !store.hub.connected {
-                Button("连接虚实中台与飞书数据") { if let a = SettingsServer.shared.address { store.connectHub(callback:a+"/oauth/virxact/callback") } }
-                Text("本人在浏览器确认授权，钥匙串保管凭据。只读首页和数据，不改公司业务记录。").font(.system(size:11)).foregroundStyle(.secondary)
-            } else {
-                if let at = store.hub.readAt { Text("读取于 \(at.formatted(date:.abbreviated,time:.shortened)) · 每10分钟更新").font(.system(size:10)).foregroundStyle(.secondary) }
-                    VStack(alignment:.leading,spacing:8) {
-                        ForEach(store.visibleCards) { card in
-                            VStack(alignment:.leading,spacing:6) {
-                                HStack { Text(card.title).font(.system(size:13,weight:.semibold)); Spacer(); Button("↑") { store.moveCard(card.id,direction:-1) }; Button("↓") { store.moveCard(card.id,direction:1) }; Button("移除") { store.toggleCard(card.id) } }.font(.system(size:10))
-                                Text(card.text).font(.system(size:12)).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)
-                            }.padding(9).background(.white.opacity(0.06),in:RoundedRectangle(cornerRadius:8))
-                        }
-                        Text("选择要放进灵动岛的卡片").font(.system(size:11)).foregroundStyle(.secondary)
-                        ForEach(store.hub.cards) { card in
-                            Button { store.toggleCard(card.id) } label:{ Label(card.title,systemImage:store.disk.selectedCards.contains(card.id) ? "checkmark.square.fill" : "square") }.buttonStyle(.plain).font(.system(size:12))
-                        }
-                    }
-            }
-        }
-    }
+    private var cards: some View { WorkspaceHubView(store:store,desktop:desktop) }
 }

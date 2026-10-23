@@ -40,15 +40,17 @@ final class SettingsServer {
             unlockObserver = NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.sessionDidBecomeActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.sessionLocked = false } }
         }
         guard listen else { return }
+        (workspaceOverride ?? WorkspaceStore.shared).agentNotice = { [weak store] id,source,text in store?.receiveAgentNotice(id:id,source:source,text:text) }
         if dotEventTimer == nil {
             let workspace=workspaceOverride ?? WorkspaceStore.shared
             workspace.dotQueued={ [weak self] in Task { @MainActor in await self?.dotEvents.pump() } }
             dotEvents.deliveryReady={ [weak self] in self?.workspaceOverride != nil || DotTunnel.shared.isReady }
-            dotEventTimer=Timer.scheduledTimer(withTimeInterval:5,repeats:true) { [weak self] _ in Task { @MainActor in
+            dotEventTimer=Timer(timeInterval:5,repeats:true) { [weak self] _ in Task { @MainActor in
                 guard let self else { return }
                 if self.ready { DotTunnel.shared.maintain(pairing:self.dotPairing,port:self.port,unlocked:!self.sessionLocked) }
                 await self.dotEvents.pump()
             } }
+            if let dotEventTimer { RunLoop.main.add(dotEventTimer,forMode:.common) }
         }
         guard listener == nil else { return }
         self.listen(port: preferredPort)

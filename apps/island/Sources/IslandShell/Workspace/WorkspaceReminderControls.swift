@@ -23,6 +23,16 @@ struct WorkspaceReminderShelf: View {
     var compact=false
     @State private var editor: ReminderEditorPresentation?
     var body: some View {
+        if compact, let context=editor {
+            VStack(alignment:.leading,spacing:12) {
+                Button { editor=nil } label: { Label("返回待办",systemImage:"chevron.left") }.buttonStyle(.plain).font(.system(size:13))
+                WorkspaceReminderEditor(store:store,schedule:context.schedule,onSave:{editor=nil})
+            }.padding(12).background(.white.opacity(0.04),in:RoundedRectangle(cornerRadius:12))
+        } else {
+            shelf
+        }
+    }
+    private var shelf: some View {
         VStack(alignment:.leading,spacing:10) {
             HStack { Label("冲屏提醒",systemImage:"timer").font(.system(size:compact ? 13 : 17,weight:.semibold)); Spacer(); Button { editor=ReminderEditorPresentation(schedule:nil) } label:{ Image(systemName:"plus") }.buttonStyle(.plain).help("新建倒计时或计划提醒").accessibilityLabel("新建冲屏提醒") }
             HStack(spacing:8) {
@@ -43,7 +53,7 @@ struct WorkspaceReminderShelf: View {
             }
             if !compact { Button("管理素材与自己的视频") { WorkspaceWindow.shared.openReminders(store:store) }.font(.system(size:12)).buttonStyle(.plain).foregroundStyle(.secondary) }
         }.padding(compact ? 10 : 16).background(Color.cyan.opacity(0.055),in:RoundedRectangle(cornerRadius:12))
-            .popover(item:$editor) { context in WorkspaceReminderEditor(store:store,schedule:context.schedule,onSave:{editor=nil}).frame(width:320).padding(20) }
+            .popover(item:Binding(get:{compact ? nil : editor},set:{editor=$0})) { context in WorkspaceReminderEditor(store:store,schedule:context.schedule,onSave:{editor=nil}).frame(width:320).padding(20) }
     }
     private func preset(title:String,minutes:Int) {
         if let existing=store.screenSchedules.first(where:{$0.title==title && $0.repeatMinutes==minutes}) { store.setScreenScheduleEnabled(existing.id,enabled:!existing.enabled); return }
@@ -73,7 +83,7 @@ struct WorkspaceReminderEditor:View {
             Button("保存提醒") {
                 do { try store.upsertScreenSchedule(id:schedule.flatMap { value in store.screenSchedules.contains(where:{$0.id==value.id}) ? value.id : nil },title:title,firstFire:firstFire,repeatMinutes:repeats ? minutes : nil,style:.init(materialID:material,durationSeconds:15)); onSave() } catch { self.error=error.localizedDescription }
             }.buttonStyle(.borderedProminent).tint(.orange)
-        }.onAppear { if let schedule { title=schedule.title; firstFire=schedule.fireAt; repeats=schedule.repeatMinutes != nil; minutes=schedule.repeatMinutes ?? 30; material=schedule.style.materialID } }
+        }.font(.system(size:14)).controlSize(.regular).onAppear { if let schedule { title=schedule.title; firstFire=schedule.fireAt; repeats=schedule.repeatMinutes != nil; minutes=schedule.repeatMinutes ?? 30; material=schedule.style.materialID } }
     }
 }
 

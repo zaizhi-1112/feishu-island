@@ -51,6 +51,16 @@
       "companyRelease": null,
       "githubRelease": null,
       "notarized": false
+    },
+    {
+      "version": "0.7.0",
+      "build": "34",
+      "artifact": "feishu-island-0.7.0-build34-arm64.dmg",
+      "sha256": "1d939e843250daae8ac5b84ab57c177f1d7e936418c2b80561f52e59a1e49bf2",
+      "status": "本地候选，待本人体验确认",
+      "companyRelease": null,
+      "githubRelease": null,
+      "notarized": false
     }
   ]
 }

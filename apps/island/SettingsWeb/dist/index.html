@@ -34,12 +34,12 @@
     <div class="page-title"><div><div class="eyebrow">少一点打扰，多一点专注</div><h1>飞书消息</h1><p>选择需要提醒的消息，为联系人和群聊设置例外。</p></div><span class="module-badge"><svg><use href="#i-plane"/></svg>已接入</span></div>
     <section class="card fusion-controls" aria-label="接收与灵动岛">
       <div class="fusion-heading"><h2>接收与灵动岛</h2><button class="secondary" id="connect-agent">接入 Agent</button></div>
-      <p>飞书新消息进入灵动岛；可开启短消息桌面弹幕。</p>
+      <p>飞书消息进入灵动岛；开启桌面弹幕后，Agent完成和待办提醒也可飘过桌面。</p>
       <p class="fusion-help">首次使用：连接你自己的飞书，完成授权后启用接收或归档。</p><p><button class="primary" id="company-open">连接自己的飞书</button> <button class="secondary" id="company-receive">启用公司接收连接</button> <button class="secondary" id="company-archive">启用公司归档连接</button></p><p id="company-status" class="fusion-help" role="status"></p><details><summary>已有本机连接 / 高级设置</summary><div class="fusion-fields"><label>飞书 CLI 路径<input id="cli-path" autocomplete="off" spellcheck="false" placeholder="本机官方 lark-cli 的绝对路径"></label><label>账号配置名<input id="cli-profile" autocomplete="off" spellcheck="false" placeholder="feishu-island（留空为默认账号）"></label></div>
       <p><button class="secondary" id="company-disable-receive">停用公司接收</button> <button class="secondary" id="company-disable-archive">停用公司归档</button> <button class="secondary" id="company-reset">重新登录公司账号</button></p></details><p class="fusion-help" id="auth-hint">连接配置只指向你本人的只读授权，不复制他人的凭据。</p>
-      <div class="fusion-actions"><button class="secondary" role="switch" aria-checked="false" data-danmu="enabled">桌面短消息弹幕</button><button class="secondary" role="switch" aria-checked="false" data-danmu="paused">暂停弹幕</button><button class="secondary" id="danmu-demo">岛内合成演示</button></div>
+      <div class="fusion-actions"><button class="secondary" role="switch" aria-checked="false" data-danmu="enabled">消息与 Agent 弹幕</button><button class="secondary" role="switch" aria-checked="false" data-danmu="paused">暂停弹幕</button><button class="secondary" id="danmu-demo">岛内合成演示</button></div>
       <p class="fusion-help" id="delivery-status" aria-live="polite">正在读取本次运行的投递计数…</p>
-      <p class="fusion-help">短消息可飘过桌面，长消息留在岛内翻页。弹幕遵守同一套提醒规则，不遮挡鼠标。</p>
+      <p class="fusion-help">短消息可飘过桌面，长消息留在岛内翻页。飞书弹幕遵守原提醒规则；Agent提醒标明来源，共用暂停、静音和锁屏保护，不遮挡鼠标。</p>
       <div class="fusion-fields"><label>阅读字号 <output id="danmu-font-value">28</output><input id="danmu-font" type="range" min="22" max="44" value="28"></label><label>配色<select id="danmu-theme"><option value="system">默认</option><option value="night">夜色</option><option value="paper">白底黑字</option><option value="custom">Agent 配色</option></select></label></div>
       <p class="fusion-help">外观在下方“保存设置”后生效。全部消息保留在灵动岛列表；重要消息进入岛内阅读队列。普通群默认只收录，可为指定群选择“全部提醒”，仍尊重免打扰。静音继续收录但不弹出阅读；停止接收会清空待阅读队列。</p>
     </section>

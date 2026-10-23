@@ -14,6 +14,7 @@ import WebKit
     func open(store: WorkspaceStore) { show(store:store,page:store.boardTab) }
     func openSettings(store: WorkspaceStore) { show(store:store,page:4) }
     func openProcessing(store: WorkspaceStore) { show(store:store,page:3) }
+    func openHub(store:WorkspaceStore) { show(store:store,page:2) }
     func openReminders(store: WorkspaceStore) { show(store:store,page:5) }
     private func show(store: WorkspaceStore,page:Int) {
         navigation.page=page

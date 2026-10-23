@@ -18,6 +18,7 @@ struct DotDelivery: Codable, Equatable {
     var accepted = false
     var stopped = false
     var status: Int?
+    var acceptedAt: Date?
 }
 
 /// Persistent subscriptions are stored with their grant in the existing, stable Keychain helper.
@@ -189,6 +190,7 @@ struct DotDelivery: Codable, Equatable {
                     let body=try JSONSerialization.data(withJSONObject:event,options:.sortedKeys)
                     let reply=try await transport.post(url:subscription.url,headers:DotWebhookSigner.headers(id:dispatch.uuidString,subscription:subscription,body:body,now:now()),body:body)
                     delivery.status=reply.status; delivery.accepted=(200...299).contains(reply.status)
+                    if delivery.accepted { delivery.acceptedAt=now() }
                     delivery.stopped = !delivery.accepted && !Self.transient(reply.status)
                 } catch { delivery.status=nil }
                 if delivery.attempts>=6 && !delivery.accepted { delivery.stopped=true; delivery.nextAttempt=now().addingTimeInterval(900) }

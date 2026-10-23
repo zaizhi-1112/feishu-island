@@ -13,6 +13,7 @@ public final class DanmuPlayback {
     let headless: Bool
     public private(set) var accepted = 0
     public private(set) var presented = 0
+    public private(set) var agentAccepted = 0
     public private(set) var skippedRead = 0
     public private(set) var unreadRetries = 0
     public private(set) var suspended = false
@@ -75,6 +76,31 @@ public final class DanmuPlayback {
         if order.count > 1000 { seen.remove(order.removeFirst()) }
         overlay?.enqueue(message.danmuText,demo:demo,createdAt:message.created,messageID:demo ? nil : message.id)
         accepted += 1
+        return true
+    }
+    /// Local Agent events never pass through Feishu history or unread checks.
+    /// The same pause, lock and global desktop-output switch still apply.
+    @discardableResult
+    func enqueueAgent(id:String,source:String,text:String) -> Bool {
+        guard options.enabled, !suspended, !seen.contains(id) else { return false }
+        let body=text.split(whereSeparator:{$0.isWhitespace}).joined(separator:" ")
+        guard !body.isEmpty else { return false }
+        let label=String(source.prefix(16))+" · "+String(body.prefix(64))+(body.count>64 ? "…" : "")
+        // Share only the renderer; never insert Agent events into Feishu history.
+        if overlay == nil {
+            overlay = Overlay(showsWindow:!headless,frame:headless ? NSRect(x:0,y:0,width:640,height:480) : nil)
+            overlay?.verifyUnread = { [weak self] id,completion in self?.checkUnread?(id,completion) }
+            overlay?.onPresented = { [weak self] _ in self?.presented += 1 }
+            overlay?.onUnreadCheck = { [weak self] unread in
+                if unread == false { self?.skippedRead += 1 }
+                if unread == nil { self?.unreadRetries += 1 }
+            }
+            overlay?.paused=options.paused; applyAppearance()
+        }
+        seen.insert(id); order.append(id)
+        if order.count>1000 { seen.remove(order.removeFirst()) }
+        overlay?.enqueue(label,demo:false,createdAt:Date(),messageID:nil)
+        accepted += 1; agentAccepted += 1
         return true
     }
     func clear() { overlay?.clear() }

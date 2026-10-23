@@ -25,6 +25,8 @@ struct WorkItem: Codable, Identifiable, Equatable {
     var dotClaim: DotClaim?
     var dotDispatch: UUID?
     var dotQueuedAt: Date?
+    var aiCompletedAt: Date?
+    var aiStartedAt: Date?
     var dotDeliveries: [String:DotDelivery]?
     var state = "todo"
     var created = Date()
@@ -33,6 +35,19 @@ struct WorkItem: Codable, Identifiable, Equatable {
     var reminded = false
     var result = ""
     var failure = ""
+}
+enum WorkTaskTiming {
+    static func summary(_ item:WorkItem) -> String? {
+        guard item.service=="dot", let queued=item.dotQueuedAt else { return nil }
+        let accepted=item.dotDeliveries?.values.compactMap(\.acceptedAt).min()
+        let claimed=item.aiStartedAt
+        func seconds(_ interval:TimeInterval)->String { "\(max(0,Int(interval.rounded())))秒" }
+        var phases:[String]=[]
+        if let accepted { phases.append("通知送达 "+seconds(accepted.timeIntervalSince(queued))) }
+        if let claimed { phases.append("等待领取 "+seconds(claimed.timeIntervalSince(accepted ?? queued))) }
+        if let claimed, let completed=item.aiCompletedAt { phases.append("处理 "+seconds(completed.timeIntervalSince(claimed))) }
+        return phases.isEmpty ? nil : phases.joined(separator:" · ")
+    }
 }
 struct WorkRecipe: Codable, Identifiable {
     var id: String
@@ -208,6 +223,7 @@ final class WorkspaceStore: ObservableObject {
     @Published private(set) var ingestSaving = false
     @Published var hub = HubSnapshot()
     var notify: (String) -> Void = { _ in }
+    var agentNotice: (String,String,String) -> Void = { _,_,_ in }
     var dotQueued: () -> Void = {}
     var openBoard: () -> Void = {}
     /// Tests replace this callback; isolated stores never create an on-screen renderer.
@@ -472,7 +488,7 @@ final class WorkspaceStore: ObservableObject {
         guard let item=disk.items.first(where:{$0.id==id}), item.service == "dot",
               !["done","running","queued","dot_waiting","dot_running"].contains(item.state) else { return }
         guard mutate({ s in if let i=s.items.firstIndex(where:{$0.id==id}) {
-            s.items[i].state="dot_waiting"; s.items[i].dotClaim=nil; s.items[i].failure=""; s.items[i].result=""; s.items[i].resultSource=nil
+            s.items[i].state="dot_waiting"; s.items[i].aiStartedAt=nil;s.items[i].aiCompletedAt=nil;s.items[i].dotClaim=nil; s.items[i].failure=""; s.items[i].result=""; s.items[i].resultSource=nil
             s.items[i].dotDispatch=UUID(); s.items[i].dotQueuedAt=Date(); s.items[i].dotDeliveries=[:]
         } }) else { throw WorkError.message(error) }
         dotQueued()
@@ -501,7 +517,7 @@ final class WorkspaceStore: ObservableObject {
         if item.state=="dot_running", let claim=item.dotClaim, claim.grant==grant { return claim }
         guard item.state=="dot_waiting" else { throw WorkError.message("任务不可领取，请核对现有结果或重试状态。") }
         let claim=DotClaim(grant:grant,digest:WorkspaceMCP.digest(item),expires:now.addingTimeInterval(1800))
-        guard mutate({s in if let i=s.items.firstIndex(where:{$0.id==id}) {s.items[i].state="dot_running";s.items[i].dotClaim=claim}}) else {throw WorkError.message(error)}
+        guard mutate({s in if let i=s.items.firstIndex(where:{$0.id==id}) {s.items[i].state="dot_running";s.items[i].aiStartedAt=now;s.items[i].dotClaim=claim}}) else {throw WorkError.message(error)}
         return claim
     }
     func finishDot(_ id: UUID, grant: UUID, claim: UUID, digest: String, text: String, failed: Bool = false, now: Date = Date()) throws {
@@ -512,10 +528,16 @@ final class WorkspaceStore: ObservableObject {
         if item.state==target, (failed ? item.failure : item.result)==text { return }
         guard item.state=="dot_running", lease.expires>now else { throw WorkError.message("任务已停止或处理连接已超时，未覆盖。") }
         guard mutate({s in if let i=s.items.firstIndex(where:{$0.id==id}) {
-            s.items[i].state=target; s.items[i].result=failed ? "" : text; s.items[i].failure=failed ? text : ""; s.items[i].resultSource="Dot回传"
+            s.items[i].aiCompletedAt=now; s.items[i].state=target; s.items[i].result=failed ? "" : text; s.items[i].failure=failed ? text : ""; s.items[i].resultSource="Dot回传"
         }}) else { throw WorkError.message(error) }
         selected=id; boardTab=1; notify(failed ? "Dot处理未完成，点开查看" : "Dot处理完成，点开取结果")
+        publishAgentResult(id)
         if !failed { queueArchive(id) }
+    }
+    private func publishAgentResult(_ id:UUID) {
+        guard let item=disk.items.first(where:{$0.id==id}), ["succeeded","failed"].contains(item.state) else { return }
+        let source=item.service == "dot" ? "Dot" : item.service == "doubao" ? "豆包工作" : item.resultSource == "外部Agent回传" ? "Agent" : WorkAI.displayName
+        agentNotice("agent-"+id.uuidString+"-"+(item.dotDispatch?.uuidString ?? String((item.aiCompletedAt ?? item.created).timeIntervalSince1970)),source,(item.state == "succeeded" ? "已完成：" : "需要检查：")+item.title)
     }
     func heartbeatDot(_ id: UUID, grant: UUID, claim: UUID, now: Date = Date()) throws {
         guard let item=disk.items.first(where:{$0.id==id}), item.state=="dot_running", let lease=item.dotClaim,
@@ -526,8 +548,8 @@ final class WorkspaceStore: ObservableObject {
         guard !text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty, text.utf8.count <= 60_000,
               let item = disk.items.first(where:{$0.id==id}), !["done","running","queued","dot_waiting","dot_running"].contains(item.state) else { throw WorkError.message("任务已完成、运行中或结果过大，未覆盖原内容。") }
         if item.result == text && item.state == "succeeded" { return }
-        guard mutate({ s in if let i=s.items.firstIndex(where:{$0.id==id}) { s.items[i].result=text;s.items[i].resultSource="外部Agent回传";s.items[i].state="succeeded";s.items[i].failure="" } }) else { throw WorkError.message(error) }
-        selected = id; boardTab = 1; notify("Agent处理完成，点开取结果")
+        guard mutate({ s in if let i=s.items.firstIndex(where:{$0.id==id}) { s.items[i].aiCompletedAt=Date();s.items[i].result=text;s.items[i].resultSource="外部Agent回传";s.items[i].state="succeeded";s.items[i].failure="" } }) else { throw WorkError.message(error) }
+        selected = id; boardTab = 1; notify("Agent处理完成，点开取结果"); publishAgentResult(id)
         queueArchive(id)
     }
     func summarizeProject() {
@@ -592,11 +614,11 @@ final class WorkspaceStore: ObservableObject {
             self.runner = nil; self.job = nil
             let saved = self.mutate { state in
                 guard let i = state.items.firstIndex(where:{$0.id == id}), state.items[i].state == "running" else { return }
-                switch result { case .success(let value): state.items[i].cloudDocuments = links; if item.exportSourceID != nil { state.items[i].exportVerifiedAt=Date() }; state.items[i].result = value; state.items[i].resultSource = item.service == "doubao" ? "豆包工作（本人网页会话）" : WorkAI.displayName; state.items[i].state = "succeeded"
+                switch result { case .success(let value): state.items[i].cloudDocuments = links; if item.exportSourceID != nil { state.items[i].exportVerifiedAt=Date() }; state.items[i].result = value; state.items[i].resultSource = item.service == "doubao" ? "豆包工作（本人网页会话）" : WorkAI.displayName; state.items[i].state = "succeeded"; state.items[i].aiCompletedAt=Date()
                 case .failure(let e): if let remoteValue { state.items[i].result=remoteValue; state.items[i].cloudDocuments=links }; state.items[i].failure = e.localizedDescription; state.items[i].state = "failed" }
             }
             if saved { self.selected = id; self.boardTab = 1; self.notify(result.isSuccess ? "材料处理完成，点开取结果" : "材料处理未完成，点开查看") }
-            if saved && result.isSuccess { self.queueArchive(id) }
+            if saved && result.isSuccess { self.publishAgentResult(id); self.queueArchive(id) }
             if saved, let next=self.disk.items.reversed().first(where:{$0.state=="queued"}) {
                 if self.mutate({s in if let i=s.items.firstIndex(where:{$0.id==next.id}){s.items[i].state="todo"}}){self.run(next.id)}
             }
@@ -736,7 +758,7 @@ final class WorkspaceStore: ObservableObject {
                 ScreenReminderRules.advance(&state.screenSchedules![index],now:now)
             }
         }) else { return }
-        if !due.isEmpty { selected=due.first?.id; boardTab=1; notify("\(due.count)项待办到提醒时间了") }
+        if !due.isEmpty { selected=due.first?.id; boardTab=1; notify("\(due.count)项待办到提醒时间了"); for item in due { agentNotice("due-"+item.id.uuidString+"-"+String((item.due ?? now).timeIntervalSince1970),"工作岛提醒",item.title) } }
         else if !scheduled.isEmpty { notify("\(scheduled.count)个定时提醒到时间了") }
         // A single desktop reminder represents this batch; no overlapping windows or
         // storm of catch-up animations after sleeping or a long offline period.

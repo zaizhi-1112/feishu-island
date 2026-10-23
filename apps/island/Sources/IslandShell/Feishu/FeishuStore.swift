@@ -100,6 +100,10 @@ public final class FeishuStore: ObservableObject {
         appearance = value; defaults.set(try? JSONSerialization.data(withJSONObject:value),forKey:"danmuAppearance")
         playback.configure(danmu,appearance:value); bumpSettingsRevision(); return true
     }
+    func receiveAgentNotice(id:String,source:String,text:String) {
+        guard !isMuted else { return }
+        playback.enqueueAgent(id:id,source:source,text:text)
+    }
     public func playSynthetic() {
         let message = FeishuMessage(raw:["message_id":"demo_" + UUID().uuidString,"sender":["id":"ou_demo","sender_name":"合成示例"],"msg_type":"text","body":["content":"{\"text\":\"透明试播\"}"]],chatID:"oc_demo",chatName:"演示",chatKind:"p2p",ownID:"")
         receive(message)
@@ -171,7 +175,7 @@ public final class FeishuStore: ObservableObject {
     }
     var deliveryDiagnostics: [String: Any] {
         ["retained": messages.count, "important": important.count,
-         "danmuAccepted": playback.accepted, "danmuQueued": playback.queued,
+         "danmuAccepted": playback.accepted, "agentDanmuAccepted": playback.agentAccepted, "danmuQueued": playback.queued,
          "danmuVisible": playback.visible, "danmuPresented": playback.presented,
          "danmuSkippedRead": playback.skippedRead, "danmuUnreadRetries": playback.unreadRetries,
          "islandReadingAccepted": readingAccepted, "islandReadingPending": readingQueue.count,

@@ -190,6 +190,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     var hasDeferredHoverExit = false
     private var interactionExitTask: Task<Void, Never>?
     private var keyboardPointerTask: Task<Void, Never>?
+    private var menuTrackingDepth=0
     var chromeFrameInWindow: CGRect = .zero
     private var pointerInsideChrome: Bool {
         guard let window = windowController?.window, !chromeFrameInWindow.isEmpty else { return isHovering }
@@ -200,7 +201,13 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         let rect = NSRect(x: window.frame.midX - chromeFrameInWindow.width / 2,
                           y: window.frame.maxY - topInset - chromeFrameInWindow.height,
                           width: chromeFrameInWindow.width, height: chromeFrameInWindow.height)
-        return rect.insetBy(dx: -4, dy: -4).contains(NSEvent.mouseLocation)
+        let point=NSEvent.mouseLocation
+        func containsChild(_ parent:NSWindow) -> Bool {
+            (parent.childWindows ?? []).contains { child in
+                child.isVisible && (child.frame.insetBy(dx:-4,dy:-4).contains(point) || containsChild(child))
+            }
+        }
+        return rect.insetBy(dx: -4, dy: -4).contains(point) || containsChild(window)
     }
 
     /// `true` while the chrome's panel has the keyboard, so typing goes to a text input in the
@@ -979,6 +986,17 @@ extension Nook {
     }
 
     func observeStateForKeyboardFocus() {
+        NotificationCenter.default.publisher(for:NSMenu.didBeginTrackingNotification)
+            .receive(on:RunLoop.main).sink { [weak self] _ in
+                guard let self, self.state == .expanded else { return }
+                self.menuTrackingDepth += 1
+            }.store(in:&cancellables)
+        NotificationCenter.default.publisher(for:NSMenu.didEndTrackingNotification)
+            .receive(on:RunLoop.main).sink { [weak self] _ in
+                guard let self else { return }
+                self.menuTrackingDepth=max(0,self.menuTrackingDepth-1)
+                if self.menuTrackingDepth==0 { self.replayDeferredHoverExit() }
+            }.store(in:&cancellables)
         $state
             .removeDuplicates()
             .sink { [weak self] newState in
@@ -1354,7 +1372,7 @@ extension Nook {
     /// A hover exit suppressed this way is owed and replays when the suppression lifts - see
     /// ``replayDeferredHoverExit()``.
     var suppressesHoverExitCompact: Bool {
-        staysExpandedOnHoverExit || isLayoutGraceActive
+        staysExpandedOnHoverExit || isLayoutGraceActive || menuTrackingDepth>0
     }
 
     func beginLayoutGrace() {

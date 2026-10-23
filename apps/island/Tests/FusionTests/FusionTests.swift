@@ -589,6 +589,7 @@ final class FusionTests {
             try await tests.testDotEvents()
             try tests.testArchiveAutomation()
             try await tests.testWebMaterial()
+            try tests.testAgentNoticeRoutingAndTiming()
             try tests.testTaskEditingTrashAndRestore()
             try await tests.testWorkspacePersistenceRemindersAndOAuthBoundary()
             await tests.testFreshInstallIsStoppedAndRendererIsLazy()
