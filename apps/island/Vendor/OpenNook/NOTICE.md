@@ -52,3 +52,5 @@ hover-exit compaction and explicit presentation pins remain unchanged. This
 removes the forced click between edge reveal and the host's expanded content.
 
 2026-10-23: Delay hover-exit collapse by 650ms, recheck real panel bounds, retain keyboard-focus interaction, and replay deferred exit after focus ends. No changes to message access or authentication.
+
+2026-10-23 build33: Keyboard focus no longer pins the island after pointer exit. Preserve the 650ms exit grace, measure visible chrome bounds rather than the half-screen transparent host panel, and poll pointer exits while the text editor retains keyboard focus. Explicit presentation pins and drag protection remain.

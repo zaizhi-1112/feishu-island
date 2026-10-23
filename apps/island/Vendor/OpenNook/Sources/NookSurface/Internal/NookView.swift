@@ -183,6 +183,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             .background { rimHalo() }
             .background { chromeShadow() }
             .onGeometryChange(for: CGFloat.self, of: \.size.height) { measuredChromeHeight = $0 }
+            .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { nook.chromeFrameInWindow = $0 }
     }
 
     private var edgeLayout: NookEdgeDockLayout {
