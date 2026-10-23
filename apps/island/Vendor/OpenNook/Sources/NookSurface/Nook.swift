@@ -188,6 +188,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// ``replayDeferredHoverExit()`` once nothing holds the chrome open; forgotten when the
     /// pointer comes back or the chrome leaves the expanded state.
     var hasDeferredHoverExit = false
+    private var interactionExitTask: Task<Void, Never>?
 
     /// `true` while the chrome's panel has the keyboard, so typing goes to a text input in the
     /// chrome rather than to the app in front. See ``takeKeyboardFocus()``.
@@ -634,6 +635,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     func updateHoverState(_ hovering: Bool) {
         guard state != .hidden, hovering != isHovering else { return }
 
+        interactionExitTask?.cancel()
         isHovering = hovering
         if edgeDocked, ProcessInfo.processInfo.environment["YU_ISLAND_TRACE"] == "1" {
             let message = "[edge] hover=\(hovering) state=\(state) mouse=\(NSEvent.mouseLocation)\n"
@@ -672,6 +674,21 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             if hovering {
                 await self._expand(on: screen, skipHide: true, generation: generation)
             } else {
+                try? await Task.sleep(for: .milliseconds(650))
+                guard !Task.isCancelled, !self.isHovering else { return }
+                if self.windowController?.window?.frame.contains(NSEvent.mouseLocation) == true || self.suppressesHoverExitCompact {
+                    self.hasDeferredHoverExit = true
+                    self.interactionExitTask = Task { [weak self] in
+                        while let self, self.state == .expanded, !Task.isCancelled {
+                            try? await Task.sleep(for: .milliseconds(250))
+                            guard !Task.isCancelled else { return }
+                            if self.windowController?.window?.frame.contains(NSEvent.mouseLocation) != true && !self.suppressesHoverExitCompact {
+                                self.replayDeferredHoverExit(); return
+                            }
+                        }
+                    }
+                    return
+                }
                 await self._compact(on: screen, skipHide: true, generation: generation)
             }
         }
@@ -1289,7 +1306,7 @@ extension Nook {
     /// A hover exit suppressed this way is owed and replays when the suppression lifts - see
     /// ``replayDeferredHoverExit()``.
     var suppressesHoverExitCompact: Bool {
-        staysExpandedOnHoverExit || isLayoutGraceActive
+        staysExpandedOnHoverExit || isLayoutGraceActive || hasKeyboardFocus
     }
 
     func beginLayoutGrace() {
@@ -1393,6 +1410,7 @@ extension Nook {
         panel.onKeyStatusChange = { [weak self] isKey in
             guard let self, self.hasKeyboardFocus != isKey else { return }
             self.hasKeyboardFocus = isKey
+            if !isKey { self.replayDeferredHoverExit() }
         }
 
         panel.setFrame(NSRect(origin: origin, size: size), display: false)

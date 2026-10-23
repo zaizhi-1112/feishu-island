@@ -8,7 +8,7 @@ struct ScreenReminderChoice: View {
     @Binding var selection: ScreenReminderStyle?
     var body: some View {
         Picker("提醒方式",selection:Binding(get:{selection?.materialID ?? "off"},set:{selection = $0 == "off" ? nil : ScreenReminderStyle(materialID:$0,durationSeconds:15)})) {
-            Text("灵动岛提示").tag("off")
+            Text("仅岛内提示，不冲屏").tag("off")
             ForEach(store.screenMaterials) { Text("冲屏 · "+$0.name).tag($0.id) }
         }.font(.system(size:12)).accessibilityLabel("提醒方式")
     }

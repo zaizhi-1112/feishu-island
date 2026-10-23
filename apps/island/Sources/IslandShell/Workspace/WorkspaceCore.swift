@@ -258,6 +258,8 @@ final class WorkspaceStore: ObservableObject {
             // Only reminders need a seconds-level countdown; the existing AI/archive/
             // hub timer and all Feishu receiver settings retain their old cadence.
             screenTimer = Timer.scheduledTimer(withTimeInterval:1,repeats:true) { [weak self] _ in Task { @MainActor in self?.tickReminders() } }
+            if let timer { RunLoop.main.add(timer, forMode: .common) }
+            if let screenTimer { RunLoop.main.add(screenTimer, forMode: .common) }
             Task { await refreshHub() }
         }
     }

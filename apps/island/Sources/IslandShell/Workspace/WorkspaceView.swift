@@ -456,6 +456,7 @@ struct WorkspaceView: View {
                             if let link = item.remoteTaskURL, WorkBrowser.validTask(link), let url = URL(string:link) { Link("打开豆包原任务",destination:url).font(.system(size:11)) }
                             ForEach(item.cloudDocuments ?? [],id:\.self) { link in if WorkBrowser.validDocument(link), let url=URL(string:link) { Link(item.exportVerifiedAt == nil ? "查看飞书文档（待回读核对）" : "打开飞书文档（已回读核对）",destination:url).font(.system(size:11)) } }
                             if let source = item.resultSource { Text("结果来源："+source).font(.system(size:10)).foregroundStyle(.secondary) }
+                            if item.service == "dot", !item.result.isEmpty { Text("Dot 后台任务结果已返回这里；当前聊天对话是否显示，取决于 Dot 的任务记录。").font(.system(size:10)).foregroundStyle(.secondary) }
                             if let archive=item.archive {
                                 Text(archive.state == "succeeded" ? "飞书归档已完成" : archive.state == "running" ? "正在归档到飞书…" : archive.state == "pending" ? "等待归档" : "归档未完成："+archive.error).font(.system(size:11)).foregroundStyle(archive.state == "failed" ? .orange : .secondary)
                                 if let doc=archive.document, let url=URL(string:doc) { Link("打开归档文档",destination:url).font(.system(size:11)) }
