@@ -47,6 +47,7 @@ final class ScreenReminderCatView: NSView {
                 }
             }
         }
+        if let animationTimer { RunLoop.main.add(animationTimer,forMode:.common) }
     }
 
     func stop() {

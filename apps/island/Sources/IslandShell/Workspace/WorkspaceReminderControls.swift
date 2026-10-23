@@ -14,18 +14,21 @@ struct ScreenReminderChoice: View {
     }
 }
 
+private struct ReminderEditorPresentation: Identifiable {
+    let id=UUID()
+    let schedule: WorkScreenSchedule?
+}
 struct WorkspaceReminderShelf: View {
     @ObservedObject var store: WorkspaceStore
     var compact=false
-    @State private var editor=false
-    @State private var editing:WorkScreenSchedule?
+    @State private var editor: ReminderEditorPresentation?
     var body: some View {
         VStack(alignment:.leading,spacing:10) {
-            HStack { Label("冲屏提醒",systemImage:"timer").font(.system(size:compact ? 13 : 17,weight:.semibold)); Spacer(); Button { editing=nil; editor=true } label:{ Image(systemName:"plus") }.buttonStyle(.plain).help("新建倒计时或计划提醒").accessibilityLabel("新建冲屏提醒") }
+            HStack { Label("冲屏提醒",systemImage:"timer").font(.system(size:compact ? 13 : 17,weight:.semibold)); Spacer(); Button { editor=ReminderEditorPresentation(schedule:nil) } label:{ Image(systemName:"plus") }.buttonStyle(.plain).help("新建倒计时或计划提醒").accessibilityLabel("新建冲屏提醒") }
             HStack(spacing:8) {
-                Button("倒计时") { editing=nil; editor=true }
+                Button("倒计时") { editor=ReminderEditorPresentation(schedule:nil) }
                 Button("久坐 · 30分") { preset(title:"起来活动一下",minutes:30) }
-                Button("吃饭提醒") { editing=WorkScreenSchedule(title:"该吃饭了",fireAt:Date().addingTimeInterval(3600)); editor=true }
+                Button("吃饭提醒") { editor=ReminderEditorPresentation(schedule:WorkScreenSchedule(title:"该吃饭了",fireAt:Date().addingTimeInterval(3600))) }
             }.font(.system(size:compact ? 11 : 12)).controlSize(.small)
             ForEach(store.screenSchedules) { schedule in
                 HStack(spacing:8) {
@@ -34,13 +37,13 @@ struct WorkspaceReminderShelf: View {
                         Text(schedule.title).lineLimit(1).font(.system(size:12))
                         Text(schedule.enabled ? schedule.fireAt.formatted(date:.omitted,time:.shortened)+(schedule.repeatMinutes.map{" · 每\($0)分"} ?? " · 一次") : "已暂停").font(.system(size:10)).foregroundStyle(.secondary)
                     }.frame(maxWidth:.infinity,alignment:.leading)
-                    Button { editing=schedule; editor=true } label:{ Image(systemName:"pencil") }.buttonStyle(.plain).accessibilityLabel("编辑提醒："+schedule.title)
+                    Button { editor=ReminderEditorPresentation(schedule:schedule) } label:{ Image(systemName:"pencil") }.buttonStyle(.plain).accessibilityLabel("编辑提醒："+schedule.title)
                     Button(role:.destructive) { store.deleteScreenSchedule(schedule.id) } label:{ Image(systemName:"trash") }.buttonStyle(.plain).accessibilityLabel("删除提醒："+schedule.title)
                 }.padding(.vertical,4)
             }
             if !compact { Button("管理素材与自己的视频") { WorkspaceWindow.shared.openReminders(store:store) }.font(.system(size:12)).buttonStyle(.plain).foregroundStyle(.secondary) }
         }.padding(compact ? 10 : 16).background(Color.cyan.opacity(0.055),in:RoundedRectangle(cornerRadius:12))
-            .popover(isPresented:$editor) { WorkspaceReminderEditor(store:store,schedule:editing,onSave:{editor=false}).id(editing?.id).frame(width:320).padding(20) }
+            .popover(item:$editor) { context in WorkspaceReminderEditor(store:store,schedule:context.schedule,onSave:{editor=nil}).frame(width:320).padding(20) }
     }
     private func preset(title:String,minutes:Int) {
         if let existing=store.screenSchedules.first(where:{$0.title==title && $0.repeatMinutes==minutes}) { store.setScreenScheduleEnabled(existing.id,enabled:!existing.enabled); return }

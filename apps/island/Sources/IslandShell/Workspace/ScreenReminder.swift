@@ -119,6 +119,13 @@ enum ScreenReminderMedia {
     private var globalEscape: Any?
     private var lockObserver: NSObjectProtocol?
     private(set) var isPresenting = false
+    private(set) var presentationCount = 0
+    private(set) var lastPresentedAt: Date?
+    var diagnostics: [String: Any] {
+        ["isPresenting": isPresenting, "presentationCount": presentationCount,
+         "lastPresentedAt": lastPresentedAt.map { ISO8601DateFormatter().string(from:$0) } ?? "",
+         "windows": windows.map { ["visible":$0.isVisible,"opaque":$0.isOpaque,"mousePassThrough":$0.ignoresMouseEvents,"canBecomeKey":$0.canBecomeKey,"width":$0.frame.width,"height":$0.frame.height,"x":$0.frame.minX,"y":$0.frame.minY] as [String:Any] }]
+    }
     /// Tests construct and inspect real windows without ordering them on screen.
     let displaysWindows: Bool
     private let sessionIsLocked: () -> Bool
@@ -132,6 +139,7 @@ enum ScreenReminderMedia {
         guard let bounds = testFrame ?? (screen ?? NSScreen.screens.first(where:{$0.frame.contains(NSEvent.mouseLocation)}) ?? NSScreen.main)?.visibleFrame else { throw WorkError.message("当前没有可用显示器。") }
         dismiss()
         let panel=ScreenReminderPanel(contentRect:bounds,styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
+        panel.title="工作岛冲屏画面"
         panel.isReleasedWhenClosed=false; panel.level = .floating
         panel.backgroundColor = .clear; panel.isOpaque=false; panel.hasShadow=false
         panel.ignoresMouseEvents=true; panel.hidesOnDeactivate=false
@@ -158,6 +166,7 @@ enum ScreenReminderMedia {
         caption.frame=CGRect(x:bounds.width*0.15,y:24,width:bounds.width*0.7,height:72)
         root.addSubview(caption)
         let close=ScreenReminderPanel(contentRect:CGRect(x:bounds.maxX-146,y:bounds.maxY-50,width:130,height:34),styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
+        close.title="工作岛冲屏关闭"
         close.isReleasedWhenClosed=false; close.level = .floating; close.isOpaque=false
         close.backgroundColor = .clear; close.hidesOnDeactivate=false
         close.collectionBehavior=panel.collectionBehavior
@@ -167,6 +176,7 @@ enum ScreenReminderMedia {
         windows=[panel,close]
         if displaysWindows {
             panel.orderFrontRegardless(); close.orderFrontRegardless(); isPresenting=true
+            presentationCount += 1; lastPresentedAt=Date()
             expiry=Timer.scheduledTimer(withTimeInterval:ScreenReminderRules.playbackSeconds(request),repeats:false) { [weak self] _ in Task { @MainActor in self?.dismiss() } }
             if let expiry { RunLoop.main.add(expiry,forMode:.common) }
             let watchdog=DispatchWorkItem { [weak self] in self?.dismiss() }
