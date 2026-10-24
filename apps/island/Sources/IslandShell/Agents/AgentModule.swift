@@ -102,7 +102,7 @@ struct AgentPanel: View {
                 HStack(spacing: 8) {
                     Button { store.refreshQuotas() } label: {
                         Label(store.refreshing ? "读取中…" : "刷新额度", systemImage: "arrow.clockwise").frame(maxWidth: .infinity)
-                    }.buttonStyle(IslandButtonStyle(prominent: true)).disabled(store.refreshing || !store.preferences.enabled)
+                    }.buttonStyle(IslandButtonStyle(prominent: true)).disabled(store.refreshing || !(store.preferences.enabled || store.preferences.quotaDisplayEnabled))
                     Button { SettingsServer.shared.open(section: "agents") } label: { Image(systemName: "slider.horizontal.3") }.buttonStyle(IslandButtonStyle())
                     Button { store.openAgent(profile.id) } label: { Image(systemName: "arrow.up.right.square") }.buttonStyle(IslandButtonStyle())
                 }

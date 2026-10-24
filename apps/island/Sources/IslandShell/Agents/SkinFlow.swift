@@ -118,7 +118,7 @@ struct IslandSkinBackdrop: View {
     @State private var completionPulse=false
     var body:some View {
         let skin=store.selectedSkin,palette=skin.palette(dark:dark)
-        let moving=store.preferences.effectsEnabled && !reduceMotion && active
+        let moving=store.preferences.effectsEnabled && !reduceMotion && active && !(compact && store.preferences.quotaDisplayEnabled)
         GeometryReader { geometry in
             ZStack {
                 LinearGradient(colors:[Color(skinHex:palette.surface),Color(skinHex:palette.bg)],startPoint:.topLeading,endPoint:.bottomTrailing)
@@ -143,6 +143,7 @@ struct IslandSkinBackdrop: View {
                 switch phase {case .active(let p):pointer=CGPoint(x:p.x/max(1,geometry.size.width),y:p.y/max(1,geometry.size.width));case .ended:pointer=nil}
             }
         }
+        .overlay { if compact && store.preferences.quotaDisplayEnabled { Color.black } }
         .onChange(of:store.state) { old,new in
             if old == .working && new == .completed && moving {completionPulse=true}
         }

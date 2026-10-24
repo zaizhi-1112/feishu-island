@@ -72,6 +72,7 @@ public struct NookLiveActivity: Identifiable, Sendable {
     /// replaces it in place.
     public var id: String
     /// How it ranks for the pill. ``Priority/normal`` by default.
+    public var keepsCompactVisible: Bool = false
     public var priority: Priority
     /// How long it lasts on its own. ``Lifetime/ongoing`` by default.
     public var lifetime: Lifetime

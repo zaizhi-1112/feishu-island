@@ -603,6 +603,7 @@ final class FusionTests {
             try await tests.testScreenReminderSchedulingAndTransparency()
             try await tests.testWorkspaceIslandHeightContract()
             try await tests.testAgentWorkspaceComposition()
+            try await tests.testQuotaCompactLayout()
             try tests.testCompanyConnectionBoundary()
             try await tests.testCompanyActivationIsolation()
             try await tests.testDotPairingAndDelegation()

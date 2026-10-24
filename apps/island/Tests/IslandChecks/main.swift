@@ -1,3 +1,4 @@
+import SwiftUI
 import AppKit
 @testable import IslandShell
 import NookApp
@@ -58,6 +59,15 @@ expect(panel.contentOffset == revealed.contentOffset, "revealed and expanded flo
 let activity = NookEdgeDockLayout(state: .compact, hovering: false, peeking: true, contentHeight: 80,
                                  shownTopInset: 4, physicalNotchHeight: 0)
 expect(!activity.isRetracted, "explicit activity peek stays visible")
+
+var quotaActivity = NookLiveActivity(id:"quota-fixture",accessibilityLabel:"Synthetic quota") { Text("Codex") } compactTrailing: { Text("93%") } minimal: { Text("C") }
+expect(!quotaActivity.keepsCompactVisible,"ordinary activities retain edge retraction")
+quotaActivity.keepsCompactVisible=true
+let quotaDock=NookNotchDockLayout(state:.compact,hovering:quotaActivity.keepsCompactVisible,notchSize:CGSize(width:179,height:32))
+expect(!quotaDock.isRetracted,"quota activity reveals camera side slots without expanding")
+quotaActivity.keepsCompactVisible=false
+let hiddenQuotaDock=NookNotchDockLayout(state:.compact,hovering:quotaActivity.keepsCompactVisible,notchSize:CGSize(width:179,height:32))
+expect(hiddenQuotaDock.isRetracted,"turning off quota restores retraction")
 
 let hardware = CGSize(width: 179, height: 32)
 let notchRest = NookNotchDockLayout(state: .compact, hovering: false, notchSize: hardware)

@@ -41,6 +41,7 @@ final class AgentStore: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.poll() }
         }
+        updateActivity()
         Task { await poll() }
     }
     func update(_ next: AgentPreferences) throws {
@@ -50,6 +51,7 @@ final class AgentStore: ObservableObject {
         guard next.validationError == nil else { throw AgentReadError.unavailable(next.validationError!) }
         let previousEnabled = preferences.enabled
         let previousVisible = preferences.visibleIDs
+        let previousQuotaDisplay = preferences.quotaDisplayEnabled
         preferences = next; preferences.revision += 1
         unviewedCompletionProfiles.formIntersection(next.enabled && next.completionAlerts ? Set(next.visibleIDs) : [])
         defaults.set(try JSONEncoder().encode(preferences), forKey: "preferences")
@@ -61,12 +63,16 @@ final class AgentStore: ObservableObject {
             completionTask?.cancel(); completionNotice = nil; activityPrimary = ""
         }
         if !preferences.enabled {
-            activities?.end("agent-status"); activities?.end("agent-alert"); activityPrimary = ""
+            activities?.end("agent-alert"); activityPrimary = ""
+            if !preferences.quotaDisplayEnabled { activities?.end("agent-status") }
         } else {
             if !previousEnabled { trackers = [:]; lastQuotaAttempt = .distantPast }
             updateActivity(); Task { await poll() }
             if previousVisible != preferences.visibleIDs { checkQuotaAlerts() }
         }
+        if previousQuotaDisplay != preferences.quotaDisplayEnabled { lastQuotaAttempt = .distantPast; activityPrimary = "" }
+        updateActivity()
+        if preferences.quotaDisplayEnabled { Task { await poll() } }
     }
     func selectPrimary(_ id: String) {
         var next = preferences; next.primaryID = id; try? update(next)
@@ -78,7 +84,13 @@ final class AgentStore: ObservableObject {
         var next = preferences; next.effectsEnabled = value; try? update(next)
     }
     func poll() async {
-        guard !IslandRuntime.isSkinPreview, preferences.enabled, !polling else { return }
+        guard !IslandRuntime.isSkinPreview, preferences.enabled || preferences.quotaDisplayEnabled, !polling else { return }
+        // The standalone quota setting must never attach to local conversations or WorkBuddy.
+        if !preferences.enabled {
+            updateActivity()
+            if Date().timeIntervalSince(lastQuotaAttempt) >= 180 { refreshQuotas() }
+            return
+        }
         polling = true; defer { polling = false }
         let revision = preferences.revision
         let codexSessions = preferences.visibleIDs.contains("codex") ? await codex.sessions(now: Date()) : []
@@ -104,16 +116,17 @@ final class AgentStore: ObservableObject {
         if Date().timeIntervalSince(lastQuotaAttempt) >= 180 { refreshQuotas() }
     }
     func refreshQuotas() {
-        guard !IslandRuntime.isSkinPreview, preferences.enabled, !refreshing, Date().timeIntervalSince(lastQuotaAttempt) >= 5 else { return }
+        guard !IslandRuntime.isSkinPreview, preferences.enabled || preferences.quotaDisplayEnabled, !refreshing, Date().timeIntervalSince(lastQuotaAttempt) >= 5 else { return }
         refreshing = true; lastQuotaAttempt = Date()
-        let workEnabled = preferences.visibleIDs.contains("workbuddy")
+        let codexEnabled = preferences.quotaDisplayEnabled || (preferences.enabled && preferences.visibleIDs.contains("codex"))
+        let workEnabled = preferences.enabled && preferences.visibleIDs.contains("workbuddy")
         let revision = preferences.revision
         Task {
-            async let codexResult: Result<[AgentQuota], Error> = Self.readCodexQuota(enabled: preferences.visibleIDs.contains("codex"))
+            async let codexResult: Result<[AgentQuota], Error> = Self.readCodexQuota(enabled: codexEnabled)
             async let workResult: Result<[AgentQuota], Error> = Task.detached { Result { workEnabled ? try WorkBuddyReader.quotas(now: Date().timeIntervalSince1970) : [] } }.value
             let results = await [("codex", codexResult), ("workbuddy", workResult)]
             defer { refreshing = false }
-            guard preferences.enabled, preferences.revision == revision else { return }
+            guard preferences.enabled || preferences.quotaDisplayEnabled, preferences.revision == revision else { return }
             for (id, result) in results {
                 var snapshot = snapshots[id] ?? .init()
                 switch result {
@@ -126,8 +139,8 @@ final class AgentStore: ObservableObject {
                 }
                 snapshots[id] = snapshot
             }
-            if preferences.visibleIDs.contains("claude") { snapshots["claude"] = await Task.detached { ClaudeDesktopReader.snapshot(now: Date().timeIntervalSince1970) }.value }
-            checkQuotaAlerts()
+            if preferences.enabled && preferences.visibleIDs.contains("claude") { snapshots["claude"] = await Task.detached { ClaudeDesktopReader.snapshot(now: Date().timeIntervalSince1970) }.value }
+            if preferences.enabled { checkQuotaAlerts() }
         }
     }
     nonisolated private static func readCodexQuota(enabled: Bool) async -> Result<[AgentQuota], Error> {
@@ -145,11 +158,16 @@ final class AgentStore: ObservableObject {
     }
     private func updateActivity() {
         guard completionNotice == nil else { return }
-        guard activityPrimary != primary.id else { return }; activityPrimary = primary.id
-        var activity = NookLiveActivity(id: "agent-status", priority: .low, accessibilityLabel: "Agent状态") {
-            AgentCompanionGlyph(store: self)
-        } compactTrailing: { AgentCompactView(store: self) } minimal: { AgentCompanionGlyph(store: self) }
-        activity.setExpanded { AgentPanel(store: self) }
+        guard preferences.enabled || preferences.quotaDisplayEnabled else { activities?.end("agent-status"); activityPrimary=""; return }
+        let key=primary.id+"/"+String(preferences.quotaDisplayEnabled)
+        guard activityPrimary != key else { return }; activityPrimary=key
+        var activity = NookLiveActivity(id:"agent-status",priority:.low,accessibilityLabel:preferences.quotaDisplayEnabled ? "Codex剩余额度" : "Agent状态") {
+            AgentPersistentCompactSlot(store:self,leading:true)
+        } compactTrailing: {
+            AgentPersistentCompactSlot(store:self,leading:false)
+        } minimal: { AgentCompanionGlyph(store:self) }
+        activity.keepsCompactVisible=preferences.quotaDisplayEnabled
+        activity.setExpanded { AgentPersistentExpanded(store:self) }
         activities?.start(activity)
     }
     private func presentCompletion(profileID: String, count: Int, stillWorking: Bool) {

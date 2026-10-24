@@ -92,6 +92,33 @@ final class AgentTests {
         XCTAssertTrue(CodexReader.parseQuotas([:],now:now).isEmpty)
         XCTAssertTrue(CodexReader.parseQuotas(["rateLimits":["primary":NSNull()]],now:now).isEmpty)
     }
+    func testCompactQuotaWindowsAndFreshness() throws {
+        let raw:[String:Any] = ["rateLimitsByLimitId":["codex":["primary":["usedPercent":7.0,"windowDurationMins":10080.0,"resetsAt":1_010_000.0]]]]
+        let week=CodexReader.parseQuotas(raw,now:now)
+        let summary=AgentQuotaCompactSummary(quotas:week,refreshing:false,now:now)
+        XCTAssertEqual(summary.text(leading:true),"Codex")
+        XCTAssertEqual(summary.text(leading:false),"周 93%")
+        XCTAssertEqual(summary.accessibility(leading:false),"Codex 周额度剩余 93%")
+        XCTAssertEqual(summary.windows.count,1)
+        let other=AgentQuota(id:"spark/primary",label:"5小时额度",remainingPercent:3,resetsAt:nil,updatedAt:now)
+        XCTAssertEqual(AgentQuotaCompactSummary(quotas:[other],refreshing:false,now:now).text(leading:false),"额度未知")
+        let five=AgentQuota(id:"codex/primary",label:"5小时额度",remainingPercent:0,resetsAt:nil,updatedAt:now)
+        var second=week[0];second.id="codex/secondary"
+        let both=AgentQuotaCompactSummary(quotas:[five,second,other],refreshing:false,now:now)
+        XCTAssertEqual(both.text(leading:true),"5h 0%")
+        XCTAssertEqual(both.text(leading:false),"周 93%")
+        XCTAssertEqual(AgentQuotaCompactSummary(quotas:week,refreshing:false,now:now+901).text(leading:false),"待刷新")
+        XCTAssertEqual(AgentQuotaCompactSummary(quotas:[],refreshing:true,now:now).text(leading:false),"读取中")
+        XCTAssertEqual(AgentQuotaCompactSummary(quotas:[],refreshing:false,now:now).text(leading:false),"额度未知")
+        var old=try JSONSerialization.jsonObject(with:JSONEncoder().encode(AgentPreferences())) as! [String:Any]
+        old.removeValue(forKey:"quotaDisplayEnabled")
+        let migrated=try JSONDecoder().decode(AgentPreferences.self,from:JSONSerialization.data(withJSONObject:old))
+        XCTAssertFalse(migrated.quotaDisplayEnabled)
+        var enabled=migrated;enabled.quotaDisplayEnabled=true
+        let reloaded=try JSONDecoder().decode(AgentPreferences.self,from:JSONEncoder().encode(enabled))
+        XCTAssertTrue(reloaded.quotaDisplayEnabled);XCTAssertFalse(reloaded.enabled)
+        XCTAssertEqual(reloaded.visibleIDs,migrated.visibleIDs)
+    }
     func testClaudeContextUsageIsNotSubscriptionQuota() {
         XCTAssertTrue(AgentBridge.claudeQuotas(["context_window":["used_percentage":99]],now:now).isEmpty)
         let quotas = AgentBridge.claudeQuotas(["five_hour":["used_percentage":80.5,"resets_at":1_010_000]],now:now)
@@ -256,6 +283,7 @@ tests.testNonResetCreditPoolRearmsAfterRecovery()
 tests.testExpiredAndInvalidQuotasNeverAlert()
 tests.testCodexUsesActualDurationAndMultipleBuckets()
 tests.testMissingCodexWindowsAreNotZero()
+try tests.testCompactQuotaWindowsAndFreshness()
 tests.testClaudeContextUsageIsNotSubscriptionQuota()
 try tests.testWorkBuddyUsesCreditGroupsWithoutDoubleCountingPackages()
 tests.testWorkBuddyRejectsIncompleteOrZeroTotals()

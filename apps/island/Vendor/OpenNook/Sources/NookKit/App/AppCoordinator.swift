@@ -662,7 +662,7 @@ public final class AppCoordinator: ObservableObject {
     /// surface, and comes back after the last one ends (once the surface has collapsed, so it
     /// never flashes) if the module on screen still offers it.
     private func surfaceClaimChanged() {
-        surface.compactRevealActive = arbiter.topPresentation == .compact
+        surface.compactRevealActive = arbiter.topPresentation == .compact || liveActivities.activities.contains { $0.activity.keepsCompactVisible }
         if arbiter.isPresenting {
             appState.setSettingsAside(for: .claim)
         } else {

@@ -79,6 +79,8 @@ public struct AgentProfile: Codable, Identifiable, Equatable, Sendable {
 public struct AgentPreferences: Codable, Sendable {
     public var revision = 0
     public var enabled = false
+    /// Read only Codex account limits; never implies session monitoring.
+    public var quotaDisplayEnabled = false
     public var completionAlerts = true
     public var quotaAlerts = true
     public var primaryID = "codex"
@@ -88,11 +90,12 @@ public struct AgentPreferences: Codable, Sendable {
     public var visibleIDs = ["codex", "claude", "workbuddy"]
     public var profiles = [AgentProfile(id: "codex", name: "Codex", kind: "codex"), AgentProfile(id: "claude", name: "Claude Code", kind: "claude"), AgentProfile(id: "workbuddy", name: "WorkBuddy", kind: "workbuddy")]
     public init() {}
-    enum CodingKeys: String, CodingKey { case revision, enabled, completionAlerts, quotaAlerts, primaryID, skinID, effectsEnabled, visibleIDs, profiles }
+    enum CodingKeys: String, CodingKey { case revision, enabled, quotaDisplayEnabled, completionAlerts, quotaAlerts, primaryID, skinID, effectsEnabled, visibleIDs, profiles }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         revision = try values.decode(Int.self, forKey: .revision)
         enabled = try values.decode(Bool.self, forKey: .enabled)
+        quotaDisplayEnabled = try values.decodeIfPresent(Bool.self, forKey: .quotaDisplayEnabled) ?? false
         completionAlerts = try values.decode(Bool.self, forKey: .completionAlerts)
         quotaAlerts = try values.decode(Bool.self, forKey: .quotaAlerts)
         primaryID = try values.decode(String.self, forKey: .primaryID)

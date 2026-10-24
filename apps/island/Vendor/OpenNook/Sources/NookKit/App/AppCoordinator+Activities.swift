@@ -45,6 +45,7 @@ extension AppCoordinator {
     }
 
     private func liveActivitiesChanged(_ entries: [NookActivityCenter.Entry]) {
+        surface.compactRevealActive = arbiter.topPresentation == .compact || entries.contains { $0.activity.keepsCompactVisible }
         let configuration = moduleHost.displayedConfiguration
         let source = configuration.companionSource?.companions ?? []
         projectCompanions(

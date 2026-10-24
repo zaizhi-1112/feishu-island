@@ -135,7 +135,7 @@ struct AgentWorkspaceSurface:View {
     }
     private var status:String {
         if let provider,workspace.disk.items.contains(where:{$0.service==provider.rawValue && ["running","queued","dot_waiting","dot_running"].contains($0.state)}) { return "任务处理中 · 结果会返回待办" }
-        if provider == .codex, agents.preferences.enabled, let snapshot=agents.snapshots["codex"],
+        if provider == .codex, agents.preferences.enabled || agents.preferences.quotaDisplayEnabled, let snapshot=agents.snapshots["codex"],
            let quota=snapshot.quotas.first(where:{$0.isFresh(now:Date().timeIntervalSince1970)}) {
             return quota.label+"剩余 "+String(format:"%.0f%%",quota.remainingPercent)
         }
