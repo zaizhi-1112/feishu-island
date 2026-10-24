@@ -29,9 +29,9 @@
 构建并打开独立预览：
 
 ```sh
-./scripts/build.sh
-./scripts/package-todo-preview.sh
-./scripts/todo-preview.sh
+bash scripts/build.sh
+bash scripts/package-todo-preview.sh
+bash scripts/todo-preview.sh
 ```
 
 正式版待办数据位于`~/Library/Application Support/local.youzi.island/Modules/local.youzi.island.todos/`。预览包在`verification/todos/柚子岛待办预览.app`，有独立应用标识、待办数据目录和网页设置端口，不启动真实飞书与Agent读取器。预览数据默认位于`~/Library/Application Support/local.youzi.island.todo-preview/Modules/local.youzi.island.todos/`，升级时保留在原处。验证工具须通过`--todo-test-root`指定另外的测试目录，测试结果不写入预览的正常待办库。
@@ -46,7 +46,7 @@
 
 四款都有克制的流光或微粒、悬停回应与一次性反馈。关闭“动态”或启用系统减少动态后，保留静态光影。隐藏的原生表面、网页和不可见展示区停止动画。官方角色保持原造型，来源与素材准备方式见[皮肤素材说明](SettingsWeb/SKIN-SOURCES.md)。
 
-先运行`./scripts/build.sh`、`./scripts/package-skin-preview.sh`，再运行`./scripts/skin-preview.sh`。独立预览使用18776端口和专用设置，不读取真实Agent及飞书数据；验收文件在`verification/skins-v2/`。2026-10-22已按要求安装0.6.0正式版到原应用位置，旧版和设置已备份；记录见`verification/skins-v2/正式版安装记录.md`。
+先运行`bash scripts/build.sh`、`bash scripts/package-skin-preview.sh`，再运行`bash scripts/skin-preview.sh`。独立预览使用18776端口和专用设置，不读取真实Agent及飞书数据；验收文件在`verification/skins-v2/`。2026-10-22已按要求安装0.6.0正式版到原应用位置，旧版和设置已备份；记录见`verification/skins-v2/正式版安装记录.md`。
 
 ## 启动与使用
 
@@ -109,8 +109,8 @@
 当前交付在Apple Silicon Mac、macOS 27.0.1上构建并验证；未做Intel或旧版macOS实机验证。无需安装完整Xcode。
 
 ```sh
-./scripts/build.sh
-./scripts/check.sh
+bash scripts/build.sh
+bash scripts/check.sh
 bash scripts/check-feishu.sh
 ```
 
