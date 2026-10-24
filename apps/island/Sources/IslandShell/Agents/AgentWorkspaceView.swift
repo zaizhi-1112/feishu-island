@@ -91,7 +91,7 @@ struct AgentWorkspaceSurface:View {
     private var destinations:some View {
         LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:6),count:3),spacing:4) {
             ForEach(AgentCatalogStore.builtins) { option in
-                Button { catalog.select(option.id,in:workspace) } label: {
+                Button { catalog.select(option.id,in:workspace); agents.monitorSelected(option.id) } label: {
                     HStack(spacing:5) {
                         if let id=option.monitorID { AgentPortrait(id:id,size:16,avatar:true,motion:false,tapFeedback:false) }
                         else { Image(systemName:option.symbol).font(.system(size:11)) }

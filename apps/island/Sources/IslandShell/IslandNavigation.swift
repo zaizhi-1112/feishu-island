@@ -13,6 +13,7 @@ final class IslandModuleNavigation: ObservableObject {
         self.coordinator = coordinator
         if appState !== coordinator.appState { appState = coordinator.appState }
     }
+    var surfaceWindowNumber:Int? { coordinator?.nookWindow?.windowNumber }
     func openFeishu() { coordinator?.switchModule(to: IslandHost.feishuID) }
     func openAgent() { coordinator?.switchModule(to: IslandHost.agentID) }
     func openWorkspace() {

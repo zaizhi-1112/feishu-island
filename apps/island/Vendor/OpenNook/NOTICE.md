@@ -58,3 +58,5 @@ removes the forced click between edge reveal and the host's expanded content.
 2026-10-24 build34: Include visible child windows in hover interaction bounds; native menu tracking temporarily defers hover exit until the menu closes. Reminder editing in the host island uses inline content instead of a detached popover. No change to message access or authentication.
 
 2026-10-25 build38: NookLiveActivity gains an opt-in keepsCompactVisible flag (default false). Activity changes and arbiter claims both preserve compact-slot visibility while that activity exists, without expanding or pinning the panel. The host uses it only for the independently enabled Codex quota badge; camera clearance and hover-exit behavior are unchanged.
+
+2026-10-25 build39: Replay the resident activities' compact-visibility flag when the activity subscription is first bound, so restarting with an existing quota preference restores side slots. No new presentation pin, authentication or message access.

@@ -16,7 +16,7 @@ struct AgentConnectionsView:View {
                     Spacer()
                     Text(entry.taskProvider != nil ? "可交给 AI" : entry.id == "claude" ? "状态待接入 · 可配置项目连接" : "本机状态与额度 · 可配置项目连接")
                         .font(.system(size:13)).foregroundStyle(.secondary)
-                    Button("选择") { catalog.select(entry.id,in:workspace); feedback="已选择 "+entry.name }
+                    Button("选择") { catalog.select(entry.id,in:workspace); AgentStore.shared.monitorSelected(entry.id); feedback="已选择 "+entry.name }
                 }
             }
             Divider()
@@ -34,7 +34,7 @@ struct AgentConnectionsView:View {
                 HStack {
                     VStack(alignment:.leading,spacing:4) { Text(entry.name).font(.system(size:16)); if !entry.launchURL.isEmpty { Text(entry.launchURL).font(.system(size:12)).foregroundStyle(.secondary).lineLimit(1) } }
                     Spacer()
-                    Button("选择") { catalog.select(entry.id,in:workspace); feedback="已选择 "+entry.name }
+                    Button("选择") { catalog.select(entry.id,in:workspace); AgentStore.shared.monitorSelected(entry.id); feedback="已选择 "+entry.name }
                     Button("移除入口") { catalog.remove(entry.id); feedback="已移除入口，已有任务保持。" }
                 }
             }

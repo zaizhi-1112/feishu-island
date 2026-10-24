@@ -238,6 +238,76 @@ final class AgentTests {
         XCTAssertEqual(sqlite3_exec(db,"UPDATE sessions SET status='terminated',updated_at=1000002000 WHERE id='active'",nil,nil,nil),SQLITE_OK)
         XCTAssertEqual(AgentSnapshot(sessions:try WorkBuddyReader.sessions(now:now+2,root:root)).state(now:now+2),.failed)
     }
+    func testCodexInputAndApprovalTransitions() async throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent("agent-control-fixture-"+UUID().uuidString)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let log=root.appendingPathComponent("control.jsonl"),date=Date(),formatter=ISO8601DateFormatter()
+        formatter.formatOptions=[.withInternetDateTime,.withFractionalSeconds]
+        FileManager.default.createFile(atPath:log.path,contents:nil)
+        let handle=try FileHandle(forWritingTo:log);defer{try? handle.close()}
+        let reader=CodexReader(root:root)
+        func append(_ kind:String,_ payload:[String:Any],_ offset:Double) throws {
+            var bytes=try JSONSerialization.data(withJSONObject:["type":kind,"timestamp":formatter.string(from:date.addingTimeInterval(offset)),"payload":payload]);bytes.append(10);try handle.write(contentsOf:bytes)
+        }
+        try append("event_msg",["type":"task_started","turn_id":"synthetic-turn"],0)
+        var sessions=await reader.sessions(now:date)
+        XCTAssertEqual(sessions.first?.state,.working)
+        try append("response_item",["type":"function_call","name":"functions.request_user_input","call_id":"synthetic-input","arguments":"DO_NOT_RETAIN_QUESTION_OR_SECRET"],1)
+        sessions=await reader.sessions(now:date.addingTimeInterval(1))
+        XCTAssertEqual(sessions.first?.state,.waiting);XCTAssertEqual(sessions.first?.attentionReason,"input")
+        var tracker=AgentAlertTracker()
+        XCTAssertEqual(tracker.attentionRequests(sessions,now:date.timeIntervalSince1970+1).count,1)
+        XCTAssertTrue(tracker.attentionRequests(sessions,now:date.timeIntervalSince1970+2).isEmpty)
+        try append("response_item",["type":"function_call_output","call_id":"wrong-input","output":"DO_NOT_RETAIN_RESPONSE"],2)
+        XCTAssertEqual(await reader.sessions(now:date.addingTimeInterval(2)).first?.state,.waiting)
+        try append("response_item",["type":"function_call_output","call_id":"synthetic-input","output":"DO_NOT_RETAIN_RESPONSE"],3)
+        XCTAssertEqual(await reader.sessions(now:date.addingTimeInterval(3)).first?.state,.working)
+        try append("event_msg",["type":"exec_approval_request","call_id":"synthetic-approval","turn_id":"synthetic-turn"],4)
+        sessions=await reader.sessions(now:date.addingTimeInterval(4))
+        XCTAssertEqual(sessions.first?.state,.waiting);XCTAssertEqual(sessions.first?.attentionReason,"approval")
+        XCTAssertEqual(tracker.attentionRequests(sessions,now:date.timeIntervalSince1970+4).count,1)
+        try append("event_msg",["type":"exec_command_begin","call_id":"synthetic-approval","turn_id":"other-turn"],5)
+        XCTAssertEqual(await reader.sessions(now:date.addingTimeInterval(5)).first?.state,.waiting)
+        try append("event_msg",["type":"exec_command_begin","call_id":"synthetic-approval","turn_id":"synthetic-turn"],6)
+        sessions=await reader.sessions(now:date.addingTimeInterval(6));XCTAssertEqual(sessions.first?.state,.working)
+        _=tracker.completions(sessions,now:date.timeIntervalSince1970+6)
+        try append("event_msg",["type":"task_complete","turn_id":"synthetic-turn"],7)
+        sessions=await reader.sessions(now:date.addingTimeInterval(7))
+        XCTAssertEqual(sessions.first?.state,.completed)
+        XCTAssertEqual(tracker.completions(sessions,now:date.timeIntervalSince1970+7),1)
+        XCTAssertEqual(tracker.completions(sessions,now:date.timeIntervalSince1970+8),0)
+        let encoded=String(decoding:try JSONEncoder().encode(sessions),as:UTF8.self)
+        XCTAssertFalse(encoded.contains("DO_NOT_RETAIN"))
+        try append("event_msg",["type":"task_started","turn_id":"async-turn"],8)
+        try append("response_item",["type":"function_call","name":"functions.request_user_input_async","call_id":"async-input"],9)
+        try append("response_item",["type":"function_call_output","call_id":"async-input","output":"queued"],9.5)
+        XCTAssertEqual(await reader.sessions(now:date.addingTimeInterval(10)).first?.state,.working)
+        try append("event_msg",["type":"task_complete","turn_id":"async-turn"],11)
+        sessions=await reader.sessions(now:date.addingTimeInterval(11))
+        XCTAssertEqual(sessions.first?.state,.waiting);XCTAssertEqual(sessions.first?.attentionID,"async-input")
+    }
+    func testAgentIdentityAndActivePriority() {
+        var prefs=AgentPreferences();prefs.enabled=true;prefs.visibleIDs=["codex","workbuddy"]
+        let snapshots=["codex":AgentSnapshot(sessions:[session("c",.working,now)]),"workbuddy":AgentSnapshot(sessions:[session("w",.waiting,now)])]
+        XCTAssertEqual(AgentActivityDisplay.activeAgent(snapshots:snapshots,preferences:prefs,fallback:"codex",now:now),"workbuddy")
+        XCTAssertEqual(AgentActivityDisplay.activeAgent(snapshots:snapshots,preferences:prefs,fallback:"dot",now:now+901),"dot")
+        prefs.enabled=false
+        XCTAssertEqual(AgentActivityDisplay.activeAgent(snapshots:snapshots,preferences:prefs,fallback:"claude",now:now),"claude")
+        let work=AgentQuotaCompactSummary(quotas:[quota(81)],refreshing:false,now:now,agentID:"workbuddy",state:.working)
+        XCTAssertEqual(work.text(leading:true),"WorkBuddy");XCTAssertTrue(work.text(leading:false).contains("运行中"))
+        let dot=AgentQuotaCompactSummary(quotas:[quota(81)],refreshing:false,now:now,agentID:"dot",state:.working)
+        XCTAssertEqual(dot.text(leading:true),"Dot");XCTAssertEqual(dot.text(leading:false),"运行中");XCTAssertTrue(dot.windows.isEmpty)
+        let waiting=AgentCompletionNotice(profileID:"codex",name:"Codex",count:1,stillWorking:false,attention:"input")
+        XCTAssertEqual(waiting.status,"等你输入");XCTAssertFalse(waiting.message.contains("已完成"))
+        var t=AgentAlertTracker();let old=AgentSession(id:"old",state:.waiting,updatedAt:now-120,attentionID:"old")
+        XCTAssertTrue(t.attentionRequests([old],now:now).isEmpty)
+        let first=AgentSession(id:"new",state:.waiting,updatedAt:now,attentionID:"request1")
+        XCTAssertEqual(t.attentionRequests([first],now:now).count,1)
+        var repeated=first;repeated.updatedAt=now+10
+        XCTAssertTrue(t.attentionRequests([repeated],now:now+10).isEmpty)
+        repeated.attentionID="request2"
+        XCTAssertEqual(t.attentionRequests([repeated],now:now+10).count,1)
+    }
     func testResumedOldCodexChatAndIncrementalCompletion() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("island-agent-checks-\(UUID().uuidString)")
         let directory = root.appendingPathComponent("2020/01/01")
@@ -292,6 +362,8 @@ try tests.testDisplayPreferencesMigrationAndSelection()
 try tests.testSkinPreferenceMigrationAndIndependence()
 try tests.testFourSkinAssetsAndReducedMotionMigration()
 try tests.testWorkBuddyTaskDatabaseAndAccountIsolation()
+try await tests.testCodexInputAndApprovalTransitions()
+tests.testAgentIdentityAndActivePriority()
 try await tests.testResumedOldCodexChatAndIncrementalCompletion()
 print("\(assertionCount) Agent checks passed.")
 if CommandLine.arguments.contains("--live-read") {

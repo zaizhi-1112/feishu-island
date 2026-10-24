@@ -7,8 +7,9 @@ struct AgentCompletionNotice: Identifiable, Sendable {
     let name: String
     let count: Int
     let stillWorking: Bool
-    var status: String { stillWorking ? "完成\(count)项 · 仍在工作" : count > 1 ? "\(count)项已完成" : "已完成" }
-    var message: String { "\(name) · \(count)个任务已完成" + (stillWorking ? "，还有任务正在工作" : "") }
+    var attention:String? = nil
+    var status: String { if let attention { return attention == "input" ? "等你输入" : "等你确认" }; return stillWorking ? "完成\(count)项 · 仍在工作" : count > 1 ? "\(count)项已完成" : "已完成" }
+    var message: String { if attention != nil { return name+" · "+status }; return "\(name) · \(count)个任务已完成" + (stillWorking ? "，还有任务正在工作" : "") }
 }
 
 /// One soft ring, then a steady light. Never loops while the island is idle.
@@ -53,12 +54,13 @@ struct AgentCompletionStatus: View {
     @State private var checked = false
     var body: some View {
         HStack(spacing: 6) {
-            AgentStatusLight(color: notice.stillWorking ? .red : .green, pulse: !notice.stillWorking, motion: motion)
+            AgentStatusLight(color: notice.attention != nil ? .orange : notice.stillWorking ? .red : .green, pulse: !notice.stillWorking, motion: motion)
             Text(notice.name).foregroundStyle(theme.secondaryLabel)
-            Text(notice.status).foregroundStyle(notice.stillWorking ? theme.primaryLabel : .green)
-            CompletionCheck().trim(from: 0, to: !motion || reduceMotion || checked ? 1 : 0)
+            Text(notice.status).foregroundStyle(notice.attention != nil ? .orange : notice.stillWorking ? theme.primaryLabel : .green)
+            if notice.attention != nil { Image(systemName:"questionmark.circle.fill").foregroundStyle(.orange) }
+            else { CompletionCheck().trim(from: 0, to: !motion || reduceMotion || checked ? 1 : 0)
                 .stroke(.green, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-                .frame(width: 10, height: 10).accessibilityHidden(true)
+                .frame(width: 10, height: 10).accessibilityHidden(true) }
         }
         .font(.system(size: 10, weight: .medium)).lineLimit(1).fixedSize()
         .id(notice.id)

@@ -34,5 +34,24 @@ extension FusionTests {
                 window.close()
             }
         }
+        for id in ["codex","claude","workbuddy","dot","doubao"] {
+            for state in [AgentState.working,.waiting,.completed] {
+                let name=AgentCatalogStore.builtins.first{$0.id==id}!.name
+                let notice=AgentCompletionNotice(profileID:id,name:name,count:1,stillWorking:state == .working,attention:state == .waiting ? "approval":nil)
+                let view=HStack(spacing:10) { AgentIdentityIcon(id:id,size:22);AgentCompletionStatus(notice:notice,motion:false) }.padding(10).background(Color.black).preferredColorScheme(.dark)
+                let host=NSHostingView(rootView:view);host.wantsLayer=true;host.appearance=NSAppearance(named:.darkAqua)
+                let size=host.fittingSize
+                XCTAssertLessThan(size.width,400);XCTAssertLessThan(size.height,60)
+                let window=NSWindow(contentRect:NSRect(origin:.zero,size:size),styleMask:.borderless,backing:.buffered,defer:false)
+                window.isReleasedWhenClosed=false;window.contentView=host;host.layoutSubtreeIfNeeded();host.displayIfNeeded();CATransaction.flush()
+                XCTAssertFalse(window.isVisible)
+                if let bitmap=host.bitmapImageRepForCachingDisplay(in:host.bounds) {
+                    host.cacheDisplay(in:host.bounds,to:bitmap)
+                    try bitmap.representation(using:.png,properties:[:])!.write(to:evidence.appendingPathComponent(id+"-"+state.rawValue+".png"))
+                }
+                window.close()
+            }
+        }
+
     }
 }

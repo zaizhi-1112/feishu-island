@@ -41,6 +41,7 @@ final class SettingsServer {
             unlockObserver = NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.sessionDidBecomeActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.sessionLocked = false } }
         }
         guard listen else { return }
+        AgentStore.shared.statusNotice = { [weak store] id,source,text in store?.receiveAgentNotice(id:id,source:source,text:text) }
         (workspaceOverride ?? WorkspaceStore.shared).agentNotice = { [weak store] id,source,text in store?.receiveAgentNotice(id:id,source:source,text:text) }
         if dotEventTimer == nil {
             let workspace=workspaceOverride ?? WorkspaceStore.shared

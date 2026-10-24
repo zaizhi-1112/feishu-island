@@ -49,6 +49,7 @@ struct IntegrationAgentSettings: View {
             Text("本机 Agent 状态").font(.system(size:18,weight:.semibold))
             Text("与“交给 AI”分开。开启后，仅读取你选中的本机客户端任务状态与额度；不把聊天材料交给其他 Agent。").foregroundStyle(.secondary)
             Toggle("开启本机状态监测",isOn:Binding(get:{store.preferences.enabled},set:{ value in var next=store.preferences; next.enabled=value; save(next) }))
+            Toggle("完成、等待输入或确认时提醒",isOn:Binding(get:{store.preferences.completionAlerts},set:{ value in var next=store.preferences;next.completionAlerts=value;save(next) }))
             ForEach(store.preferences.profiles) { profile in
                 Toggle(profile.name,isOn:Binding(get:{store.preferences.visibleIDs.contains(profile.id)},set:{ value in
                     var next=store.preferences

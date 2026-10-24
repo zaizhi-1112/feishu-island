@@ -11,6 +11,7 @@ final class AgentStore: ObservableObject {
     @Published private(set) var lastAlert = ""
     @Published private(set) var completionNotice: AgentCompletionNotice?
     @Published private(set) var unviewedCompletionProfiles = Set<String>()
+    var statusNotice:(String,String,String)->Void = { _,_,_ in }
     private var completionTask: Task<Void, Never>?
     var selectedSkin: AgentSkin { AgentSkin(agentID: preferences.skinID == "auto" ? primary.id : preferences.skinID) }
     lazy var themeSource = NookThemeSource(selectedSkin.theme)
@@ -38,9 +39,10 @@ final class AgentStore: ObservableObject {
     func start(activities: NookLiveActivities) {
         self.activities = activities
         guard timer == nil, Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview", !IslandRuntime.isSkinPreview, !ProcessInfo.processInfo.arguments.contains("--self-test") else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval:2,repeats:true) { [weak self] _ in
             Task { @MainActor in await self?.poll() }
         }
+        self.timer=timer;RunLoop.main.add(timer,forMode:.common)
         updateActivity()
         Task { await poll() }
     }
@@ -74,6 +76,10 @@ final class AgentStore: ObservableObject {
         updateActivity()
         if preferences.quotaDisplayEnabled { Task { await poll() } }
     }
+    func monitorSelected(_ id:String) {
+        guard preferences.enabled,["codex","workbuddy"].contains(id),!preferences.visibleIDs.contains(id) else { return }
+        var next=preferences;next.visibleIDs.append(id);try? update(next)
+    }
     func selectPrimary(_ id: String) {
         var next = preferences; next.primaryID = id; try? update(next)
     }
@@ -105,11 +111,16 @@ final class AgentStore: ObservableObject {
         let now = Date().timeIntervalSince1970
         for profile in preferences.profiles {
             var tracker = trackers[profile.id] ?? .init()
-            let count = tracker.completions(snapshots[profile.id]?.sessions ?? [], now: now)
+            let sessions=snapshots[profile.id]?.sessions ?? []
+            let count = tracker.completions(sessions, now: now)
+            let attention=tracker.attentionRequests(sessions,now:now)
             trackers[profile.id] = tracker
             if count > 0, preferences.completionAlerts, preferences.visibleIDs.contains(profile.id) {
                 let stillWorking = snapshots[profile.id]?.state(now: now) == .working
                 presentCompletion(profileID: profile.id, count: count, stillWorking: stillWorking)
+            }
+            if let pending=attention.first,preferences.completionAlerts,preferences.visibleIDs.contains(profile.id) {
+                presentCompletion(profileID:profile.id,count:attention.count,stillWorking:false,attention:pending.attentionReason ?? "approval")
             }
         }
         updateActivity()
@@ -157,36 +168,27 @@ final class AgentStore: ObservableObject {
         defaults.set(Array(quotaTracker.notifiedQuotaCycles.suffix(200)), forKey: "notifiedQuotaCycles")
     }
     private func updateActivity() {
-        guard completionNotice == nil else { return }
         guard preferences.enabled || preferences.quotaDisplayEnabled else { activities?.end("agent-status"); activityPrimary=""; return }
-        let key=primary.id+"/"+String(preferences.quotaDisplayEnabled)
+        let key=primary.id+"/"+String(preferences.quotaDisplayEnabled)+"/"+String(preferences.enabled)+"/"+(completionNotice?.id.uuidString ?? "idle")
         guard activityPrimary != key else { return }; activityPrimary=key
-        var activity = NookLiveActivity(id:"agent-status",priority:.low,accessibilityLabel:preferences.quotaDisplayEnabled ? "Codex剩余额度" : "Agent状态") {
+        var activity = NookLiveActivity(id:"agent-status",priority:completionNotice == nil ? .low:.high,accessibilityLabel:completionNotice?.message ?? (preferences.quotaDisplayEnabled ? "Codex剩余额度" : "Agent状态")) {
             AgentPersistentCompactSlot(store:self,leading:true)
         } compactTrailing: {
             AgentPersistentCompactSlot(store:self,leading:false)
         } minimal: { AgentCompanionGlyph(store:self) }
-        activity.keepsCompactVisible=preferences.quotaDisplayEnabled
+        activity.keepsCompactVisible=preferences.quotaDisplayEnabled || completionNotice != nil
         activity.setExpanded { AgentPersistentExpanded(store:self) }
         activities?.start(activity)
     }
-    private func presentCompletion(profileID: String, count: Int, stillWorking: Bool) {
+    private func presentCompletion(profileID: String, count: Int, stillWorking: Bool, attention:String? = nil) {
         guard let profile = preferences.profiles.first(where: { $0.id == profileID }) else { return }
         unviewedCompletionProfiles.insert(profileID)
-        let notice = AgentCompletionNotice(profileID: profileID, name: profile.name, count: count, stillWorking: stillWorking)
+        let notice = AgentCompletionNotice(profileID: profileID, name: profile.name, count: count, stillWorking: stillWorking,attention:attention)
         completionTask?.cancel()
         completionNotice = notice
         lastAlert = notice.message; lastAlertDate = Date(); lastAlertProfile = profileID
-        // Reuse the island's existing status activity: no extra notification or companion.
-        var activity = NookLiveActivity(id: "agent-status", priority: .high, alert: .compact(.seconds(5)), accessibilityLabel: notice.message) {
-            AgentPortrait(id: profileID, size: 25, avatar: true, motion: self.preferences.effectsEnabled, tapFeedback: false)
-        } compactTrailing: {
-            AgentCompletionStatus(notice: notice, motion: self.preferences.effectsEnabled)
-        } minimal: {
-            AgentStatusLight(color: stillWorking ? .red : .green, pulse: !stillWorking, motion: self.preferences.effectsEnabled)
-        }
-        activity.setExpanded { AgentPanel(store: self, profileID: profileID) }
-        activities?.start(activity)
+        statusNotice("agent-state-"+notice.id.uuidString,profile.name,notice.status)
+        updateActivity()
         completionTask = Task { @MainActor [weak self] in
             do { try await Task.sleep(for: .seconds(6)) } catch { return }
             guard let self, self.completionNotice?.id == notice.id else { return }
@@ -252,6 +254,6 @@ final class AgentStore: ObservableObject {
                  ["id": quota.id, "label": quota.label, "remainingPercent": quota.remainingPercent, "resetsAt": quota.resetsAt as Any? ?? NSNull(), "updatedAt": quota.updatedAt, "fresh": quota.isFresh(now: now), "remainingUnits": quota.remainingUnits as Any? ?? NSNull(), "totalUnits": quota.totalUnits as Any? ?? NSNull()]
              }] as [String: Any]
         }
-        return ["preferences": (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(preferences))) ?? [:], "agents": states, "refreshing": refreshing, "lastAlert": lastAlert, "threshold": 20]
+        return ["surfaceWindowNumber":IslandModuleNavigation.shared.surfaceWindowNumber as Any? ?? NSNull(),"preferences": (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(preferences))) ?? [:], "agents": states, "refreshing": refreshing, "lastAlert": lastAlert, "threshold": 20]
     }
 }

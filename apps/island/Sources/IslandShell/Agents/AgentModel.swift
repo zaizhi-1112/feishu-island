@@ -18,8 +18,11 @@ public struct AgentSession: Codable, Equatable, Sendable {
     public var state: AgentState
     public var updatedAt: Double
     public var completionID: String?
-    public init(id: String, state: AgentState, updatedAt: Double, completionID: String? = nil) {
+    public var attentionID:String?
+    public var attentionReason:String?
+    public init(id: String, state: AgentState, updatedAt: Double, completionID: String? = nil, attentionID:String? = nil, attentionReason:String? = nil) {
         self.id = id; self.state = state; self.updatedAt = updatedAt; self.completionID = completionID
+        self.attentionID=attentionID;self.attentionReason=attentionReason
     }
 }
 
@@ -124,6 +127,8 @@ public struct AgentPreferences: Codable, Sendable {
 /// Kept independent of UI so threshold/reset/deduplication behavior can be verified with fixtures.
 public struct AgentAlertTracker {
     public var notifiedQuotaCycles: Set<String> = []
+    private var previousAttention:[String:String]=[:]
+    private var attentionInitialized=false
     private var previousSessions: [String: AgentSession] = [:]
     private var initialized = false
     private var previousCheckAt = 0.0
@@ -140,6 +145,16 @@ public struct AgentAlertTracker {
             return old.state == .working || old.state == .waiting
                 || (session.completionID != nil && session.completionID != old.completionID && session.updatedAt > previousCheckAt)
         }.count
+    }
+    public mutating func attentionRequests(_ sessions:[AgentSession],now:Double)->[AgentSession] {
+        let waiting=sessions.filter{$0.state == .waiting && now-$0.updatedAt<900 && $0.updatedAt<=now+60}
+        let fresh=waiting.filter { session in
+            let key=session.attentionID ?? "waiting"
+            return previousAttention[session.id] != key && (attentionInitialized || now-session.updatedAt<60)
+        }
+        previousAttention=Dictionary(waiting.map{($0.id,$0.attentionID ?? "waiting")},uniquingKeysWith:{$1})
+        attentionInitialized=true
+        return fresh
     }
     public mutating func lowQuotas(_ quotas: [AgentQuota], profile: String, now: Double) -> [AgentQuota] {
         quotas.filter { quota in
