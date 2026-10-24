@@ -65,3 +65,14 @@ enum AgentHookFiles {
             }
     }
 }
+
+struct AgentHookPolicy: Codable {
+    var enabled: Bool
+    var visibleIDs: [String]
+    static func save(enabled: Bool, visibleIDs: [String], root: URL = AgentHookFiles.root) throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        let url = root.appendingPathComponent("policy.json")
+        try JSONEncoder().encode(Self(enabled: enabled, visibleIDs: visibleIDs)).write(to: url, options: .atomic)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+}

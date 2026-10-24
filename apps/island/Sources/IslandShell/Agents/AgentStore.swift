@@ -43,6 +43,7 @@ final class AgentStore: ObservableObject {
             Task { @MainActor in await self?.poll() }
         }
         self.timer=timer;RunLoop.main.add(timer,forMode:.common)
+        saveStatusPolicy()
         updateActivity()
         Task { await connectSelectedStatuses(); await poll() }
     }
@@ -57,6 +58,7 @@ final class AgentStore: ObservableObject {
         preferences = next; preferences.revision += 1
         unviewedCompletionProfiles.formIntersection(next.enabled && next.completionAlerts ? Set(next.visibleIDs) : [])
         defaults.set(try JSONEncoder().encode(preferences), forKey: "preferences")
+        saveStatusPolicy()
         themeSource.replace(selectedSkin.theme)
         if let lastAlertProfile, !preferences.visibleIDs.contains(lastAlertProfile) {
             activities?.end("agent-alert"); lastAlert = ""; self.lastAlertProfile = nil
@@ -75,6 +77,11 @@ final class AgentStore: ObservableObject {
         if previousQuotaDisplay != preferences.quotaDisplayEnabled { lastQuotaAttempt = .distantPast; activityPrimary = "" }
         updateActivity()
         if preferences.quotaDisplayEnabled { Task { await poll() } }
+    }
+    private func saveStatusPolicy() {
+        guard Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview", !IslandRuntime.isSkinPreview else { return }
+        do { try AgentHookPolicy.save(enabled: preferences.enabled, visibleIDs: preferences.visibleIDs) }
+        catch { lastAlert = "状态事件开关未能保存，请重试。" }
     }
     private func connectSelectedStatuses() async {
         guard preferences.enabled else { return }

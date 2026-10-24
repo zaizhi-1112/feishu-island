@@ -8,5 +8,5 @@ swift run --sdk "$SDK" NavigationChecks --skin-preview
 
 swift run --sdk "$SDK" AgentChecks
 STATUS_CHECK_DIR="$(mktemp -d -t island-status-check)"
-swiftc -sdk "$SDK" Sources/IslandShell/Agents/AgentHookProtocol.swift scripts/agent-status-helper.swift -o "$STATUS_CHECK_DIR/agent-status-helper"
+swiftc -sdk "$SDK" Sources/IslandShell/Agents/AgentHookProtocol.swift Sources/IslandShell/Agents/AgentModel.swift Sources/IslandShell/Agents/AgentBridge.swift Sources/IslandShell/Agents/WorkBuddyPendingTool.swift scripts/agent-status-helper.swift -o "$STATUS_CHECK_DIR/agent-status-helper"
 python3 Tests/agent-status-helper-test.py "$STATUS_CHECK_DIR/agent-status-helper"

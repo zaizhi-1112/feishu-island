@@ -184,3 +184,8 @@
 - 本机已安装0.8.0 build40，原5条工作区任务与完整数据、飞书接收配置和5个授权helper保持；新增状态helper不替换授权helper。最终备份.build/local-install-backups/state40-final-20261025-022518，回执install40-final-before/after.json，合成链路agent40-installed/result.json及agent40-final-policy.json，均仅本机。接收enabled=true且140/142会话，Dot有效订阅1；只重启工作岛，未退出飞书，更新时本应用接收短暂停止后恢复。本机DMG SHA256 c419d0d7741399cbd5dbdfaccd69015ca05a82def497ee44f4c52f40585f10a3；源码同步PR8，未合main或更新公司安装入口，新包待本人体验。
 
 - build40末次客户端核对：Claude桌面能进入新对话，Code模式仅显示“取得Claude Code”，没有可派发的Code任务入口；未购买或改订阅。WorkBuddy已打开登录流程并请本人处理，未代输密码或接受协议。原生客户端可用条件与本机状态事件接入分开记录。
+
+- 2026-10-25 build41：本人回复WorkBuddy已登录后，用真实5.3.14客户端提交合成任务。首次运行/完成通过，但问答实际暴露2秒Hook超时及permission_prompt误标确认；移除客户端命令Hook的2秒配置，观测器自己设1秒静默放行。stdin最多1MiB，完整JSON即可退出、半截最多350ms，不等EOF；监测策略独立0600原子文件，Hook不调用偏好IPC。WorkBuddyPendingTool只对事件对应的session_id定位日志，读末尾最多512KiB工具名/callId/结果状态，目录上限512、不保存正文参数；有账号快照时原数据库账号隔离保留、每轮待处理最多8条。
+- build41最终实测：原生合成问题与岛内“等你输入”一致，回答A后返回“输入提醒最终通过41”；最终版运行/输入/继续/完成弹幕入队和播放从0递增到1/2/3/4且曾可见。前一轮超时修复后实际等待3m6s也成功返回。原测试直接运行返回“WorkBuddy真实联调完成40”。这是真实客户端/真实模型处理合成任务，不是注入状态。
+- 审批仍未真实触发：5.3.14无EnterPlanMode/ExitPlanMode，默认权限直接放行安全打印及一份独立临时文件。没有改安全模式、没有代批准，不能把它算作真人审批通过；审批提示维持合成验证边界。临时诊断Hook只移除自己的命令，原配置/其他Hooks保留；临时文件已移入废纸篓，没有工作岛任务或到期提醒残留。
+- 623Agent、987融合、69独立helper与11打包检查、Release和白名单DMG审计通过。本人本机已装build41，原5条工作区任务及完整数据、接收配置和5个授权helper保持，接收140/142、Dot有效订阅1；只重启工作岛未退出飞书，接收随更新短暂停止后恢复。备份.build/local-install-backups/state41-final-20261025-030117，脱敏回执install41-final-before/after.json；真实监测证据在忽略的workbuddy-live41-*及workbuddy-live40/verified-summary.json。DMG SHA256 879817671616185ed889cdfbff814fb9437a9af2c0ecfcf829317baf240e9953，仅本机待体验。源码同步开发分支PR8，不合main、不更新公司入口；Claude原模型/客户端限制未变。

@@ -27,11 +27,13 @@ enum WorkBuddyReader {
         let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
         sqlite3_bind_text(statement, 1, uid, -1, transient)
         var result: [AgentSession] = []
+        var hints: [String: WorkBuddyPendingTool.Hint] = [:]
+        var historyBudget = 8
         while sqlite3_step(statement) == SQLITE_ROW {
             guard let idRaw = sqlite3_column_text(statement, 0), let stateRaw = sqlite3_column_text(statement, 1) else { continue }
             let id = String(cString: idRaw), value = String(cString: stateRaw).lowercased()
             let timestamp = sqlite3_column_double(statement, 2) / 1000
-            let state: AgentState
+            var state: AgentState
             switch value {
             case "running", "in_progress", "working", "planning": state = .working
             case "completed": state = .completed
@@ -43,10 +45,21 @@ enum WorkBuddyReader {
             default: continue
             }
             // The database is authoritative. Old rows remain historical and do not light up the island.
-            let reason = state == .waiting ? (value.contains("permission") || value.contains("approval") ? "approval" : "input") : nil
-            result.append(AgentSession(id: AgentHookRecord.digest(id), state: state, updatedAt: timestamp, attentionID: reason.map { _ in value }, attentionReason: reason))
+            var reason = state == .waiting ? (value.contains("permission") || value.contains("approval") ? "approval" : "input") : nil
+            var attentionID = reason.map { _ in value }
+            if historyBudget > 0, (state == .waiting || value == "pending" || value == "waiting"), now - timestamp < 900, timestamp <= now + 60 {
+                historyBudget -= 1
+                if let hint = WorkBuddyPendingTool.hint(sessionID: id, root: root) {
+                    state = .waiting; reason = hint.reason; attentionID = hint.id; hints[AgentHookRecord.digest(id)] = hint
+                }
+            }
+            result.append(AgentSession(id: AgentHookRecord.digest(id), state: state, updatedAt: timestamp, attentionID: attentionID, attentionReason: reason))
         }
-        return AgentStatusConnection.merge(database: result, events: root == WorkBuddyReader.root ? AgentStatusConnection.sessions(provider: "workbuddy", now: now) : [], now: now)
+        return AgentStatusConnection.merge(database: result, events: root == WorkBuddyReader.root ? AgentStatusConnection.sessions(provider: "workbuddy", now: now) : [], now: now).map { item in
+            var item = item
+            if item.state == .waiting, let hint = hints[item.id] { item.attentionReason = hint.reason; item.attentionID = hint.id }
+            return item
+        }
     }
     static func quotas(now: Double) throws -> [AgentQuota] {
         let client = try WorkBuddyIPC(discovery: root.appendingPathComponent("wbipc/endpoint.json"))

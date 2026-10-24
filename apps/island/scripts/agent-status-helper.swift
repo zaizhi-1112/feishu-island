@@ -49,7 +49,7 @@ import Darwin
                         guard !kept.isEmpty else { return nil }
                         var copy = entry; copy["hooks"] = kept; return copy
                     }
-                    var entry: [String: Any] = ["hooks": [["type": "command", "command": command, "timeout": 2]]]
+                    var entry: [String: Any] = ["hooks": [["type": "command", "command": command]]]
                     if ["PreToolUse", "PostToolUse", "PostToolUseFailure"].contains(event) { entry["matcher"] = ".*" }
                     if event == "Notification" { entry["matcher"] = "permission_prompt|elicitation_dialog|agent_needs_input|elicitation_complete|elicitation_response" }
                     entries.append(entry); hooks[event] = entries
@@ -65,16 +65,27 @@ import Darwin
                     try write(result, to: settings)
                 }
             } else if args[1] == "--record" {
+                // Passive observers must never stall an interactive tool or ask for a decision.
+                signal(SIGALRM) { _ in _exit(0) }; alarm(1)
                 if testRoot == nil {
-                    let defaults = UserDefaults(suiteName: "local.zaizhi.feishu-island.preview.agents")
-                    defaults?.synchronize()
-                    guard let data = defaults?.data(forKey: "preferences"),
-                          let preferences = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                          preferences["enabled"] as? Bool == true,
-                          (preferences["visibleIDs"] as? [String] ?? []).contains(provider) else { return }
+                    let policyURL = AgentHookFiles.root.appendingPathComponent("policy.json")
+                    try safeFile(policyURL)
+                    guard let data = try? Data(contentsOf: policyURL), data.count < 4096,
+                          let policy = try? JSONDecoder().decode(AgentHookPolicy.self, from: data),
+                          policy.enabled, policy.visibleIDs.contains(provider) else { return }
                 }
                 // Parse once, discard all content. No stdout, stderr, decisions or network I/O.
-                let input = FileHandle.standardInput.readData(ofLength: 1048577)
+                var input = Data()
+                let deadline = Date().addingTimeInterval(0.35)
+                while input.count <= 1048576, Date() < deadline {
+                    var descriptor = pollfd(fd: STDIN_FILENO, events: Int16(POLLIN), revents: 0)
+                    guard poll(&descriptor, 1, 50) > 0 else { continue }
+                    var buffer = [UInt8](repeating: 0, count: 16384)
+                    let count = read(STDIN_FILENO, &buffer, buffer.count)
+                    guard count > 0 else { break }
+                    input.append(contentsOf: buffer.prefix(count))
+                    if (try? JSONSerialization.jsonObject(with: input)) != nil { break }
+                }
                 guard input.count <= 1048576, let object = try JSONSerialization.jsonObject(with: input) as? [String: Any], let session = object["session_id"] as? String, !session.isEmpty, session.utf8.count <= 256 else { return }
                 let root = testRoot ?? AgentHookFiles.root
                 try privateDirectory(root)
@@ -86,7 +97,15 @@ import Darwin
                 guard flock(fd, LOCK_EX | LOCK_NB) == 0 else { return }; defer { flock(fd, LOCK_UN) }
                 try safeFile(file)
                 let old = (try? Data(contentsOf: file)).flatMap { try? JSONDecoder().decode(AgentHookRecord.self, from: $0) }
-                if let record = AgentHookRecord.reduce(object, previous: old, now: Date().timeIntervalSince1970) { try write(JSONEncoder().encode(record), to: file) }
+                if var record = AgentHookRecord.reduce(object, previous: old, now: Date().timeIntervalSince1970) {
+                    if provider == "workbuddy", record.state == "waiting" {
+                        let source = testRoot?.appendingPathComponent("source-workbuddy") ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".workbuddy")
+                        if let hint = WorkBuddyPendingTool.hint(sessionID: session, root: source) {
+                            record.attentionReason = hint.reason; record.attentionID = hint.id
+                        }
+                    }
+                    try write(JSONEncoder().encode(record), to: file)
+                }
             } else { exit(1) }
         } catch {
             // Recording must never block or approve an Agent action. Install errors are explicit.
