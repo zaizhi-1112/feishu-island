@@ -14,7 +14,11 @@ final class IslandModuleNavigation: ObservableObject {
         if appState !== coordinator.appState { appState = coordinator.appState }
     }
     func openFeishu() { coordinator?.switchModule(to: IslandHost.feishuID) }
-    func openWorkspace() { coordinator?.switchModule(to: IslandHost.workspaceID) }
+    func openAgent() { coordinator?.switchModule(to: IslandHost.agentID) }
+    func openWorkspace() {
+        if WorkspaceStore.shared.boardTab == 0 { WorkspaceStore.shared.boardTab = 1 }
+        coordinator?.switchModule(to: IslandHost.workspaceID)
+    }
     func toggleKeepOpen() { coordinator?.toggleKeepNookOpen() }
 }
 

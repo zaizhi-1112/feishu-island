@@ -143,6 +143,7 @@ struct WorkspaceView: View {
     var desktop = false
     var pageOverride: Int? = nil
     var onTaskCreated: (() -> Void)? = nil
+    var agentComposer = false
     private var currentTab: Int { pageOverride ?? store.boardTab }
     @ObservedObject var dotPairing = SettingsServer.shared.dotPairing
     @ObservedObject var dotTunnel = DotTunnel.shared
@@ -156,7 +157,10 @@ struct WorkspaceView: View {
     private var shownTasks:[WorkItem] { store.disk.items.filter { item in taskFilter == 2 ? item.archivedAt != nil : item.archivedAt == nil && (taskFilter == 1 ? item.state == "done" : item.state != "done") } }
     var body: some View {
         Group {
-            if desktop {
+            if agentComposer {
+                VStack(alignment:.leading,spacing:8) { errorMessage; if desktop { materials } else { quickMaterials } }
+                    .font(.system(size:12)).frame(maxWidth:.infinity,alignment:.leading)
+            } else if desktop {
                 VStack(alignment:.leading,spacing:10) {
                     if pageOverride == nil { navigation }
                     errorMessage
@@ -183,6 +187,9 @@ struct WorkspaceView: View {
                 }
             }
         }.foregroundStyle(.white)
+            .onChange(of:store.boardTab) { _,tab in
+                if !desktop && !agentComposer && tab == 0 { IslandModuleNavigation.shared.openAgent() }
+            }
             .onAppear { if Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview", !IslandRuntime.isSkinPreview, !ProcessInfo.processInfo.arguments.contains("--self-test") { do { try dotPairing.load() } catch { store.error=error.localizedDescription } } }
             .onChange(of:store.draftProject) { _,_ in dotCopied=false; agentCopied=false }
             .confirmationDialog("连接Dot到「\(confirmedProject)」？",isPresented:$confirmDot,titleVisibility:.visible) {
@@ -195,7 +202,9 @@ struct WorkspaceView: View {
     }
     private var navigation: some View {
             HStack(spacing:4) {
-                ForEach(Array(["材料","待办","中台"].enumerated()),id:\.offset) { i,title in
+                Button("Agent") { IslandModuleNavigation.shared.openAgent() }.buttonStyle(.plain).padding(.horizontal,10).padding(.vertical,6)
+                ForEach([1,2],id:\.self) { i in
+                    let title = i == 1 ? "待办" : "中台"
                     Button(title) { store.boardTab = i }.buttonStyle(.plain).padding(.horizontal,10).padding(.vertical,6).background(store.boardTab == i ? Color.white.opacity(0.16) : .clear,in:Capsule())
                 }
                 Spacer()
@@ -226,9 +235,9 @@ struct WorkspaceView: View {
         VStack(alignment:.leading,spacing:8) {
             HStack(spacing:8) {
                 TextField("项目",text:$store.draftProject).textFieldStyle(.roundedBorder).accessibilityLabel("当前项目")
-                Picker("交给谁",selection:$store.draftService) {
+                if !agentComposer { Picker("交给谁",selection:$store.draftService) {
                     Text(WorkAI.displayName).tag("codex"); Text("豆包工作").tag("doubao"); Text("Dot").tag("dot")
-                }.labelsHidden().frame(width:110).accessibilityLabel("处理工具")
+                }.labelsHidden().frame(width:110).accessibilityLabel("处理工具") }
             }
             WorkInputEditor(text:$store.draftText,pasteImage:{store.attachImage($0)})
                 .padding(6).frame(height:82).background(.white.opacity(0.08),in:RoundedRectangle(cornerRadius:8)).accessibilityLabel("材料输入")
@@ -297,9 +306,9 @@ struct WorkspaceView: View {
                 }.frame(height:62)
             }
             HStack(spacing:12) {
-                Picker("交给谁",selection:$store.draftService) {
+                if !agentComposer { Picker("交给谁",selection:$store.draftService) {
                     Text(WorkAI.displayName).tag("codex"); Text("豆包工作").tag("doubao"); Text("Dot").tag("dot")
-                }
+                } }
                 Picker("处理方式",selection:$store.draftRecipe) { ForEach(store.disk.recipes) { Text($0.title).tag($0.id) } }
             }.font(.system(size:13))
             Button { WorkspaceWindow.shared.openProcessing(store:store) } label: {
@@ -511,5 +520,9 @@ struct WorkspaceView: View {
 
 /// A concrete root keeps the macOS 15 Sendable boundary at the module closure.
 struct WorkspaceHomeSurface: View, Sendable {
-    var body:some View { WorkspaceDropSurface(store:.shared) { WorkspaceView(store:.shared) }.modifier(IslandReadingModule(moduleID:IslandHost.workspaceID)) }
+    var body:some View {
+        WorkspaceDropSurface(store:.shared) { WorkspaceView(store:.shared) }
+            .modifier(IslandReadingModule(moduleID:IslandHost.workspaceID))
+            .onAppear { if WorkspaceStore.shared.boardTab == 0 { WorkspaceStore.shared.boardTab = 1 } }
+    }
 }

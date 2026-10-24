@@ -15,7 +15,10 @@ struct IntegrationTopBar: View {
                     Button { bar.goBack() } label: { Image(systemName: "chevron.left").frame(width: 24,height:24) }.help("返回")
                 } else if let switcher = bar.moduleSwitcher {
                     ForEach(switcher.modules.filter { [IslandHost.workspaceID,IslandHost.feishuID,IslandHost.agentID].contains($0.id) }) { module in
-                        Button { switcher.switchTo(module.id) } label: {
+                        Button {
+                            if module.id == IslandHost.workspaceID { IslandModuleNavigation.shared.openWorkspace() }
+                            else { switcher.switchTo(module.id) }
+                        } label: {
                             Image(systemName: module.icon).frame(width: 26,height:24)
                                 .foregroundStyle(switcher.activeID == module.id ? theme.accent : theme.secondaryLabel)
                                 .overlay(alignment:.bottom) { if attention.hints[module.id] != nil { Circle().fill(theme.accent).frame(width:4,height:4).offset(y:3) } }

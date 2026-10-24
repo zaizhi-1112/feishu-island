@@ -30,7 +30,7 @@ import WebKit
 struct WorkspaceDesk: View {
     @ObservedObject var store: WorkspaceStore
     @ObservedObject var navigation: WorkspaceDeskNavigation
-    private let titles=["材料","待办与提醒","虚实中台","处理与归档","账号与消息","冲屏素材","外观与交互","Agent 与皮肤"]
+    private let titles=["Agent","待办与提醒","虚实中台","处理与归档","账号与消息","冲屏素材","外观与交互","Agent 与皮肤"]
     private let symbols=["tray.and.arrow.down","checklist","square.grid.2x2","slider.horizontal.3","bubble.left.and.bubble.right","play.rectangle","paintbrush","sparkles"]
     var body: some View {
         HStack(spacing:0) {
@@ -46,7 +46,8 @@ struct WorkspaceDesk: View {
             VStack(alignment:.leading,spacing:0) {
                 HStack { Text(titles[navigation.page]).font(.system(size:22,weight:.semibold)); Spacer(); Text("飞书工作岛").font(.system(size:11)).foregroundStyle(.secondary) }.padding(.horizontal,24).padding(.vertical,20)
                 Divider()
-                if navigation.page == 4 { WorkspaceAccountSettings() }
+                if navigation.page == 0 { ScrollView { AgentWorkspaceSurface(agents:.shared,workspace:store,desktop:true,onTaskCreated:{navigation.page=1}) } }
+                else if navigation.page == 4 { WorkspaceAccountSettings() }
                 else if navigation.page == 5 { ScrollView { WorkspaceReminderLibrary(store:store).padding(24) } }
                 else if navigation.page == 7 { ScrollView { IntegrationAgentSettings().padding(24) } }
                 else if navigation.page == 6 { ScrollView { WorkspaceShellSettings().padding(24) } }

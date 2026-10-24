@@ -5,16 +5,17 @@ import SwiftUI
 @MainActor
 final class AgentModule: NookModule {
     nonisolated static let info: NookModuleDescriptor = {
-        var info = NookModuleDescriptor(id: IslandHost.agentID, displayName: "Agent状态", icon: "sparkles", backgroundPolicy: .stayResident)
+        var info = NookModuleDescriptor(id: IslandHost.agentID, displayName: "Agent", icon: "sparkles", backgroundPolicy: .stayResident)
         info.loadsAtLaunch = true; return info
     }()
     var descriptor: NookModuleDescriptor { Self.info }
     init(context: NookModuleContext) { AgentStore.shared.start(activities: context.services.resolve(NookLiveActivitiesKey.self)) }
     func makeConfiguration() -> NookConfiguration {
         var config = IslandHost.baseConfiguration(title: "Agent状态", symbol: "sparkles")
-        config.setCompactLeading { AgentCompanionGlyph(store: .shared) }
-        config.setCompactTrailing { AgentCompactView(store: .shared) }
-        config.setHome { AgentPanel(store: .shared) }
+        config.setCompactLeading { AgentWorkCompactGlyph(workspace:.shared) }
+        config.setCompactTrailing { AgentWorkCompactLabel(workspace:.shared) }
+        config.allowsHorizontalModuleSwipe = false
+        config.setHome { AgentWorkHomeSurface() }
         return config
     }
 }

@@ -43,7 +43,7 @@ public enum IslandHost {
             host.register(HomeModule.info) { HomeModule(context: $0) }
             host.register(SampleModule.info) { SampleModule(context: $0) }
         }
-        host.defaultModule = workspaceID
+        host.defaultModule = agentID
         return host
     }
 
