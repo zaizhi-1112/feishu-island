@@ -42,6 +42,7 @@ final class AccountReader {
     private var gray: [String] = []
     private var hidden: [String] = []
     private let cli: URL
+    private let profile: String
     private var pollDelay: TimeInterval
     private let pageDelay: TimeInterval
     private let concurrency: Int
@@ -62,7 +63,8 @@ final class AccountReader {
             self.post(token) { completion(unread) }
         }
     }
-    init(cli: URL? = nil, pollDelay: TimeInterval = 3, pageDelay: TimeInterval = 0.3, concurrency: Int = 3, catalogInterval: TimeInterval = 60, requestTimeout: TimeInterval = 8, clock: ServerClock = ServerClock()) {
+    init(cli: URL? = nil, profile: String = "", pollDelay: TimeInterval = 3, pageDelay: TimeInterval = 0.3, concurrency: Int = 3, catalogInterval: TimeInterval = 60, requestTimeout: TimeInterval = 8, clock: ServerClock = ServerClock()) {
+        self.profile = profile
         self.cli = cli ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".local/bin/lark-cli")
         self.pollDelay = pollDelay; self.pageDelay = pageDelay
         self.concurrency = max(2, concurrency); self.catalogInterval = catalogInterval
@@ -111,11 +113,17 @@ final class AccountReader {
     private func call(_ args: [String], _ token: Int) throws -> [String: Any] {
         requestSlots.wait(); defer { requestSlots.signal() }
         guard alive(token) else { throw AccountFailure(detail: "接收已停止") }
+        let company = profile == CompanyConnection.profile
+        let credential = company ? try CompanyConnection.shared.credential(.receive) : nil
+        guard alive(token) else { throw AccountFailure(detail: "接收已停止") }
+        if let credential, args == ["auth", "status", "--json"] {
+            return ["identities":["user":["available":true,"openId":credential.openID,"userName":credential.userName]]]
+        }
         let p = Process(); p.executableURL = cli
-        p.arguments = args
-        var env = ProcessInfo.processInfo.environment
+        p.arguments = (profile.isEmpty || company ? [] : ["--profile", profile]) + args
+        var env = credential?.environment(ProcessInfo.processInfo.environment) ?? ProcessInfo.processInfo.environment
         env["LARKSUITE_CLI_NO_UPDATE_NOTIFIER"] = "1"; env["LARKSUITE_CLI_NO_SKILLS_NOTIFIER"] = "1"
-        p.environment = env; p.standardInput = FileHandle.nullDevice
+        p.environment = FeishuTransport.shared.environment(env); p.standardInput = FileHandle.nullDevice
         let pipe = Pipe(); let errors = Pipe(); p.standardOutput = pipe; p.standardError = errors
         // Foundation Process retains Pipe handles after exit. Close all parent
         // descriptors explicitly; polling otherwise exhausts the GUI process.

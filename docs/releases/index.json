@@ -1,0 +1,66 @@
+{
+  "updated": "2026-10-23",
+  "policy": "Local test and user acceptance before installer publication. Main requires both owners.",
+  "releases": [
+    {
+      "version": "0.7.0",
+      "build": "29",
+      "artifact": "feishu-island-0.7.0-build29-arm64.dmg",
+      "sha256": "b658d2e092f61b86ad43e1f25797211f9f789e5998480d455920364df5e5b141",
+      "status": "已发布历史",
+      "companyRelease": 251,
+      "githubRelease": "draft v0.7.0-build29",
+      "notarized": false
+    },
+    {
+      "version": "0.7.0",
+      "build": "30",
+      "artifact": "feishu-island-0.7.0-build30-arm64.dmg",
+      "sha256": "d14573108a53b8be16e4441b80a4274bf1e27789814d6a511417507db4806801",
+      "status": "公司当前版",
+      "companyRelease": 253,
+      "githubRelease": "draft v0.7.0-build30",
+      "notarized": false
+    },
+    {
+      "version": "0.7.0",
+      "build": "31",
+      "artifact": "feishu-island-0.7.0-build31-arm64.dmg",
+      "sha256": "3ef5f045da05be2cbd34c7d769781afe6a33525fefa82c82225871bcbb3781db",
+      "status": "本地候选，未发布",
+      "companyRelease": null,
+      "githubRelease": null,
+      "notarized": false
+    },
+    {
+      "version": "0.7.0",
+      "build": "32",
+      "artifact": "feishu-island-0.7.0-build32-arm64.dmg",
+      "sha256": "434d59f8509cf943aac34c8a2ce789452f448de0773f63332c60a25a7db5fac4",
+      "status": "本地候选，待本人体验确认",
+      "companyRelease": null,
+      "githubRelease": null,
+      "notarized": false
+    },
+    {
+      "version": "0.7.0",
+      "build": "33",
+      "artifact": "feishu-island-0.7.0-build33-arm64.dmg",
+      "sha256": "e6e8f8d98169324a3a5883277a662bcebb8003cb45d16fc4760e586504854d12",
+      "status": "本地候选，待本人体验确认",
+      "companyRelease": null,
+      "githubRelease": null,
+      "notarized": false
+    },
+    {
+      "version": "0.7.0",
+      "build": "34",
+      "artifact": "feishu-island-0.7.0-build34-arm64.dmg",
+      "sha256": "1d939e843250daae8ac5b84ab57c177f1d7e936418c2b80561f52e59a1e49bf2",
+      "status": "本地候选，待本人体验确认",
+      "companyRelease": null,
+      "githubRelease": null,
+      "notarized": false
+    }
+  ]
+}

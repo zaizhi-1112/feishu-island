@@ -36,3 +36,23 @@ OpenNook's modifications to the kit are licensed under the MIT License - see
 `LICENSE-MIT-NOOKSURFACE` - preserving compatibility with the original
 DynamicNotchKit license and keeping the chrome freely usable for any purpose,
 including downstream forks.
+
+## Local Feishu Island host patch (2026-10-21)
+
+`NookSurface/Internal/NookPanel.swift`: while a native file drag is accepted over
+this island, suppress the source's drag-image components so the host's waiting
+portal is visible. AppKit automatically restores the source drag images when the drag leaves or
+is cancelled; the host does not cache thumbnails. No file data is changed,
+no thumbnail is persisted, and normal mouse hit testing stays transparent.
+The existing MIT notice and upstream license remain in effect.
+
+`NookSurface/Nook.swift`: an edge-docked compact surface now honors the host's
+explicit `.expand` hover intent. Leaving cancels the pending delay; existing
+hover-exit compaction and explicit presentation pins remain unchanged. This
+removes the forced click between edge reveal and the host's expanded content.
+
+2026-10-23: Delay hover-exit collapse by 650ms, recheck real panel bounds, retain keyboard-focus interaction, and replay deferred exit after focus ends. No changes to message access or authentication.
+
+2026-10-23 build33: Keyboard focus no longer pins the island after pointer exit. Preserve the 650ms exit grace, measure visible chrome bounds rather than the half-screen transparent host panel, and poll pointer exits while the text editor retains keyboard focus. Explicit presentation pins and drag protection remain.
+
+2026-10-24 build34: Include visible child windows in hover interaction bounds; native menu tracking temporarily defers hover exit until the menu closes. Reminder editing in the host island uses inline content instead of a detached popover. No change to message access or authentication.

@@ -140,5 +140,11 @@ public struct FeishuMessage: Identifiable, Equatable, Sendable {
         return components.url
     }
     public var source: String { chatKind == "p2p" ? senderName : chatName }
+    var danmuText: String {
+        let chat = chatName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sender = senderName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let label = chatKind == "p2p" || chat == sender || chat.isEmpty ? sender : sender.isEmpty ? chat : "\(chat) · \(sender)"
+        return label.isEmpty ? text : "\(label)：\(text)"
+    }
     public var reason: String { importanceReason(followed: [chatID]) ?? "关注" }
 }

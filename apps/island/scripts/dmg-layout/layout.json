@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "appName": "飞书工作岛预览版.app",
+  "defaultView": "icon",
+  "alwaysOpenInIconView": true,
+  "windowWidth": 600,
+  "windowHeight": 360,
+  "iconSize": 96,
+  "positions": {
+    "飞书工作岛预览版.app": [
+      150,
+      160
+    ],
+    "Applications": [
+      450,
+      160
+    ]
+  },
+  "sha256": "0d37d61a66e884afe15b84f27ae7e8c87f41737d094f0429967836719c7ddf23",
+  "generator": "ds_store==1.3.1"
+}

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>柚子岛 · 设置</title><meta name="description" content="在一个地方，管理柚子岛的消息提醒和功能模块。"><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>飞书工作岛 · 设置</title><meta name="description" content="在一个地方，管理飞书工作岛的消息提醒和功能模块。"><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
 <body>
 <svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
 <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h7m5 0h4M4 17h3m5 0h8"/><circle cx="13" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
@@ -16,21 +16,33 @@
 <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.3A8.5 8.5 0 0 1 9.7 4 8.5 8.5 0 1 0 20 14.3Z"/></symbol><symbol id="i-display" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></symbol><symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol></defs></svg>
 <div class="shell">
 <aside class="sidebar">
-  <a class="brand" href="#feishu" aria-label="柚子岛设置首页"><span class="brand-mark"><i></i><b></b></span><span>柚子岛<small>DESKTOP COMPANION</small></span></a>
+  <a class="brand" href="#feishu" aria-label="飞书工作岛设置首页"><span class="brand-mark"><i></i><b></b></span><span>飞书工作岛<small>DESKTOP COMPANION</small></span></a>
   <div class="nav-label">设置</div>
   <nav aria-label="设置分类">
+    <button class="nav-item" data-page="workspace"><svg><use href="#i-grid"/></svg>材料与待办</button>
     <button class="nav-item" data-page="general"><svg><use href="#i-sliders"/></svg>通用设置<span class="nav-note">预留</span></button>
     <button class="nav-item active" data-page="feishu" aria-current="page"><svg><use href="#i-plane"/></svg>飞书消息<span class="nav-dot"></span></button>
     <button class="nav-item" data-page="modules"><svg><use href="#i-grid"/></svg>功能模块</button>
   </nav>
   <div class="sidebar-note"><span class="mini-label">常用功能，抬手即达。</span><p>消息与工具，留在桌面顶边。</p></div>
-  <div class="sidebar-bottom"><div class="local-status"><span class="status-dot" id="local-dot"></span><span id="local-state">正在连接本机</span></div><div class="theme-switch" role="group" aria-label="页面外观"><button data-theme-mode="dark" aria-label="深色外观" aria-pressed="false" title="深色"><svg><use href="#i-moon"/></svg></button><button data-theme-mode="system" aria-label="跟随系统外观" aria-pressed="true" title="跟随系统"><svg><use href="#i-display"/></svg></button><button data-theme-mode="light" aria-label="浅色外观" aria-pressed="false" title="浅色"><svg><use href="#i-sun"/></svg></button></div><div class="version">柚子岛 <span id="version">—</span><span>设置面板</span></div></div>
+  <div class="sidebar-bottom"><div class="local-status"><span class="status-dot" id="local-dot"></span><span id="local-state">正在连接本机</span></div><div class="theme-switch" role="group" aria-label="页面外观"><button data-theme-mode="dark" aria-label="深色外观" aria-pressed="false" title="深色"><svg><use href="#i-moon"/></svg></button><button data-theme-mode="system" aria-label="跟随系统外观" aria-pressed="true" title="跟随系统"><svg><use href="#i-display"/></svg></button><button data-theme-mode="light" aria-label="浅色外观" aria-pressed="false" title="浅色"><svg><use href="#i-sun"/></svg></button></div><div class="version">飞书工作岛 <span id="version">—</span><span>设置面板</span></div></div>
 </aside>
 <main>
   <header class="topbar"><span>设置<span class="crumb">/</span><span id="breadcrumb">飞书消息</span></span><span class="local-chip"><span></span>仅在这台Mac上生效</span></header>
-  <div id="connection-error" class="connection-error" role="alert" hidden><span id="connection-error-message">无法连接柚子岛。请先打开应用，再重新连接。</span><button id="reload">重新连接</button></div>
+  <div id="connection-error" class="connection-error" role="alert" hidden><span id="connection-error-message">无法连接飞书工作岛。请先打开应用，再重新连接。</span><button id="reload">重新连接</button></div>
   <section class="page" id="page-feishu">
     <div class="page-title"><div><div class="eyebrow">少一点打扰，多一点专注</div><h1>飞书消息</h1><p>选择需要提醒的消息，为联系人和群聊设置例外。</p></div><span class="module-badge"><svg><use href="#i-plane"/></svg>已接入</span></div>
+    <section class="card fusion-controls" aria-label="接收与灵动岛">
+      <div class="fusion-heading"><h2>接收与灵动岛</h2><button class="secondary" id="connect-agent">接入 Agent</button></div>
+      <p>飞书消息进入灵动岛；开启桌面弹幕后，Agent完成和待办提醒也可飘过桌面。</p>
+      <p class="fusion-help">首次使用：连接你自己的飞书，完成授权后启用接收或归档。</p><p><button class="primary" id="company-open">连接自己的飞书</button> <button class="secondary" id="company-receive">启用公司接收连接</button> <button class="secondary" id="company-archive">启用公司归档连接</button></p><p id="company-status" class="fusion-help" role="status"></p><details><summary>已有本机连接 / 高级设置</summary><div class="fusion-fields"><label>飞书 CLI 路径<input id="cli-path" autocomplete="off" spellcheck="false" placeholder="本机官方 lark-cli 的绝对路径"></label><label>账号配置名<input id="cli-profile" autocomplete="off" spellcheck="false" placeholder="feishu-island（留空为默认账号）"></label></div>
+      <p><button class="secondary" id="company-disable-receive">停用公司接收</button> <button class="secondary" id="company-disable-archive">停用公司归档</button> <button class="secondary" id="company-reset">重新登录公司账号</button></p></details><p class="fusion-help" id="auth-hint">连接配置只指向你本人的只读授权，不复制他人的凭据。</p>
+      <div class="fusion-actions"><button class="secondary" role="switch" aria-checked="false" data-danmu="enabled">消息与 Agent 弹幕</button><button class="secondary" role="switch" aria-checked="false" data-danmu="paused">暂停弹幕</button><button class="secondary" id="danmu-demo">岛内合成演示</button></div>
+      <p class="fusion-help" id="delivery-status" aria-live="polite">正在读取本次运行的投递计数…</p>
+      <p class="fusion-help">短消息可飘过桌面，长消息留在岛内翻页。飞书弹幕遵守原提醒规则；Agent提醒标明来源，共用暂停、静音和锁屏保护，不遮挡鼠标。</p>
+      <div class="fusion-fields"><label>阅读字号 <output id="danmu-font-value">28</output><input id="danmu-font" type="range" min="22" max="44" value="28"></label><label>配色<select id="danmu-theme"><option value="system">默认</option><option value="night">夜色</option><option value="paper">白底黑字</option><option value="custom">Agent 配色</option></select></label></div>
+      <p class="fusion-help">外观在下方“保存设置”后生效。全部消息保留在灵动岛列表；重要消息进入岛内阅读队列。普通群默认只收录，可为指定群选择“全部提醒”，仍尊重免打扰。静音继续收录但不弹出阅读；停止接收会清空待阅读队列。</p>
+    </section>
     <div class="tab-bar" role="tablist" aria-label="飞书提醒规则">
       <button class="tab active" role="tab" aria-selected="true" data-tab="defaults">默认规则</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="people">指定联系人<span id="people-count">0</span></button>
@@ -40,7 +52,7 @@
     <div class="columns">
       <div class="main-column">
         <div id="defaults-panel" role="tabpanel">
-          <section class="receiving-card"><div class="icon-box"><svg><use href="#i-bell"/></svg></div><div class="receiving-copy"><h2>接收飞书消息</h2><p>在柚子岛中查看新消息，按下方规则提醒。</p></div><button class="switch" role="switch" aria-checked="true" aria-label="接收飞书消息" data-setting="enabled" disabled><span></span></button></section>
+          <section class="receiving-card"><div class="icon-box"><svg><use href="#i-bell"/></svg></div><div class="receiving-copy"><h2>接收飞书消息</h2><p>在飞书工作岛中查看新消息，按下方规则提醒。</p></div><button class="switch" role="switch" aria-checked="true" aria-label="接收飞书消息" data-setting="enabled" disabled><span></span></button></section>
           <section class="card rules-card"><div class="section-heading"><div><h2>默认提醒范围</h2><p>开启后，消息进入“重要”并触发岛上提示。</p></div><span class="pill" id="rules-count">4类消息</span></div>
             <div class="rule"><span class="rule-symbol">@</span><div><h3>@我的消息</h3><p>有人在群里直接提到你。</p></div><button class="switch" role="switch" aria-checked="true" aria-label="@我的消息" data-setting="mentionsMe" disabled><span></span></button></div>
             <div class="rule"><span class="rule-symbol"><svg><use href="#i-group"/></svg></span><div><h3>@所有人的消息<span class="new-label">已支持</span></h3><p>群内面向全员发布的通知。</p></div><button class="switch" role="switch" aria-checked="true" aria-label="@所有人的消息" data-setting="mentionsAll" disabled><span></span></button></div>
@@ -66,7 +78,14 @@
       </aside>
     </div>
   </section>
-  <section class="page alternate-page" id="page-general" hidden><div class="eyebrow">让柚子岛适合你的习惯</div><h1>通用设置</h1><p class="page-description">统一入口已留好，后续逐步接入显示、外观与快捷键。</p><div class="card general-list"><div><svg><use href="#i-sliders"/></svg><section><h2>显示与外观</h2><p>目前可在岛内齿轮设置中调整。</p></section><span class="outline-tag">待接入网页</span></div><div><span class="keyboard-icon">⌘</span><section><h2>快捷键与交互</h2><p>现有边缘隐藏、悬停露出、点击展开的交互保持不变。</p></section><span class="outline-tag">待接入网页</span></div></div><div class="quiet-note"><svg><use href="#i-info"/></svg><p>这个页面先承载设置结构；可操作的功能目前在“飞书消息”中。</p></div></section>
+  <section class="page alternate-page" id="page-workspace" hidden>
+    <h1>材料与待办</h1><p>原生灵动岛里的工作台。任务与结果保存在这台Mac；应用运行时提醒，退出后到期的待办在下次打开时补提醒。</p>
+    <section class="card workspace-card"><h2>连接与运行</h2><p id="workspace-state" role="status">读取中…</p><button class="primary" id="workspace-open">打开岛内工作台</button> <button class="secondary" id="workspace-connect">连接本人中台与飞书数据</button> <button class="secondary" id="workspace-disconnect">断开中台</button><p>连接走本人中台授权。凭据保存在macOS钥匙串；首页卡片的数据仅内存缓存，每10分钟更新。不修改公司业务数据。</p></section>
+    <section class="card workspace-card"><h2>默认提醒</h2><label>放入待办后几分钟提醒（0为不提醒）<input id="workspace-minutes" type="number" min="0" max="10080" value="20"></label><button class="secondary" id="workspace-save-minutes">保存提醒时间</button></section>
+    <section class="card workspace-card"><h2>我的常用处理方式</h2><p>保存岗位常用要求，以后选择即可。导入的Skill仅作为文字要求，不执行脚本和工具。</p><label>名称<input id="workspace-recipe-title" maxlength="40" placeholder="例如：社群反馈周报"></label><label>处理要求<textarea id="workspace-recipe-instruction" maxlength="12000" rows="5" placeholder="保留客户原话，按问题、影响、行动归纳"></textarea></label><button class="primary" id="workspace-add-recipe">保存常用方式</button></section>
+    <p id="workspace-feedback" role="alert"></p>
+  </section>
+  <section class="page alternate-page" id="page-general" hidden><div class="eyebrow">让飞书工作岛适合你的习惯</div><h1>通用设置</h1><p class="page-description">统一入口已留好，后续逐步接入显示、外观与快捷键。</p><div class="card general-list"><div><svg><use href="#i-sliders"/></svg><section><h2>显示与外观</h2><p>目前可在岛内齿轮设置中调整。</p></section><span class="outline-tag">待接入网页</span></div><div><span class="keyboard-icon">⌘</span><section><h2>快捷键与交互</h2><p>现有边缘隐藏、悬停露出、点击展开的交互保持不变。</p></section><span class="outline-tag">待接入网页</span></div></div><div class="quiet-note"><svg><use href="#i-info"/></svg><p>这个页面先承载设置结构；可操作的功能目前在“飞书消息”中。</p></div></section>
   <section class="page alternate-page" id="page-modules" hidden><div class="eyebrow">从常用的一件事开始</div><h1>功能模块</h1><p class="page-description">管理已接入的功能，查看各模块的设置。</p><div class="modules-grid"><section class="card module-card"><span class="large-module-icon"><svg><use href="#i-plane"/></svg></span><span class="pill">已接入</span><h2>飞书消息</h2><p>把@我、@所有人、私聊和关注会话，带到桌面顶边。</p><button class="text-button" data-page="feishu">管理提醒规则<svg><use href="#i-arrow"/></svg></button></section><section class="card module-card upcoming"><span class="large-module-icon"><svg><use href="#i-grid"/></svg></span><span class="outline-tag">后续扩展</span><h2>更多功能</h2><p>新功能接入后，会在这里出现独立的入口。</p><span class="upcoming-label">模块位置已预留</span></section></div></section>
   <dialog id="picker" aria-labelledby="picker-title">
     <div class="picker-heading"><div><span class="eyebrow">从飞书选择</span><h2 id="picker-title">选择联系人</h2></div><button class="close-button" id="picker-close" aria-label="关闭选择窗口">×</button></div>
@@ -78,6 +97,6 @@
     <div class="picker-footer"><span id="picker-summary">尚未选择</span><div><button class="secondary" id="picker-cancel">取消</button><button class="primary" id="picker-add" disabled>加入设置</button></div></div>
     <p class="picker-note">只读取你在飞书中可见的对象；加入后，点击页面“保存设置”生效。</p>
   </dialog>
-  <footer class="page-footer">柚子岛<span>常用功能，抬手即达。</span><span>本机设置 · 随应用运行</span></footer>
+  <footer class="page-footer">飞书工作岛<span>常用功能，抬手即达。</span><span>本机设置 · 随应用运行</span></footer>
 </main></div>
 </body></html>

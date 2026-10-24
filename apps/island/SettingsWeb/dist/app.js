@@ -1,3 +1,4 @@
+if (new URLSearchParams(location.search).get('embedded') === '1') { document.documentElement.classList.add('embedded'); document.documentElement.dataset.theme='dark'; }
 'use strict';
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -24,7 +25,7 @@ const customValue = (custom = {}) => ({
   blockedPeople:(custom.blockedPeople || []).map(targetValue),
   blockedGroups:(custom.blockedGroups || []).map(targetValue)
 });
-const values = (state) => ({ enabled: state.enabled, rules:Object.fromEntries(keys.map(key => [key,state.rules[key]])), customRules:customValue(state.customRules) });
+const values = (state) => ({ danmu:{...(state.danmu || {enabled:false,paused:false})},connection:{...(state.connection || {cliPath:"",profile:"feishu-island"})},appearance:{...(state.appearance || {version:1,name:"默认",background:null,foreground:null,border:null,fontSize:28,corner:12,motion:"scroll"})},enabled: state.enabled, rules:Object.fromEntries(keys.map(key => [key,state.rules[key]])), customRules:customValue(state.customRules) });
 const dirty = () => saved && draft && JSON.stringify(values(saved)) !== JSON.stringify(draft);
 const text = (id, content) => { $(id).textContent = content; };
 function setStatus(message, error = false) { text('#save-status', message); $('#save-status').classList.toggle('error', error); }
@@ -38,6 +39,12 @@ function render() {
   $('#save').disabled = !connected || saving || !dirty();
   $('#reset').disabled = !connected || saving;
   text('#rules-count', `${keys.filter(key => draft.rules[key]).length}类消息`);
+  $$('[data-danmu]').forEach(button=>{button.setAttribute('aria-checked',String(draft.danmu[button.dataset.danmu]));button.disabled=saving||!connected;});
+  for(const [id,key] of [['#cli-path','cliPath'],['#cli-profile','profile']]){if(document.activeElement!==$(id))$(id).value=draft.connection[key];$(id).disabled=saving||!connected;}
+  $('#danmu-font').value=draft.appearance.fontSize; text('#danmu-font-value',draft.appearance.fontSize / 2);
+  $('#danmu-theme').value=draft.appearance.background===null?'system':draft.appearance.background==='#111111'?'night':draft.appearance.background==='#ffffff'?'paper':'custom';
+  $('#danmu-demo').disabled=!connected||saving||!saved?.enabled;
+  text('#auth-hint','消息只读接收，材料归档单独授权。首次使用点“连接自己的飞书”；已有本机连接保留在高级设置中。');
   renderPreview();
   renderCustom();
 }
@@ -60,12 +67,14 @@ function renderPreview() {
   $$('[data-preview]').forEach(button => button.classList.toggle('active', button.dataset.preview === previewType));
 }
 function renderLive(state) {
+  const delivery = state.delivery;
+  text('#delivery-status', delivery ? `本次运行：岛内保留 ${delivery.retained} 条，其中重要 ${delivery.important} 条；进入阅读 ${delivery.islandReadingAccepted || 0} 条、待阅读 ${delivery.islandReadingPending || 0} 条。` : '当前应用尚未提供投递计数。');
   text('#account', state.account); text('#version', state.version);
   text('#receive-state', state.enabled ? '接收中' : '已停止');
   text('#mute-state', state.isMuted ? `静音至${new Date(state.mutedUntil * 1000).toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', hour12:false})}` : '正常提醒');
   text('#follow-count', `${state.followedCount}个`); text('#reader-status', state.status);
   $('#reader-dot').classList.toggle('off', !state.enabled || !state.status.startsWith('账号接收中'));
-  text('#local-state', '已连接本机'); $('#local-dot').classList.remove('off');
+  text('#local-state', state.synthetic ? '合成模式 · 试播不上屏' : '已连接本机'); $('#local-dot').classList.remove('off');
   $('#connection-error').hidden = true;
 }
 async function request(method = 'GET', payload, path = '/api/settings') {
@@ -78,20 +87,20 @@ async function load(manual = false) {
   if (saving) return;
   try {
     const state = await request(); connected = true; renderLive(state);
-    if (!saved || !dirty()) { saved = state; draft = values(state); setStatus('已与柚子岛同步'); }
+    if (!saved || !dirty()) { saved = state; draft = values(state); setStatus('已与飞书工作岛预览版同步'); }
     else if (state.revision !== saved.revision) { setStatus('设置在其他位置已变更，请重新连接以载入最新设置。', true); $('#connection-error').hidden = false; text('#connection-error-message', '设置在其他位置已变更，重新连接可载入最新设置。'); }
     if (manual) { saved = state; draft = values(state); setStatus('已重新载入最新设置'); }
     render();
   } catch {
-    connected = false; $('#connection-error').hidden = false; text('#connection-error-message', '无法连接柚子岛。请先打开应用，再重新连接。');
-    text('#local-state', '等待柚子岛连接'); $('#local-dot').classList.add('off');
-    setStatus('尚未保存；请打开柚子岛后重新连接。', true); render();
+    connected = false; $('#connection-error').hidden = false; text('#connection-error-message', '无法连接飞书工作岛预览版。请先打开应用，再重新连接。');
+    text('#local-state', '等待飞书工作岛预览版连接'); $('#local-dot').classList.add('off');
+    setStatus('尚未保存；请打开飞书工作岛预览版后重新连接。', true); render();
   }
 }
 $$('[data-setting]').forEach(button => button.addEventListener('click', () => {
   const key = button.dataset.setting;
   if (key === 'enabled') draft.enabled = !draft.enabled; else draft.rules[key] = !draft.rules[key];
-  setStatus(dirty() ? '有未保存的修改' : '已与柚子岛同步'); render();
+  setStatus(dirty() ? '有未保存的修改' : '已与飞书工作岛预览版同步'); render();
 }));
 $('#reset').addEventListener('click', () => { draft.enabled = true; draft.rules = Object.fromEntries(keys.map(key => [key,true])); setStatus(dirty() ? '已恢复默认选择，保存后生效' : '当前已是默认设置'); render(); });
 $('#save').addEventListener('click', async () => {
@@ -99,11 +108,11 @@ $('#save').addEventListener('click', async () => {
   saving = true; setStatus('正在保存…'); render();
   try {
     const result = await request('POST', {...draft, revision:saved.revision});
-    saved = result; draft = values(result); renderLive(result); setStatus('已保存，规则已应用到柚子岛');
+    saved = result; draft = values(result); renderLive(result); setStatus('已保存，规则已应用到飞书工作岛预览版');
   } catch (error) {
     setStatus(error.status ? error.message : '保存结果未确认，请重新连接核对。', true);
     if (error.status === 409) { $('#connection-error').hidden = false; text('#connection-error-message', '设置已在其他位置改变。重新连接后载入最新设置。'); }
-    if (!error.status) { connected = false; $('#connection-error').hidden = false; text('#connection-error-message', '无法连接柚子岛。请先打开应用，再重新连接。'); }
+    if (!error.status) { connected = false; $('#connection-error').hidden = false; text('#connection-error-message', '无法连接飞书工作岛预览版。请先打开应用，再重新连接。'); }
   } finally { saving = false; render(); }
 });
 $('#reload').addEventListener('click', () => {
@@ -113,7 +122,7 @@ $('#reload').addEventListener('click', () => {
 const customCopy = {
   people:['指定联系人的提醒', '对方在私聊或群聊中发来的消息，都按这里的规则处理。', '还没有单独设置的联系人', '从飞书选择一个人，为他的消息单独设置提醒。', '联系人规则优先于所在群的规则；被屏蔽的人或群仍优先屏蔽。'],
   groups:['指定群聊的提醒', '按群决定哪些消息需要提醒，覆盖该群的默认规则。', '还没有单独设置的群聊', '从飞书选择一个群，设置全部提醒、仅@相关或仅收录。', '群规则覆盖默认规则；如果发送者有联系人规则，优先使用联系人规则。'],
-  blocks:['不再出现在岛上的消息', '屏蔽指定联系人或群聊，飞书中的原始消息不受影响。', '目前没有屏蔽对象', '选择不需要出现在柚子岛上的人或群。', '屏蔽优先于所有提醒：新消息不再收录，已有消息暂时隐藏。解除后恢复已有记录，不补回屏蔽期间的消息。']
+  blocks:['不再出现在岛上的消息', '屏蔽指定联系人或群聊，飞书中的原始消息不受影响。', '目前没有屏蔽对象', '选择不需要出现在飞书工作岛预览版上的人或群。', '屏蔽优先于所有提醒：新消息不再收录，已有消息暂时隐藏。解除后恢复已有记录，不补回屏蔽期间的消息。']
 };
 const modeLabels = {all:'全部提醒', mentions:'仅@我或@所有人时提醒', quiet:'仅收录，不提醒'};
 function selectTab(tab) {
@@ -123,7 +132,7 @@ function selectTab(tab) {
   $('#reset').hidden = tab !== 'defaults';
   renderCustom();
 }
-function changed() { setStatus(dirty() ? '有未保存的修改，点击保存后生效' : '已与柚子岛同步'); render(); }
+function changed() { setStatus(dirty() ? '有未保存的修改，点击保存后生效' : '已与飞书工作岛预览版同步'); render(); }
 function el(tag, className, content) { const element = document.createElement(tag); if (className) element.className = className; if (content !== undefined) element.textContent = content; return element; }
 let customRenderKey = '';
 function renderCustom() {
@@ -206,7 +215,7 @@ async function searchPicker(more = false) {
     pickerLoading = false; renderPickerRows();
   } catch (error) {
     if (generation !== pickerGeneration || !$('#picker').open) return;
-    text('#picker-source', error.status ? error.message : '查询未完成，请检查柚子岛连接后重试。');
+    text('#picker-source', error.status ? error.message : '查询未完成，请检查飞书工作岛预览版连接后重试。');
     if (!pickerRows.length) $('#picker-results').replaceChildren(el('div','picker-empty','没有取得有效结果。输入名称后可重新搜索。'));
   } finally { if (generation === pickerGeneration) { pickerLoading = false; $('#picker-search-button').disabled = false; pickerSelection(); } }
 }
@@ -230,14 +239,56 @@ $('#picker-add').addEventListener('click', () => {
   closePicker(); changed();
 });
 function selectPage(page) {
-  if (!['general','feishu','modules'].includes(page)) page = 'feishu';
+  if (!['general','feishu','modules','workspace'].includes(page)) page = 'feishu';
   $$('.page').forEach(section => section.hidden = section.id !== `page-${page}`);
   $$('.nav-item').forEach(button => { const active = button.dataset.page === page; button.classList.toggle('active', active); if (active) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
-  text('#breadcrumb', {general:'通用设置', feishu:'飞书消息', modules:'功能模块'}[page]);
+  text('#breadcrumb', {workspace:'材料与待办', general:'通用设置', feishu:'飞书消息', modules:'功能模块'}[page]);
   if (location.hash !== `#${page}`) history.replaceState(null,'',`#${page}`);
 }
 $$('[data-page]').forEach(button => button.addEventListener('click', () => selectPage(button.dataset.page)));
 window.addEventListener('hashchange', () => selectPage(location.hash.slice(1)));
 $$('[data-preview]').forEach(button => button.addEventListener('click', () => { previewType = button.dataset.preview; renderPreview(); }));
 window.addEventListener('beforeunload', event => { if (dirty()) { event.preventDefault(); event.returnValue = ''; } });
-selectPage(location.hash.slice(1)); load(); setInterval(() => { if (!document.hidden) load(); }, 15000);
+selectPage(location.hash.slice(1)); load(); setInterval(() => { if (!document.hidden) load(); }, 2000);
+
+$$('[data-danmu]').forEach(button=>button.addEventListener('click',()=>{draft.danmu[button.dataset.danmu]=!draft.danmu[button.dataset.danmu];changed();}));
+for(const [id,key] of [['#cli-path','cliPath'],['#cli-profile','profile']])$(id).addEventListener('input',()=>{draft.connection[key]=$(id).value;if(JSON.stringify(draft.connection)!==JSON.stringify(saved.connection))draft.enabled=false;changed();});
+$('#danmu-font').addEventListener('input',()=>{draft.appearance.fontSize=Number($('#danmu-font').value);changed();});
+$('#danmu-theme').addEventListener('change',()=>{const mode=$('#danmu-theme').value;if(mode==='custom')return;Object.assign(draft.appearance,{background:mode==='system'?null:mode==='night'?'#111111':'#ffffff',foreground:mode==='system'?null:mode==='night'?'#ffffff':'#111111'});changed();});
+$('#danmu-demo').addEventListener('click',async()=>{try{await request('POST',{},'/api/demo');setStatus('已发送一条合成消息，不读取飞书。');}catch(e){setStatus(e.message,true);}});
+$('#connect-agent').addEventListener('click',async()=>{const button=$('#connect-agent');try{const link=await request('POST',{},'/api/agent');await navigator.clipboard.writeText(`请按我接下来的描述定制飞书工作岛的个人灵动岛阅读外观。使用本机 MCP（Streamable HTTP）${link.endpoint}，Authorization: Bearer ${link.token}。先 initialize、tools/list，再 read_appearance、update_appearance；读取 saved=true 后才算保存成功。连接 30 分钟有效、锁屏撤销，请保持本机应用打开。仅外观；不得索取消息、凭据或修改核心设置。也可用本机 HTTP 工具发送标准 JSON-RPC。不要输出密钥，不让我手动贴回 JSON。`);button.textContent='已复制，发给 Agent';}catch(e){setStatus(e.message,true);}finally{setTimeout(()=>{button.textContent='接入 Agent';},4000);}});
+
+async function workspaceAction(payload) {
+  try {
+    const state = await request(payload ? 'POST' : 'GET', payload, '/api/workspace');
+    text('#workspace-state', `${state.aiAvailable ? `本机${state.aiTool}已找到` : '未找到本机AI工具'} · ${state.taskCount}项材料/待办 · ${state.hubConnected ? '中台已连接' : '中台待本人授权'}`);
+    if (document.activeElement !== $('#workspace-minutes')) $('#workspace-minutes').value = state.reminderMinutes;
+    text('#workspace-feedback', state.error || state.hubError || (payload ? '操作已提交' : ''));
+  } catch(e) { text('#workspace-feedback', e.message); }
+}
+$('#workspace-open').addEventListener('click',()=>workspaceAction({action:'open'}));
+$('#workspace-connect').addEventListener('click',()=>workspaceAction({action:'connect'}));
+$('#workspace-disconnect').addEventListener('click',()=>workspaceAction({action:'disconnect'}));
+$('#workspace-save-minutes').addEventListener('click',()=>workspaceAction({action:'minutes',minutes:Number($('#workspace-minutes').value)}));
+$('#workspace-add-recipe').addEventListener('click',()=>workspaceAction({action:'recipe',title:$('#workspace-recipe-title').value,instruction:$('#workspace-recipe-instruction').value}));
+workspaceAction();
+setInterval(()=>{ if (!$('#page-workspace').hidden) workspaceAction(); },15000);
+
+async function companyAction(action) {
+  const buttons=['#company-open','#company-receive','#company-archive','#company-disable-receive','#company-disable-archive','#company-reset'].map($);
+  buttons.forEach(b=>b.disabled=true);
+  if(action)text('#company-status','正在处理连接…');
+  try {
+    const result=await request(action?'POST':'GET',action?{action}:undefined,'/api/company');
+    text('#company-status',result.message || '公司连接采用各自授权，已有本机接收保持原配置。');
+    if(action==='receive'){saved=null;draft=null;await load();}
+  } catch(e){text('#company-status',e.message);}
+  finally{buttons.forEach(b=>b.disabled=false);}
+}
+$('#company-open').addEventListener('click',()=>companyAction('open'));
+$('#company-receive').addEventListener('click',()=>companyAction('receive'));
+$('#company-archive').addEventListener('click',()=>companyAction('archive'));
+$('#company-disable-receive').addEventListener('click',()=>companyAction('disableReceive'));
+$('#company-disable-archive').addEventListener('click',()=>companyAction('disableArchive'));
+$('#company-reset').addEventListener('click',()=>companyAction('reset'));
+companyAction();

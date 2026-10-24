@@ -7,3 +7,16 @@
 @media(max-width:1080px){.columns{grid-template-columns:1fr}.right-column{grid-template-columns:1fr 1fr;margin-top:4px}.next-card{grid-column:1/-1}.save-bar{position:static}.page-footer{flex-wrap:wrap}.brand{font-size:21px}.sidebar{width:180px}main{margin-left:180px}}
 @media(max-width:850px){.sidebar{width:70px;padding:26px 10px 20px;align-items:center}.brand{padding:0}.brand>span:last-child,.nav-label,.nav-note,.nav-dot,.sidebar-note,.version,#local-state{display:none}.sidebar nav{width:100%;margin-top:36px}.nav-item{font-size:0;gap:0;padding:0;justify-content:center}.nav-item svg{width:20px;height:20px}.sidebar-bottom{margin-top:auto;padding:18px 0 0;width:100%}.local-status{justify-content:center}.theme-switch{flex-direction:column;border-radius:12px}.theme-switch button{padding:6px}.theme-switch svg{width:14px;height:14px}main{margin-left:70px}.page{padding:24px 20px 0}.topbar{padding-inline:20px}.page-footer{padding-inline:20px}.tab-bar{gap:20px}.tab{font-size:12px}.rule{padding:15px}.module-card{padding:20px}.module-card>.pill,.module-card>.outline-tag{right:14px}.custom-heading h2{font-size:16px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+
+.fusion-controls{padding:20px;margin-bottom:20px}.fusion-heading,.fusion-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.fusion-heading{justify-content:space-between}.fusion-fields{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}.fusion-fields label{display:flex;flex-direction:column;gap:8px;min-width:0}.fusion-fields input,.fusion-fields select{max-width:100%;min-width:0;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:inherit}.fusion-controls p{line-height:1.7}.fusion-help{font-size:13px;opacity:.8}.fusion-actions [aria-checked="true"]{font-weight:700;outline:2px solid currentColor}@media(max-width:700px){.fusion-fields{grid-template-columns:1fr}}
+
+@media(max-width:650px){.shell{min-width:0;width:100%}main{min-width:0}.page{padding-inline:14px}.topbar{padding-inline:14px}.page-title{gap:10px;flex-wrap:wrap}.fusion-controls{padding:16px}.fusion-controls p{overflow-wrap:anywhere}.fusion-heading h2{font-size:16px}.tab-bar{gap:14px;overflow-x:auto}.columns,.right-column,.rules-grid,.modules-grid{grid-template-columns:minmax(0,1fr)}.save-bar{flex-wrap:wrap;gap:12px}.fusion-fields input{width:100%}.module-badge,.local-chip{display:none}.fusion-actions{gap:8px}.page-footer{padding-inline:14px}}
+
+.workspace-card {padding:24px;margin-top:20px}.workspace-card label {display:block;margin:14px 0}.workspace-card textarea{display:block;width:100%;font:inherit;padding:12px;background:var(--bg);color:inherit;border:1px solid var(--border);border-radius:8px}
+
+/* Native workbench owns navigation; retain the same authenticated local settings API. */
+.embedded .sidebar,.embedded .topbar,.embedded .page-footer{display:none}
+.embedded main{margin:0;min-height:100vh}.embedded .shell{min-width:0}
+.embedded .page{padding:24px;max-width:1000px}.embedded .columns{grid-template-columns:minmax(0,1fr)}
+.embedded .right-column{display:none}.embedded .page-title{display:none}
+.embedded .fusion-controls{margin-top:0}.embedded .connection-error{margin:16px 24px 0}

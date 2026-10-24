@@ -9,9 +9,10 @@ struct FeishuDirectoryPage: Sendable {
 /// On-demand, read-only lookup. Credentials stay owned by the existing CLI.
 final class FeishuDirectory: @unchecked Sendable {
     private let cli: URL
+    private let profile: String
     private let queue = DispatchQueue(label: "island.settings.directory", qos: .userInitiated, attributes: .concurrent)
     private let slots = DispatchSemaphore(value: 2)
-    init(cli: URL = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".local/bin/lark-cli")) { self.cli = cli }
+    init(connection: FeishuConnection = .init()) { self.cli = URL(fileURLWithPath: connection.cliPath); self.profile = connection.profile }
 
     func search(kind: String, query: String, pageToken: String) async throws -> FeishuDirectoryPage {
         try await withCheckedThrowingContinuation { continuation in
@@ -21,6 +22,7 @@ final class FeishuDirectory: @unchecked Sendable {
                     defer { self.slots.signal() }
                     var args: [String]
                     if kind == "people" {
+                        if self.profile == CompanyConnection.profile { throw AccountFailure(detail:"公司消息连接未申请通讯录搜索权限；请按会话名称设置规则。") }
                         args = ["contact", "+search-user", "--page-size", "30"]
                         args += query.isEmpty ? ["--has-chatted"] : ["--query", query]
                     } else if query.isEmpty {
@@ -53,10 +55,12 @@ final class FeishuDirectory: @unchecked Sendable {
         }
     }
     private func call(_ args: [String]) throws -> [String: Any] {
-        let process = Process(); process.executableURL = cli; process.arguments = args
-        var env = ProcessInfo.processInfo.environment
+        let company = profile == CompanyConnection.profile
+        let credential = company ? try CompanyConnection.shared.credential(.receive) : nil
+        let process = Process(); process.executableURL = cli; process.arguments = (profile.isEmpty || company ? [] : ["--profile",profile]) + args
+        var env = credential?.environment(ProcessInfo.processInfo.environment) ?? ProcessInfo.processInfo.environment
         env["LARKSUITE_CLI_NO_UPDATE_NOTIFIER"] = "1"; env["LARKSUITE_CLI_NO_SKILLS_NOTIFIER"] = "1"
-        process.environment = env; process.standardInput = FileHandle.nullDevice
+        process.environment = FeishuTransport.shared.environment(env); process.standardInput = FileHandle.nullDevice
         // Both streams are JSON for CLI success/failure. A single pipe also avoids stderr backpressure.
         let pipe = Pipe(); process.standardOutput = pipe; process.standardError = pipe
         defer { try? pipe.fileHandleForReading.close(); try? pipe.fileHandleForWriting.close() }

@@ -44,6 +44,22 @@ final class ServerClock {
     var offset: TimeInterval { now().timeIntervalSinceNow }
     var isCalibrated: Bool { lock.lock(); defer { lock.unlock() }; return sample != nil }
 
+    private static func fallbackSample() throws -> ServerClockSample {
+        guard let ip = FeishuTransport.shared.resolvedIP() else { throw AccountFailure(detail:"无法读取飞书安全时间，请检查网络。") }
+        let process = Process(), pipe = Pipe()
+        process.executableURL = URL(fileURLWithPath:"/usr/bin/curl")
+        process.arguments = ["--silent","--show-error","--head","--max-time","5","--noproxy","open.feishu.cn","--resolve","open.feishu.cn:443:"+ip,"https://open.feishu.cn/open-apis/im/v1/messages?danmu_clock_probe="+UUID().uuidString]
+        process.standardInput = FileHandle.nullDevice;process.standardOutput = pipe;process.standardError = FileHandle.nullDevice
+        defer { try? pipe.fileHandleForReading.close();try? pipe.fileHandleForWriting.close() }
+        let began = ProcessInfo.processInfo.systemUptime, local = Date()
+        try process.run();let bytes = pipe.fileHandleForReading.readDataToEndOfFile();process.waitUntilExit()
+        let ended = ProcessInfo.processInfo.systemUptime, received = Date(), rtt = ended-began
+        guard process.terminationStatus == 0, bytes.count < 65536, rtt <= 5, abs(received.timeIntervalSince(local)-rtt) < 1,
+              let line = String(decoding:bytes,as:UTF8.self).components(separatedBy:"\n").last(where:{$0.lowercased().hasPrefix("date:")}) else { throw AccountFailure(detail:"飞书安全连接失败，稍后自动重试。") }
+        let format = DateFormatter();format.locale = Locale(identifier:"en_US_POSIX");format.timeZone = TimeZone(secondsFromGMT:0);format.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        guard let date = format.date(from:String(line.dropFirst(5)).trimmingCharacters(in:.whitespacesAndNewlines)) else { throw AccountFailure(detail:"飞书没有返回有效时间。") }
+        return ServerClockSample(serverTime:date.addingTimeInterval(0.5+rtt/2),localTime:received,uptime:ended,roundTrip:rtt)
+    }
     static func feishuSample() throws -> ServerClockSample {
         // Unauthenticated dynamic endpoint: only its HTTPS Date header is used.
         // No account token, message content or personal identifier is sent here.
@@ -85,10 +101,10 @@ final class ServerClock {
         }
         task.resume()
         guard done.wait(timeout: .now() + 4) == .success else {
-            task.cancel(); throw AccountFailure(detail: "飞书时间校准超时，请检查网络后重试")
+            task.cancel(); return try fallbackSample()
         }
         result.lock.lock(); let value = result.sample; result.lock.unlock()
-        guard let value else { throw AccountFailure(detail: "无法校准飞书时间，请检查网络后重试") }
+        guard let value else { return try fallbackSample() }
         return value
     }
 }
