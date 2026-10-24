@@ -35,17 +35,18 @@ extension FusionTests {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let store = try syntheticDeskStore()
         let navigation = WorkspaceDeskNavigation()
+        let catalog=AgentCatalogStore(defaults:UserDefaults(suiteName:"desk.catalog.check."+UUID().uuidString)!)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         let originalDisk = try encoder.encode(store.disk)
         let originalText = store.draftText
         let originalSelection = store.selected
         let evidence = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/workbench-layout-check")
         try FileManager.default.createDirectory(at: evidence, withIntermediateDirectories: true)
-        let pageNames = ["materials", "tasks", "hub", "processing", "account-container", "reminder-library", "shell-settings-unbound", "agent-and-skins"]
+        let pageNames = ["materials", "tasks", "hub", "processing", "account-container", "reminder-library", "shell-settings-unbound", "agent-and-skins", "agent-connections"]
 
         func descendants(_ view: NSView) -> [NSView] { view.subviews.flatMap { [$0] + descendants($0) } }
         for size in [NSSize(width: 960, height: 680), NSSize(width: 760, height: 540)] {
-            let content = WorkspaceDesk(store: store, navigation: navigation)
+            let content = WorkspaceDesk(store: store, navigation: navigation,catalog:catalog)
                 .frame(width: size.width, height: size.height)
                 .transaction { $0.disablesAnimations = true; $0.animation = nil }
             let host = NSHostingView(rootView: content)
@@ -99,13 +100,14 @@ extension FusionTests {
     /// renderer is started. The fixture starts on the task page for editing checks.
     func showWorkspaceDeskFixture() async throws {
         let store = try syntheticDeskStore()
-        let navigation = WorkspaceDeskNavigation(); navigation.page = 1
+        let navigation = WorkspaceDeskNavigation()
+        let catalog=AgentCatalogStore(defaults:UserDefaults(suiteName:"desk.catalog.check."+UUID().uuidString)!); navigation.page = 1
         NSApplication.shared.setActivationPolicy(.accessory)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 680), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "飞书工作岛 · 合成工作台验收"
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 760, height: 540)
-        window.contentView = NSHostingView(rootView: WorkspaceDesk(store: store, navigation: navigation))
+        window.contentView = NSHostingView(rootView: WorkspaceDesk(store: store, navigation: navigation,catalog:catalog))
         NSApplication.shared.finishLaunching()
         window.center(); window.makeKeyAndOrderFront(nil); NSApplication.shared.activate()
         print("Synthetic workbench ready: edit/delete/countdown inspection only; no receiver, timers or integration service started.")

@@ -14,21 +14,30 @@ extension FusionTests {
         let suite="agent.compose.check."+UUID().uuidString
         let defaults=UserDefaults(suiteName:suite)!
         let agents=AgentStore(defaults:defaults)
+        let catalog=AgentCatalogStore(defaults:defaults)
         let initialRevision=agents.preferences.revision
         let evidence=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent(".build/agent-workspace-layout")
         try FileManager.default.createDirectory(at:evidence,withIntermediateDirectories:true)
         XCTAssertEqual(AgentWorkProvider.allCases.map(\.rawValue),["codex","dot","doubao"])
         XCTAssertEqual(IslandHost.configuration().defaultModule,IslandHost.agentID)
         func descendants(_ view:NSView)->[NSView] { view.subviews.flatMap{[$0]+descendants($0)} }
-        for provider in AgentWorkProvider.allCases {
-            provider.select(in:workspace)
-            XCTAssertEqual(workspace.draftService,provider.rawValue)
+        XCTAssertEqual(catalog.entries.map(\.id),["codex","claude","workbuddy","dot","doubao"])
+        XCTAssertNil(catalog.add(name:"合成助手",url:"https://example.com/assistant"))
+        let customID=catalog.custom[0].id
+        XCTAssertTrue(catalog.entries.first{$0.id=="claude"}?.taskProvider == nil)
+        XCTAssertTrue(catalog.entries.first{$0.id=="workbuddy"}?.taskProvider == nil)
+        for entry in catalog.entries {
+            let previousService=workspace.draftService
+            catalog.select(entry.id,in:workspace)
+            if let provider=entry.taskProvider { XCTAssertEqual(workspace.draftService,provider.rawValue) }
+            else { XCTAssertEqual(workspace.draftService,previousService) }
+            XCTAssertEqual(catalog.selected(in:workspace).id,entry.id)
             XCTAssertEqual(workspace.draftText,"合成材料：整理日期筛选与导出进度。")
             XCTAssertEqual(workspace.draftProject,"合成共用项目")
             XCTAssertFalse(agents.preferences.enabled)
             XCTAssertEqual(agents.preferences.revision,initialRevision)
             for height:CGFloat in [1440,480] {
-                let view=AgentWorkspaceSurface(agents:agents,workspace:workspace)
+                let view=AgentWorkspaceSurface(agents:agents,workspace:workspace,catalog:catalog)
                     .environment(\.workspaceScreenHeight,height)
                     .preferredColorScheme(.dark)
                     .background(Color.black)
@@ -43,13 +52,26 @@ extension FusionTests {
                 try await Task.sleep(for:.milliseconds(120))
                 host.layoutSubtreeIfNeeded();host.displayIfNeeded()
                 XCTAssertFalse(window.isVisible)
-                XCTAssertTrue(descendants(host).compactMap{$0 as? NSTextView}.contains{$0.string==workspace.draftText})
+                let editors=descendants(host).compactMap{$0 as? NSTextView}
+                if entry.taskProvider != nil { XCTAssertTrue(editors.contains{$0.string==workspace.draftText}) }
+                else { XCTAssertFalse(editors.contains{$0.string==workspace.draftText}) }
                 guard let bitmap=host.bitmapImageRepForCachingDisplay(in:host.bounds) else { throw WorkError.message("合成Agent画布未生成") }
                 host.cacheDisplay(in:host.bounds,to:bitmap)
-                try bitmap.representation(using:.png,properties:[:])!.write(to:evidence.appendingPathComponent(provider.rawValue+"-\(Int(height)).png"))
+                try bitmap.representation(using:.png,properties:[:])!.write(to:evidence.appendingPathComponent(entry.id+"-\(Int(height)).png"))
                 window.close()
             }
         }
+        let reloaded=AgentCatalogStore(defaults:defaults)
+        XCTAssertEqual(reloaded.custom,catalog.custom)
+        XCTAssertEqual(reloaded.selected(in:workspace).id,customID)
+        XCTAssertTrue(reloaded.add(name:"Codex",url:"") != nil)
+        XCTAssertTrue(reloaded.add(name:"合成助手",url:"") != nil)
+        for address in ["javascript:alert(1)","file:///tmp/fixture","http://example.com", "https://user:secret@example.com", "https://example.com/?token=secret", "https://example.com/#secret"] {
+            XCTAssertTrue(reloaded.add(name:"拒绝危险入口",url:address) != nil)
+        }
+        reloaded.remove("codex"); XCTAssertEqual(reloaded.entries.count,6)
+        reloaded.remove(customID); XCTAssertEqual(reloaded.entries.count,5)
+        XCTAssertNil(reloaded.selectedID)
         XCTAssertTrue(workspace.disk.items.isEmpty)
         XCTAssertFalse(agents.preferences.enabled)
     }

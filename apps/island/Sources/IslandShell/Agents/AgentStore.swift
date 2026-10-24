@@ -219,9 +219,10 @@ final class AgentStore: ObservableObject {
         var snapshot = snapshots[profileID] ?? .init()
         snapshot.quotas = quotas; snapshots[profileID] = snapshot
     }
-    func openAgent(_ id: String) {
+    @discardableResult func openAgent(_ id: String) -> Bool {
         let candidates = id == "claude" ? ["/Applications/Claude.app"] : id == "workbuddy" ? ["/Applications/WorkBuddy.app"] : ["/Applications/ChatGPT.app", "/Applications/Codex.app"]
-        if let path = candidates.first(where: FileManager.default.fileExists(atPath:)) { NSWorkspace.shared.open(URL(fileURLWithPath: path)) }
+        if let path = candidates.first(where: FileManager.default.fileExists(atPath:)) { return NSWorkspace.shared.open(URL(fileURLWithPath: path)) }
+        return false
     }
     func webSnapshot() -> [String: Any] {
         let now = Date().timeIntervalSince1970
