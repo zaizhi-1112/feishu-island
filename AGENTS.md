@@ -182,3 +182,5 @@
 - build40验证：606Agent、987融合、104外壳、49导航、206工作台布局及58独立helper测试通过；打包11项、Release和白名单DMG审计通过。安装版Claude/WorkBuddy各6次合成状态转换均实际触发来源正确的提醒，桌面入队/播放计数各次+1并可见；无桌面遮罩、真实聊天截图或代点批准。最终helper另通过隐藏来源不写记录、恢复后运行/完成各次入队和播放+1的实测。合成记录已移入废纸篓，不留待办/到期提醒。
 - 真人客户端边界：Claude真实CLI在本机隔离合成模型下成功完成并触发Stop；本人原模型代理端口连接拒绝，正常云端任务未验收。WorkBuddy当前原生界面显示登录页，独立CLI返回认证错误，已请本人登录补验；不把配置成功或注入的合成状态等同其真实模型完成。没有为修此问题读取其他客户端密钥、改安全模式或复制账号。
 - 本机已安装0.8.0 build40，原5条工作区任务与完整数据、飞书接收配置和5个授权helper保持；新增状态helper不替换授权helper。最终备份.build/local-install-backups/state40-final-20261025-022518，回执install40-final-before/after.json，合成链路agent40-installed/result.json及agent40-final-policy.json，均仅本机。接收enabled=true且140/142会话，Dot有效订阅1；只重启工作岛，未退出飞书，更新时本应用接收短暂停止后恢复。本机DMG SHA256 c419d0d7741399cbd5dbdfaccd69015ca05a82def497ee44f4c52f40585f10a3；源码同步PR8，未合main或更新公司安装入口，新包待本人体验。
+
+- build40末次客户端核对：Claude桌面能进入新对话，Code模式仅显示“取得Claude Code”，没有可派发的Code任务入口；未购买或改订阅。WorkBuddy已打开登录流程并请本人处理，未代输密码或接受协议。原生客户端可用条件与本机状态事件接入分开记录。

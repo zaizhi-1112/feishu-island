@@ -12,7 +12,7 @@ Codex使用既有本机生命周期事件；Claude Code与WorkBuddy增加只报�
 
 验证：606条Agent断言、58条独立helper测试；安装版通过每个来源的运行→输入→继续→确认→继续→完成合成事件，胶囊与透明弹幕路由、播放可见计数均递增。截图均为离屏合成，未截图真实消息。Claude真实CLI在隔离本机合成模型下触发开始和Stop；该结果不等于真实云端模型验收。
 
-当前设备的实际限制：Claude原配置指向的本机模型代理TCP连接被拒绝；WorkBuddy桌面显示登录页，其独立CLI也返回认证错误。没有改动这两项账号或模型配置，没有宣称正常真人任务已全部通过。提醒功能可随客户端恢复可用后接收新事件；飞书接收保持原配置。
+当前设备的实际限制：Claude桌面能打开，但Code入口仅显示“取得Claude Code”；CLI原配置指向的本机模型代理TCP连接被拒绝；WorkBuddy桌面显示登录页，其独立CLI也返回认证错误。没有改动这两项账号或模型配置，没有宣称正常真人任务已全部通过。提醒功能可随客户端恢复可用后接收新事件；飞书接收保持原配置。
 
 实现：`AgentHookProtocol.swift`、`AgentStatusConnection.swift` 与 `scripts/agent-status-helper.swift`。官方Claude事件契约见 [Hooks reference](https://code.claude.com/docs/en/hooks)；WorkBuddy事件契约由本机已安装包的HookManager、SDK input转换与任务状态推导代码核对。REA全包分析超时，因此没有声称完成全包逆向；使用限定文件的静态核对，未执行其未通过完整性校验的genie-trash附带程序。
 
