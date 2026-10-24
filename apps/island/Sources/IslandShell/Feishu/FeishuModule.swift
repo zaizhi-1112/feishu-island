@@ -18,22 +18,24 @@ final class FeishuModule: NookModule {
         self.context = context
         let args = ProcessInfo.processInfo.arguments
         let demo = args.contains("--feishu-demo")
-        store = FeishuStore(defaults: demo ? UserDefaults(suiteName: "local.youzi.island.demo")! : context.defaults,
-                            live: Bundle.main.bundleIdentifier == "local.youzi.island" && !args.contains("--self-test") && !demo)
+        let preview = IslandRuntime.isSkinPreview
+        store = FeishuStore(defaults: preview ? UserDefaults(suiteName: "local.youzi.island.skin-preview.feishu")! : demo ? UserDefaults(suiteName: "local.youzi.island.demo")! : context.defaults,
+                            live: Bundle.main.bundleIdentifier == "local.youzi.island" && !args.contains("--self-test") && !demo && !preview)
         if demo { store.loadDemo() }
-        if Bundle.main.bundleIdentifier == "local.youzi.island", !args.contains("--self-test") { SettingsServer.shared.start(store: store) }
+        if (Bundle.main.bundleIdentifier == "local.youzi.island" || preview), !args.contains("--self-test") { SettingsServer.shared.start(store: store) }
     }
     func makeConfiguration() -> NookConfiguration {
         var config = IslandHost.baseConfiguration(title: "飞书消息", symbol: "paperplane.fill")
-        config.expandedWidth = 380
         let store = store
         config.setCompactTrailing { FeishuCompactView(store: store) }
         config.setHome { FeishuView(store: store) }
         config.onReady = { [weak self] coordinator in
             guard let self else { return }
+            TodoBridge.shared.attach(coordinator)
             store.canAlert = { [weak coordinator] in coordinator?.appState.isNookVisible == false }
             store.start(activities: self.context.services.resolve(NookLiveActivitiesKey.self))
             RuntimeVerification.startIfRequested(coordinator: coordinator)
+            SkinVerification.startIfRequested(coordinator: coordinator)
         }
         return config
     }

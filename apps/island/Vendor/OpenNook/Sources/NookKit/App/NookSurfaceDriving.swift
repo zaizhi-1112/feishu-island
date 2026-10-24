@@ -57,6 +57,7 @@ protocol NookSurfaceDriving: AnyObject {
     var onExpand: (@MainActor () -> Void)? { get set }
     var onCompact: (@MainActor () -> Void)? { get set }
     var onHide: (@MainActor () -> Void)? { get set }
+    var onDrop: (@MainActor (NookDropPayload) -> Bool)? { get set }
     var onFileDrop: (@MainActor ([URL]) -> Bool)? { get set }
 
     /// Resolves the screen the chrome should occupy when none is passed explicitly.
@@ -114,6 +115,7 @@ protocol NookSurfaceDriving: AnyObject {
     /// behavior, or the person's preferences.
     var hoverIntent: NookHoverIntent { get set }
     var edgeDocked: Bool { get set }
+    var compactRevealActive: Bool { get set }
 
     /// The view the compact pill grows to show while it peeks, or `nil` for no peek. Projected
     /// from the displayed module's configuration.

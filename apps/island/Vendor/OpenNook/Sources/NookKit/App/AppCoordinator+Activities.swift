@@ -109,6 +109,9 @@ extension AppCoordinator {
         switch alert {
             case .none:
                 return
+            case .compact(let length):
+                duration = length
+                presentation = .compact
             case .peek(let length):
                 duration = length
                 presentation = .peek
@@ -121,6 +124,10 @@ extension AppCoordinator {
         let opensOntoActivity = presentation == .expanded && entry.activity.expanded != nil
         Task { @MainActor [weak self] in
             guard let self else { return }
+            if presentation == .compact, let token = self.compactActivityTokens[entry.id],
+               await self.endTransientPresentation(token, after: duration) {
+                return
+            }
             if opensOntoActivity { self.presentActivity(entry) }
             let claim = NookSurfaceClaim(
                 moduleID: entry.moduleID,
@@ -134,6 +141,7 @@ extension AppCoordinator {
                 }
                 return
             }
+            if presentation == .compact { self.compactActivityTokens[entry.id] = token }
             _ = await self.endTransientPresentation(token, after: duration)
         }
     }
@@ -161,6 +169,7 @@ extension AppCoordinator {
             appState.moduleBreadcrumb = nil
         }
         if restoringSettings { endActivitySettingsSetAside() }
+        syncPresentedModule()
     }
 
     /// Brings Settings back if an activity's view set it aside, and the module on screen still
@@ -177,7 +186,11 @@ extension AppCoordinator {
         switch state {
             case .expanded:
                 guard appState.presentedLiveActivity == nil else { return }
-                if surface.isPeeking, let owner = peekOwnerActivity,
+                let compactOwner = liveActivities.primary.flatMap { entry -> String? in
+                    if case .compact = entry.activity.alert, entry.isAlerting { return entry.id }
+                    return nil
+                }
+                if let owner = surface.isPeeking ? peekOwnerActivity : compactOwner,
                     let entry = liveActivities.activities.first(where: { $0.id == owner }),
                     entry.activity.expanded != nil
                 {
@@ -202,6 +215,7 @@ extension AppCoordinator {
         appState.presentedLiveActivity = nil
         activityBreadcrumb = nil
         endActivitySettingsSetAside()
+        syncPresentedModule()
     }
 }
 

@@ -11,12 +11,13 @@ final class SettingsServer {
     private var port: UInt16 = 18766
     private var ready = false
     private var openWhenReady = false
+    private var openSection = ""
     private var connections: [UUID: SettingsConnection] = [:]
 
     func start(store: FeishuStore) {
         self.store = store
         guard listener == nil else { return }
-        listen(port: 18766)
+        listen(port: IslandRuntime.isSkinPreview ? 18776 : 18766)
     }
     private func listen(port: UInt16) {
         do {
@@ -56,13 +57,14 @@ final class SettingsServer {
             else { store?.actionError = "设置页面未能启动，请重新打开柚子岛。" }
         }
     }
-    func open() {
+    func open(section: String = "") {
+        if !section.isEmpty { openSection = section }
         guard ready else {
             openWhenReady = true
             if listener == nil, let store { start(store: store) }
             return
         }
-        if let url = URL(string: "http://127.0.0.1:\(port)/") { NSWorkspace.shared.open(url) }
+        if let url = URL(string: "http://127.0.0.1:\(port)/#\(openSection)") { NSWorkspace.shared.open(url) }; openSection = ""
     }
     private func snapshot(_ store: FeishuStore) -> SettingsResponse {
         let ruleData = try! JSONEncoder().encode(store.rules)
@@ -82,6 +84,30 @@ final class SettingsServer {
         if let origin = headers["origin"], origin != "http://\(host)" { return .error(403, "来源不匹配") }
         if let site = headers["sec-fetch-site"], site == "cross-site" { return .error(403, "来源不匹配") }
         guard let url = URLComponents(string: path) else { return .error(400, "地址不正确") }
+        if url.path == "/api/todos/settings" {
+            let todos = TodoStore.shared
+            if method == "GET" { return .json(todos.webSnapshot()) }
+            guard method == "POST", headers["origin"] == "http://\(host)", headers["x-island-settings"] == "1",
+                  headers["content-type"]?.hasPrefix("application/json") == true else { return .error(403, "请从设置页保存") }
+            do {
+                let input = try JSONDecoder().decode(TodoPreferences.self, from: body)
+                guard input.revision == todos.preferences.revision else { return .error(409, "待办设置已改变，请重新载入后保存。") }
+                try todos.updatePreferences(input)
+                return .json(todos.webSnapshot())
+            } catch { return .error(400, error.localizedDescription) }
+        }
+        if url.path == "/api/agents" || url.path == "/api/agents/refresh" {
+            let agents = AgentStore.shared
+            if method == "GET", url.path == "/api/agents" { return .json(agents.webSnapshot()) }
+            guard method == "POST", headers["origin"] == "http://\(host)", headers["x-island-settings"] == "1",
+                  headers["content-type"]?.hasPrefix("application/json") == true else { return .error(403, "请从设置页操作") }
+            if url.path == "/api/agents/refresh" { agents.refreshQuotas(); return .json(agents.webSnapshot()) }
+            do {
+                let input = try JSONDecoder().decode(AgentPreferences.self, from: body)
+                if input.revision != agents.preferences.revision { return .error(409, "设置已改变，请重新载入。") }
+                try agents.update(input); return .json(agents.webSnapshot())
+            } catch { return .error(400, (error as? AgentReadError)?.localizedDescription ?? "Agent设置格式不正确") }
+        }
         if url.path == "/api/directory" {
             guard method == "GET" else { return .error(405, "不支持的操作") }
             let items = url.queryItems ?? []
@@ -111,8 +137,9 @@ final class SettingsServer {
             return snapshot(store)
         }
         guard method == "GET" else { return .error(405, "不支持的操作") }
-        let files = ["/": ("index.html", "text/html; charset=utf-8"), "/index.html": ("index.html", "text/html; charset=utf-8"),
-                     "/app.js": ("app.js", "application/javascript; charset=utf-8"), "/style.css": ("style.css", "text/css; charset=utf-8")]
+        let files = ["/todos.js": ("todos.js", "application/javascript; charset=utf-8"), "/brand-flow.json": ("brand-flow.json", "application/json"), "/skins.json": ("skins.json", "application/json"), "/brand-geometry.json": ("brand-geometry.json", "application/json"), "/skin-effects.js": ("skin-effects.js", "application/javascript; charset=utf-8"), "/skin-v2.css": ("skin-v2.css", "text/css; charset=utf-8"), "/pet-codex.png": ("pet-codex.png", "image/png"), "/pet-claude.png": ("pet-claude.png", "image/png"), "/pet-workbuddy.png": ("pet-workbuddy.png", "image/png"), "/avatar-codex.png": ("avatar-codex.png", "image/png"), "/avatar-claude.png": ("avatar-claude.png", "image/png"), "/avatar-workbuddy.png": ("avatar-workbuddy.png", "image/png"), "/avatar-virxact.png": ("avatar-virxact.png", "image/png"), "/virxact-logo.png": ("virxact-logo.png", "image/png"), "/virxact-logo.svg": ("virxact-logo.svg", "image/svg+xml"), "/codex-atlas.webp": ("codex-atlas.webp", "image/webp"), "/pet-codex.svg": ("pet-codex.svg", "image/svg+xml"), "/pet-claude.svg": ("pet-claude.svg", "image/svg+xml"), "/pet-workbuddy.svg": ("pet-workbuddy.svg", "image/svg+xml"), "/": ("index.html", "text/html; charset=utf-8"), "/index.html": ("index.html", "text/html; charset=utf-8"),
+                     "/app.js": ("app.js", "application/javascript; charset=utf-8"), "/style.css": ("style.css", "text/css; charset=utf-8"),
+                     "/agent-codex.png": ("agent-codex.png", "image/png"), "/agent-claude.png": ("agent-claude.png", "image/png"), "/agent-workbuddy.png": ("agent-workbuddy.png", "image/png")]
         guard let file = files[url.path], let root = Bundle.main.resourceURL,
               let data = try? Data(contentsOf: root.appendingPathComponent("SettingsWeb/\(file.0)")) else { return .error(404, "页面不存在") }
         return SettingsResponse(status: 200, contentType: file.1, body: data)

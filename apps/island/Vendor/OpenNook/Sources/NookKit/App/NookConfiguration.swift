@@ -33,6 +33,8 @@ import SwiftUI
 /// > customization types (`NookStyle`, `NookHoverBehavior`, ...). It exists so a host can
 /// > depend on the package and customize through public API only.
 public struct NookConfiguration: Sendable {
+    /// Enables two-finger horizontal navigation in the expanded home surface.
+    public var allowsHorizontalModuleSwipe = false
     /// The expanded home surface, shown between the framework top bar and Settings.
     /// Use ``setHome(_:)`` to set it from a `@ViewBuilder`.
     ///
@@ -328,6 +330,8 @@ public struct NookConfiguration: Sendable {
     ///
     /// `NookComponents`' file shelf wires its `ShelfStore.accept` straight into
     /// this; a host can also route drops through its own import flow.
+    public var onDrop: (@Sendable @MainActor (NookDropPayload) -> Bool)?
+
     public var onFileDrop: (@Sendable @MainActor ([URL]) -> Bool)?
 
     /// Called once, on the main actor, at the end of `AppCoordinator.start()` - a

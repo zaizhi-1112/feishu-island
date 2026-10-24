@@ -39,6 +39,7 @@ public final class FeishuStore: ObservableObject {
         reader.onStatus = { [weak self] in self?.status = $0 }
         reader.onAccount = { [weak self] in self?.account = $0 }
         if !enabled { status = "接收已停止" }
+        if !live && IslandRuntime.isSkinPreview { status = "皮肤预览 · 未连接飞书"; account = "独立预览" }
     }
 
     func start(activities: NookLiveActivities) {

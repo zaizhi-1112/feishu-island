@@ -1,5 +1,5 @@
 import AppKit
-import IslandShell
+@testable import IslandShell
 import NookApp
 
 var passed = 0
@@ -80,22 +80,20 @@ MainActor.assumeIsolated {
     expect(host.chromeBehavior.edgeDocked, "host enables three-stage edge interaction")
     expect(host.chromeBehavior.hoverIntent?.action == .some(.none), "hover cannot open the full panel")
     let registry = host.makeRegistry()
-    expect(registry.descriptors.count == 3, "three independently registered modules")
-    expect(!registry.isLoaded(IslandHost.sampleID), "sample module is lazy")
-    let home = registry.context(for: IslandHost.homeID)!
-    let sample = registry.context(for: IslandHost.sampleID)!
-    expect(home.containerURL != sample.containerURL, "module files isolated")
-    expect(home.defaults !== sample.defaults, "module preferences isolated")
-    registry.unload(IslandHost.sampleID)
-    expect(!registry.isLoaded(IslandHost.sampleID), "module unload")
-    expect(registry.module(for: IslandHost.sampleID) != nil, "module reload")
-    let suite = "local.youzi.island.check.\(UUID().uuidString)"
-    let defaults = UserDefaults(suiteName: suite)!
-    defer { defaults.removePersistentDomain(forName: suite) }
-    let state = SampleState(defaults: defaults)
-    state.increment()
-    state.increment()
-    expect(SampleState(defaults: defaults).count == 2, "module data survives object reconstruction")
+    expect(Set(registry.descriptors.map(\.id)) == [IslandHost.feishuID, IslandHost.agentID, IslandHost.todoID], "Feishu Agent and Todo modules registered")
+    expect(registry.context(for: "local.youzi.island.home") == nil, "removed home has no entry or context")
+    expect(registry.context(for: "local.youzi.island.sample") == nil, "removed sample has no entry or context")
+    let feishu = registry.context(for: IslandHost.feishuID)!
+    let agent = registry.context(for: IslandHost.agentID)!
+    expect(feishu.containerURL != agent.containerURL, "module files isolated")
+    expect(feishu.defaults !== agent.defaults, "module preferences isolated")
+    let switcher = NookModuleSwitcher(modules: registry.descriptors, activeID: IslandHost.feishuID, attentionIDs: [], switchTo: { _ in })
+    expect(switcher.directTarget == nil && switcher.modules.count == 3, "three destinations use host fixed icons")
+    let reverse = NookModuleSwitcher(modules: Array(registry.descriptors.prefix(2)), activeID: IslandHost.agentID, attentionIDs: [], switchTo: { _ in })
+    expect(reverse.directTarget?.id == IslandHost.feishuID, "two-module legacy switch remains compatible")
+    expect(IslandHost.baseConfiguration(title: "待办", symbol: "checklist").topBar.content != nil, "host provides fixed-icon top bar")
+    expect(NookModuleSwitcher(modules: [registry.descriptors[0]], activeID: IslandHost.feishuID, attentionIDs: [], switchTo: { _ in }).directTarget == nil, "one module has no toggle target")
+
 }
 func fixture(_ id: String, kind: String = "group", mentions: [[String: Any]] = [], text: String = "hello", senderID: String = "ou_other", chatID: String = "oc_123") -> FeishuMessage {
     FeishuMessage(raw: ["message_id": id, "msg_type": "text", "sender": ["id": senderID, "id_type":"open_id", "sender_name": "同事"],

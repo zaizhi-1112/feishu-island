@@ -18,11 +18,14 @@ enum RuntimeVerification {
             checks["firstMouseAccepted"] = hostView?.acceptsFirstMouse(for: nil) == true
             coordinator.switchModule(to: IslandHost.feishuID)
             checks["switchToFeishu"] = await wait { coordinator.activeModuleID == IslandHost.feishuID }
+            coordinator.switchModule(to: IslandHost.agentID)
+            checks["switchToAgents"] = await wait { coordinator.activeModuleID == IslandHost.agentID }
 
-            coordinator.switchModule(to: IslandHost.sampleID)
-            checks["switchToSample"] = await wait { coordinator.activeModuleID == IslandHost.sampleID }
-            coordinator.switchModule(to: IslandHost.homeID)
-            checks["switchToHome"] = await wait { coordinator.activeModuleID == IslandHost.homeID }
+            coordinator.switchModule(to: IslandHost.todoID)
+            checks["switchToTodos"] = await wait { coordinator.activeModuleID == IslandHost.todoID }
+            checks["onlyUsefulModules"] = Set(coordinator.moduleHost.descriptors.map(\.id)) == [IslandHost.feishuID, IslandHost.agentID, IslandHost.todoID]
+            coordinator.switchModule(to: IslandHost.feishuID)
+            checks["switchBackToFeishu"] = await wait { coordinator.activeModuleID == IslandHost.feishuID }
             coordinator.showSettings()
             checks["settings"] = await wait { coordinator.appState.viewMode == .settings }
             coordinator.showHome()

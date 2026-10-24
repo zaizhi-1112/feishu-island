@@ -15,6 +15,7 @@ $$('[data-theme-mode]').forEach(button => button.addEventListener('click', () =>
 }));
 systemAppearance.addEventListener('change', renderAppearance);
 renderAppearance();
+try { const cachedSkin = localStorage.getItem('island.skin'); if (['codex','claude','workbuddy'].includes(cachedSkin)) document.documentElement.dataset.skin = cachedSkin; } catch {}
 const keys = ['mentionsMe', 'mentionsAll', 'directMessages', 'followedChats'];
 let saved = null, draft = null, connected = false, saving = false, previewType = 'mentionsAll', activeTab = 'defaults';
 const targetValue = (target) => ({id:target.id, name:target.name, detail:target.detail || ''});
@@ -230,10 +231,10 @@ $('#picker-add').addEventListener('click', () => {
   closePicker(); changed();
 });
 function selectPage(page) {
-  if (!['general','feishu','modules'].includes(page)) page = 'feishu';
+  if (!['general','feishu','modules','agents','skins','todos'].includes(page)) page = 'feishu';
   $$('.page').forEach(section => section.hidden = section.id !== `page-${page}`);
   $$('.nav-item').forEach(button => { const active = button.dataset.page === page; button.classList.toggle('active', active); if (active) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
-  text('#breadcrumb', {general:'通用设置', feishu:'飞书消息', modules:'功能模块'}[page]);
+  text('#breadcrumb', {general:'通用设置', feishu:'飞书消息', modules:'功能模块', agents:'Agent状态', skins:'皮肤设置', todos:'待办提醒'}[page]);
   if (location.hash !== `#${page}`) history.replaceState(null,'',`#${page}`);
 }
 $$('[data-page]').forEach(button => button.addEventListener('click', () => selectPage(button.dataset.page)));
@@ -241,3 +242,148 @@ window.addEventListener('hashchange', () => selectPage(location.hash.slice(1)));
 $$('[data-preview]').forEach(button => button.addEventListener('click', () => { previewType = button.dataset.preview; renderPreview(); }));
 window.addEventListener('beforeunload', event => { if (dirty()) { event.preventDefault(); event.returnValue = ''; } });
 selectPage(location.hash.slice(1)); load(); setInterval(() => { if (!document.hidden) load(); }, 15000);
+
+let agentSnapshot = null, agentDirty = false, agentSaving = false;
+let queuedSkinChanges = null, writingSkin = false;
+function agentNode(tag, className, content) {
+  const node = document.createElement(tag); node.className = className;
+  if (content !== undefined) node.textContent = content;
+  return node;
+}
+function agentFormPreferences(changes = {}) {
+  return {...agentSnapshot.preferences, enabled:$('#agent-enabled').checked, completionAlerts:$('#agent-completion').checked, quotaAlerts:$('#agent-quota').checked, ...changes};
+}
+function agentDisplayIDs(preferences) { return preferences.visibleIDs || preferences.profiles.map(profile => profile.id); }
+function renderAgents(snapshot) {
+  agentSnapshot = snapshot;
+  const preferences = snapshot.preferences;
+  window.skinPreferences = preferences;
+  if (window.SkinStudio) window.SkinStudio.render({...preferences,...queuedSkinChanges}, snapshot);
+  const visibleIDs = agentDisplayIDs(preferences);
+  if (!agentDirty) {
+    $('#agent-enabled').checked = preferences.enabled;
+    $('#agent-completion').checked = preferences.completionAlerts;
+    $('#agent-quota').checked = preferences.quotaAlerts;
+  }
+  $$('[data-agent-visible]').forEach(input => { input.checked = visibleIDs.includes(input.dataset.agentVisible); input.disabled = agentSaving; });
+  $('#agent-only-primary').disabled = agentSaving;
+  $('#agent-show-all').disabled = agentSaving;
+  text('#agent-display-count', `显示${visibleIDs.length}个Agent`);
+  $('#agent-cards').dataset.count = visibleIDs.length;
+  $$('[data-agent-help]').forEach(paragraph => { paragraph.hidden = !visibleIDs.includes(paragraph.dataset.agentHelp); });
+  $('#agent-refresh').disabled = snapshot.refreshing || !preferences.enabled || agentSaving;
+  $('#agent-refresh').textContent = snapshot.refreshing ? '正在读取…' : '刷新额度';
+  const cards = preferences.profiles.filter(profile => visibleIDs.includes(profile.id)).map(profile => {
+    const data = snapshot.agents[profile.id] || {};
+    const selected = preferences.primaryID === profile.id;
+    const card = agentNode('article', `agent-card${selected ? ' selected' : ''}`);
+    const heading = agentNode('div', 'agent-card-heading');
+    const logo = agentNode('span', `agent-logo ${profile.id}`), icon = agentNode('img', '');
+    icon.src = `/avatar-${profile.id}.png`; icon.alt = ''; logo.append(icon); heading.append(logo);
+    const title = agentNode('div', ''); title.append(agentNode('h2', '', profile.name));
+    title.append(agentNode('span', 'agent-connection', profile.id === 'claude' ? '尚未接入 · 待登录联调' : (data.quotas || []).some(q => q.fresh) ? '额度已连接' : '等待数据'));
+    heading.append(title); card.append(heading);
+    const status = agentNode('div', 'agent-task-state'); status.append(agentNode('i', `agent-dot ${data.state || 'unknown'}`), agentNode('span', '', data.stateLabel || '等待状态数据'));
+    if (data.activeCount > 1) status.append(agentNode('small', '', `${data.activeCount}个任务`));
+    card.append(status);
+    const quotas = agentNode('div', 'agent-quota-list');
+    if (!(data.quotas || []).length) quotas.append(agentNode('div', 'agent-no-quota', '暂无额度数据'));
+    for (const quota of data.quotas || []) {
+      const item = agentNode('div', `agent-quota${quota.fresh && quota.remainingPercent < 20 ? ' low' : ''}${quota.fresh ? '' : ' stale'}`);
+      const line = agentNode('div', 'agent-quota-title'); line.append(agentNode('span', '', quota.label), agentNode('span', 'agent-quota-tag', quota.fresh ? '剩余' : '上次记录'));
+      item.append(line, agentNode('strong', '', `${quota.remainingPercent.toFixed(1)}%`));
+      const track = agentNode('progress', ''); track.max = 100; track.value = quota.remainingPercent; track.setAttribute('aria-label', `${quota.label}剩余${quota.remainingPercent.toFixed(1)}%`); item.append(track);
+      if (quota.remainingUnits !== null) item.append(agentNode('p', '', `${quota.remainingUnits.toFixed(2)} / ${quota.totalUnits.toFixed(0)}积分`));
+      if (quota.resetsAt) item.append(agentNode('p', '', `重置：${new Date(quota.resetsAt*1000).toLocaleString('zh-CN', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}`));
+      item.append(agentNode('small', '', `${quota.fresh ? '更新于' : '已过期 · 记录于'}${new Date(quota.updatedAt*1000).toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit',hour12:false})}`));
+      quotas.append(item);
+    }
+    card.append(quotas, agentNode('p', 'agent-detail', data.detail || '等待Agent数据。'));
+    const choose = agentNode('button', selected ? 'primary' : 'secondary', selected ? '当前主用Agent' : '设为主用Agent');
+    choose.disabled = selected || agentSaving;
+    choose.addEventListener('click', async () => {
+      await saveAgentPreferences(agentFormPreferences({primaryID:profile.id}), '主用Agent及提醒设置已保存。');
+    }); card.append(choose);
+    return card;
+  });
+  $('#agent-cards').replaceChildren(...cards);
+  text('#agent-last-alert', snapshot.lastAlert ? `最近提醒：${snapshot.lastAlert}` : '');
+  if (!agentDirty && !agentSaving) text('#agent-save-status', preferences.enabled ? '监测已启用 · 设置只保存在本机' : '监测已暂停');
+}
+async function loadAgents() {
+  if (agentSaving) return;
+  try {
+    const response = await request('GET', undefined, '/api/agents');
+    if (!agentSaving && (!agentSnapshot || response.preferences.revision >= agentSnapshot.preferences.revision)) renderAgents(response);
+  }
+  catch (error) { text('#agent-save-status', error.message); }
+}
+async function saveAgentPreferences(preferences, message, statusTarget = '#agent-save-status', preserveDraft = false) {
+  if (agentSaving) return;
+  const retainedDirty = preserveDraft && agentDirty;
+  agentSaving = true; $('#agent-save').disabled = true;
+  $$('[data-agent-visible]').forEach(input => { input.disabled = true; });
+  $('#agent-only-primary').disabled = true; $('#agent-show-all').disabled = true;
+  try {
+    const response = await request('POST', preferences, '/api/agents');
+    agentDirty = retainedDirty; agentSaving = false; renderAgents(response); text(statusTarget, message);
+  } catch (error) {
+    agentSaving = false; if (agentSnapshot) renderAgents(agentSnapshot); text(statusTarget, error.message);
+  } finally {
+    agentSaving = false; $('#agent-save').disabled = false;
+    $$('[data-agent-visible]').forEach(input => { input.disabled = false; });
+    $('#agent-only-primary').disabled = false; $('#agent-show-all').disabled = false;
+  }
+}
+async function saveAgentVisibility(ids) {
+  if (!agentSnapshot || agentSaving) return;
+  if (!ids.length) {
+    renderAgents(agentSnapshot); text('#agent-display-status', '至少保留一个Agent；如果想暂停监测，可关闭下方的“启用Agent监测”。'); return;
+  }
+  const primaryID = ids.includes(agentSnapshot.preferences.primaryID) ? agentSnapshot.preferences.primaryID : agentSnapshot.preferences.profiles.find(profile => ids.includes(profile.id)).id;
+  const name = agentSnapshot.preferences.profiles.find(profile => profile.id === primaryID).name;
+  await saveAgentPreferences(agentFormPreferences({visibleIDs:ids, primaryID}), `已保存，显示${ids.length}个Agent，主用${name}。`, '#agent-display-status');
+}
+$$('[data-agent-visible]').forEach(input => input.addEventListener('change', () => saveAgentVisibility($$('[data-agent-visible]').filter(item => item.checked).map(item => item.dataset.agentVisible))));
+$('#agent-only-primary').addEventListener('click', () => { if (agentSnapshot) saveAgentVisibility([agentSnapshot.preferences.primaryID]); });
+$('#agent-show-all').addEventListener('click', () => { if (agentSnapshot) saveAgentVisibility(agentSnapshot.preferences.profiles.map(profile => profile.id)); });
+for (const id of ['#agent-enabled','#agent-completion','#agent-quota']) $(id).addEventListener('change', () => { agentDirty = true; text('#agent-save-status', '有未保存的提醒设置。'); });
+$('#agent-save').addEventListener('click', () => {
+  if (!agentSnapshot) return;
+  saveAgentPreferences(agentFormPreferences(), '提醒设置已保存。');
+});
+$('#agent-refresh').addEventListener('click', async () => {
+  $('#agent-refresh').disabled = true;
+  try { renderAgents(await request('POST', {}, '/api/agents/refresh')); }
+  catch (error) { text('#agent-save-status', error.message); }
+});
+loadAgents(); setInterval(() => { if (!document.hidden) loadAgents(); }, 2000);
+window.addEventListener('beforeunload', event => { if (agentDirty) { event.preventDefault(); event.returnValue = ''; } });
+
+window.addEventListener('skin-ready', () => { if (agentSnapshot) window.SkinStudio.render(agentSnapshot.preferences, agentSnapshot); });
+// Local writes are serialized; rapid skin picks keep the user's final selection.
+function changeSkinPreferences(changes) {
+  if (!agentSnapshot) return;
+  queuedSkinChanges = {...queuedSkinChanges,...changes};
+  window.SkinStudio?.render({...agentSnapshot.preferences,...queuedSkinChanges},agentSnapshot);
+  flushSkinPreferences();
+}
+async function flushSkinPreferences() {
+  if (writingSkin) return;
+  writingSkin = true;
+  try {
+    while (queuedSkinChanges) {
+      if (agentSaving) { await new Promise(resolve=>setTimeout(resolve,16)); continue; }
+      const changes=queuedSkinChanges;queuedSkinChanges=null;
+      await saveAgentPreferences({...agentSnapshot.preferences,...changes}, '皮肤设置已保存，整座岛已换装。', '#skin-status', true);
+    }
+  } finally { writingSkin=false; }
+}
+window.addEventListener('skin-select', event => changeSkinPreferences({skinID:event.detail}));
+$('#skin-effects-enabled').addEventListener('change', event => changeSkinPreferences({effectsEnabled:event.target.checked}));
+let companionTimer;
+$('#skin-companion').addEventListener('click', () => {
+  const companion=$('#skin-companion');companion.classList.remove('greeted');void companion.offsetWidth;companion.classList.add('greeted');
+  text('#skin-greeting','收到！陪你一起专心');clearTimeout(companionTimer);
+  companionTimer=setTimeout(()=>{companion.classList.remove('greeted');text('#skin-greeting','点一下，打个招呼');},1200);
+});

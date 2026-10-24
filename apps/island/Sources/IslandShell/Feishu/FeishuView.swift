@@ -11,12 +11,13 @@ struct FeishuView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let id = selectedID, let message = store.visibleMessages.first(where: { $0.id == id }) {
-                detail(message)
+                ScrollView { detail(message) }
             } else {
                 header
-                if showConnection { connection }
                 let list = showAll ? store.visibleMessages : store.important
-                if list.isEmpty {
+                if showConnection {
+                    ScrollView { connection }.frame(maxHeight: .infinity, alignment: .top)
+                } else if list.isEmpty {
                     emptyState
                 } else {
                     ScrollView {
@@ -30,7 +31,7 @@ struct FeishuView: View {
                                     .accessibilityIdentifier("feishu.message.\(message.id)")
                             }
                         }
-                    }.frame(height: min(CGFloat(list.count) * 88, 256))
+                    }.frame(maxHeight: .infinity)
                 }
                 footer
                 if !store.status.hasPrefix("账号接收中") && !store.status.hasPrefix("演示模式") {
@@ -47,6 +48,9 @@ struct FeishuView: View {
         }
         .padding(.horizontal, 12).padding(.top, 7).padding(.bottom, 10)
         .accessibilityIdentifier("feishu.home")
+        .frame(height: IslandHost.panelHeight)
+        .modifier(IslandReadingModule(moduleID: IslandHost.feishuID))
+        
     }
 
     private var header: some View {
@@ -95,7 +99,7 @@ struct FeishuView: View {
             Text(!store.enabled ? "在连接设置中，可以重新开始接收。" : "按你的规则筛选，继续遵守免打扰。")
                 .font(.system(size: 10)).foregroundStyle(theme.tertiaryLabel)
         }
-        .frame(maxWidth: .infinity).frame(height: 157).modifier(IslandCard())
+        .frame(maxWidth: .infinity, maxHeight: .infinity).modifier(IslandCard())
     }
 
     private var connection: some View {

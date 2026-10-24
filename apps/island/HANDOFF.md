@@ -1,8 +1,8 @@
 # 柚子岛源码交接说明
 
-交接日期：2026-10-19；当前版本：0.5.0。
+同步日期：2026-10-24；当前版本：0.7.5（build23）。原始0.5.0交接说明保留如下。
 
-这是用于双方代码协作的源码包，不是可直接双击运行的安装包。功能包括原生Mac灵动岛外壳、飞书重要消息提醒、网页设置面板。AI任务和Skill接入仍在讨论阶段，尚未实现。
+这是用于双方代码协作的源码包，不是可直接双击运行的安装包。功能包括原生Mac灵动岛外壳、飞书重要消息提醒、Agent状态与额度、四套皮肤、临时待办与30天归档、网页设置面板、应用图标与桌面替身脚本。AI任务和Skill接入仍在讨论阶段，尚未实现。
 
 ## 建立GitHub仓库
 
@@ -92,3 +92,16 @@ export ISLAND_SDK="$(xcrun --sdk macosx --show-sdk-path)"
 包内`PACKAGE-MANIFEST.sha256`列出其余交接文件的SHA-256。未修改源码前可在项目根目录运行`shasum -a 256 -c PACKAGE-MANIFEST.sha256`校验；开始开发后文件散列会改变，这是正常现象。
 
 本次交接验证结果见`PACKAGING-CHECKS.md`。真实飞书登录和新电脑实机运行仍需接收方在自己的环境确认。
+
+
+## 0.5.1 Agent模块补充
+
+在回滚后的0.5.0上加入Codex、WorkBuddy状态与额度接入，说明及限制见[Agent接入说明](AGENT-INTEGRATION.md)。Claude桌面版没有可用账号，任务状态与实时额度尚未完成接入。新增逻辑检查运行`swift run --sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk AgentChecks`。旧版备份保留在本机更新备份目录；未提交或发布到远程仓库。
+
+## 0.7.5协作同步
+
+本次将独立迭代的本机版本同步到协作分支，仅更新`apps/island`。不包含对方`codex/collaboration-panel`分支的个人中台、Dot连接或弹幕融合；这些功能需单独比较后合并。主分支、弹幕目录、授权边界及其他开发分支不受本次上传影响。
+
+桌面入口：构建并安装到`~/Applications/柚子岛.app`后，运行`swift scripts/install-desktop-shortcut.swift`；图标随正常打包装入。脚本支持显式指定安装包及桌面替身路径。
+
+`PACKAGE-MANIFEST.sha256`与`PACKAGING-CHECKS.md`是2026-10-19原始0.5.0交接记录，不能用于校验本次0.7.5改动。当前验证与同步范围见`SYNC-20261024.md`。
