@@ -44,7 +44,7 @@ final class AgentStore: ObservableObject {
         }
         self.timer=timer;RunLoop.main.add(timer,forMode:.common)
         updateActivity()
-        Task { await poll() }
+        Task { await connectSelectedStatuses(); await poll() }
     }
     func update(_ next: AgentPreferences) throws {
         guard next.revision == preferences.revision else { throw AgentReadError.unavailable("设置已在别处更改，请重新载入。") }
@@ -69,15 +69,30 @@ final class AgentStore: ObservableObject {
             if !preferences.quotaDisplayEnabled { activities?.end("agent-status") }
         } else {
             if !previousEnabled { trackers = [:]; lastQuotaAttempt = .distantPast }
-            updateActivity(); Task { await poll() }
+            updateActivity(); Task { await connectSelectedStatuses(); await poll() }
             if previousVisible != preferences.visibleIDs { checkQuotaAlerts() }
         }
         if previousQuotaDisplay != preferences.quotaDisplayEnabled { lastQuotaAttempt = .distantPast; activityPrimary = "" }
         updateActivity()
         if preferences.quotaDisplayEnabled { Task { await poll() } }
     }
+    private func connectSelectedStatuses() async {
+        guard preferences.enabled else { return }
+        for id in preferences.visibleIDs where ["claude", "workbuddy"].contains(id) {
+            if !(await AgentStatusConnection.install(id)) {
+                var value = snapshots[id] ?? .init()
+                value.detail = "状态提醒配置未完成，请在工作台的Agent接入重试。"; snapshots[id] = value
+            }
+        }
+    }
+    func connectStatus(_ id: String) {
+        guard ["claude", "workbuddy"].contains(id) else { return }
+        var next = preferences; next.enabled = true
+        if !next.visibleIDs.contains(id) { next.visibleIDs.append(id) }
+        try? update(next)
+    }
     func monitorSelected(_ id:String) {
-        guard preferences.enabled,["codex","workbuddy"].contains(id),!preferences.visibleIDs.contains(id) else { return }
+        guard preferences.enabled,["codex","claude","workbuddy"].contains(id),!preferences.visibleIDs.contains(id) else { return }
         var next=preferences;next.visibleIDs.append(id);try? update(next)
     }
     func selectPrimary(_ id: String) {
@@ -112,9 +127,13 @@ final class AgentStore: ObservableObject {
         for profile in preferences.profiles {
             var tracker = trackers[profile.id] ?? .init()
             let sessions=snapshots[profile.id]?.sessions ?? []
+            let started = tracker.starts(sessions, now: now)
             let count = tracker.completions(sessions, now: now)
             let attention=tracker.attentionRequests(sessions,now:now)
             trackers[profile.id] = tracker
+            if started > 0, preferences.completionAlerts, preferences.visibleIDs.contains(profile.id) {
+                presentCompletion(profileID: profile.id, count: started, stillWorking: true, attention: "running")
+            }
             if count > 0, preferences.completionAlerts, preferences.visibleIDs.contains(profile.id) {
                 let stillWorking = snapshots[profile.id]?.state(now: now) == .working
                 presentCompletion(profileID: profile.id, count: count, stillWorking: stillWorking)
@@ -182,7 +201,7 @@ final class AgentStore: ObservableObject {
     }
     private func presentCompletion(profileID: String, count: Int, stillWorking: Bool, attention:String? = nil) {
         guard let profile = preferences.profiles.first(where: { $0.id == profileID }) else { return }
-        unviewedCompletionProfiles.insert(profileID)
+        if attention != "running" { unviewedCompletionProfiles.insert(profileID) }
         let notice = AgentCompletionNotice(profileID: profileID, name: profile.name, count: count, stillWorking: stillWorking,attention:attention)
         completionTask?.cancel()
         completionNotice = notice
@@ -246,14 +265,15 @@ final class AgentStore: ObservableObject {
     }
     func webSnapshot() -> [String: Any] {
         let now = Date().timeIntervalSince1970
-        let states: [String: Any] = snapshots.mapValues { value in
-            ["state": preferences.enabled ? value.state(now: now).rawValue : "unknown", "stateLabel": preferences.enabled ? value.state(now: now).label : "监测已暂停",
+        let states: [String: Any] = Dictionary(uniqueKeysWithValues: snapshots.map { id, value in
+            (id, ["state": preferences.enabled ? value.state(now: now).rawValue : "unknown", "stateLabel": preferences.enabled ? value.state(now: now).label : "监测已暂停",
              "source": value.source, "detail": value.detail,
+             "statusConnected": ["claude","workbuddy"].contains(id) ? AgentStatusConnection.isConfigured(id) : preferences.enabled,
              "activeCount": value.sessions.filter { $0.state == .working && now - $0.updatedAt < 900 }.count,
              "quotas": value.quotas.map { quota -> [String: Any] in
                  ["id": quota.id, "label": quota.label, "remainingPercent": quota.remainingPercent, "resetsAt": quota.resetsAt as Any? ?? NSNull(), "updatedAt": quota.updatedAt, "fresh": quota.isFresh(now: now), "remainingUnits": quota.remainingUnits as Any? ?? NSNull(), "totalUnits": quota.totalUnits as Any? ?? NSNull()]
-             }] as [String: Any]
-        }
+             }] as [String: Any])
+        })
         return ["surfaceWindowNumber":IslandModuleNavigation.shared.surfaceWindowNumber as Any? ?? NSNull(),"preferences": (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(preferences))) ?? [:], "agents": states, "refreshing": refreshing, "lastAlert": lastAlert, "threshold": 20]
     }
 }

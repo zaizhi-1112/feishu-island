@@ -126,6 +126,14 @@ public struct AgentPreferences: Codable, Sendable {
 
 /// Kept independent of UI so threshold/reset/deduplication behavior can be verified with fixtures.
 public struct AgentAlertTracker {
+    private var previousRunning = Set<String>()
+    private var runningInitialized = false
+    public mutating func starts(_ sessions: [AgentSession], now: Double) -> Int {
+        let running = sessions.filter { $0.state == .working && now - $0.updatedAt < 900 && $0.updatedAt <= now + 60 }
+        defer { previousRunning = Set(running.map(\.id)); runningInitialized = true }
+        guard runningInitialized else { return 0 }
+        return running.filter { !previousRunning.contains($0.id) && now - $0.updatedAt < 60 }.count
+    }
     public var notifiedQuotaCycles: Set<String> = []
     private var previousAttention:[String:String]=[:]
     private var attentionInitialized=false

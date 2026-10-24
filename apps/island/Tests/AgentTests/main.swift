@@ -238,6 +238,58 @@ final class AgentTests {
         XCTAssertEqual(sqlite3_exec(db,"UPDATE sessions SET status='terminated',updated_at=1000002000 WHERE id='active'",nil,nil,nil),SQLITE_OK)
         XCTAssertEqual(AgentSnapshot(sessions:try WorkBuddyReader.sessions(now:now+2,root:root)).state(now:now+2),.failed)
     }
+    func testStartAlertsDoNotReplayHistory() {
+        var tracker=AgentAlertTracker()
+        XCTAssertEqual(tracker.starts([session("existing",.working,now)],now:now),0)
+        XCTAssertEqual(tracker.starts([session("existing",.working,now),session("new",.working,now+1)],now:now+1),1)
+        XCTAssertEqual(tracker.starts([session("existing",.working,now),session("new",.working,now+1)],now:now+2),0)
+        XCTAssertEqual(tracker.starts([session("new",.waiting,now+3)],now:now+3),0)
+        XCTAssertEqual(tracker.starts([session("new",.working,now+4)],now:now+4),1)
+        XCTAssertEqual(tracker.starts([session("stale",.working,now-100)],now:now+5),0)
+    }
+    func testClaudeAndWorkBuddyPassiveLifecycle() throws {
+        for provider in ["claude", "workbuddy"] {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent("state40-"+UUID().uuidString)
+            let folder=root.appendingPathComponent(provider)
+            try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+            var previous:AgentHookRecord?
+            var tracker=AgentAlertTracker()
+            _=tracker.completions([],now:now-1);_=tracker.attentionRequests([],now:now-1)
+            for (offset,event,tool,expected,reason) in [
+                (0.0,"UserPromptSubmit","",AgentState.working,nil as String?),
+                (1.0,"PreToolUse","AskUserQuestion",.waiting,"input"),
+                (2.0,"PostToolUse","AskUserQuestion",.working,nil),
+                (3.0,"PermissionRequest","Bash",.waiting,"approval"),
+                (4.0,"PostToolUse","Bash",.working,nil),
+                (5.0,"Stop","",.completed,nil)
+            ] {
+                let input:[String:Any] = ["session_id":"synthetic-"+provider,"hook_event_name":event,"tool_name":tool,"prompt":"SECRET-PROMPT","tool_input":["password":"NEVER-SAVE"],"tool_response":"PRIVATE-RESULT","cwd":"/secret/path"]
+                let record=AgentHookRecord.reduce(input,previous:previous,now:now+offset)!
+                let encoded=try JSONEncoder().encode(record)
+                try encoded.write(to:folder.appendingPathComponent(record.id+".json"))
+                let sessions=AgentStatusConnection.sessions(provider:provider,now:now+offset,root:root)
+                XCTAssertEqual(sessions.count,1);XCTAssertEqual(sessions[0].state,expected)
+                XCTAssertEqual(sessions[0].attentionReason,reason)
+                let attention=tracker.attentionRequests(sessions,now:now+offset)
+                XCTAssertEqual(attention.count,expected == .waiting ? 1:0)
+                XCTAssertTrue(tracker.attentionRequests(sessions,now:now+offset).isEmpty)
+                XCTAssertEqual(tracker.completions(sessions,now:now+offset),expected == .completed ? 1:0)
+                let text=String(decoding:encoded,as:UTF8.self)
+                for excluded in ["SECRET-PROMPT","NEVER-SAVE","PRIVATE-RESULT","/secret/path","synthetic-"] { XCTAssertFalse(text.contains(excluded)) }
+                previous=record
+            }
+            XCTAssertNil(AgentHookRecord.reduce(["session_id":"synthetic","hook_event_name":"Notification","notification_type":"idle_prompt"],previous:previous,now:now+6))
+            XCTAssertNil(AgentHookRecord.reduce(["session_id":"synthetic","hook_event_name":"SessionEnd"],previous:previous,now:now+6))
+            XCTAssertTrue(AgentStatusConnection.sessions(provider:provider,now:now+86410,root:root).isEmpty)
+            let wait=AgentHookRecord.reduce(["session_id":"same","hook_event_name":"PermissionRequest"],previous:nil,now:now)!
+            let repeatWait=AgentHookRecord.reduce(["session_id":"same","hook_event_name":"Notification","notification_type":"permission_prompt"],previous:wait,now:now+1)!
+            XCTAssertEqual(wait.attentionID,repeatWait.attentionID)
+            let a=AgentSession(id:wait.id,state:.working,updatedAt:now+1)
+            let b=AgentSession(id:wait.id,state:.waiting,updatedAt:now,attentionID:wait.attentionID,attentionReason:"approval")
+            XCTAssertEqual(AgentStatusConnection.merge(database:[a],events:[b],now:now+1).first?.state,.waiting)
+            XCTAssertEqual(AgentStatusConnection.merge(database:[AgentSession(id:wait.id,state:.completed,updatedAt:now+2)],events:[b],now:now+3).first?.state,.completed)
+        }
+    }
     func testCodexInputAndApprovalTransitions() async throws {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent("agent-control-fixture-"+UUID().uuidString)
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
@@ -362,6 +414,8 @@ try tests.testDisplayPreferencesMigrationAndSelection()
 try tests.testSkinPreferenceMigrationAndIndependence()
 try tests.testFourSkinAssetsAndReducedMotionMigration()
 try tests.testWorkBuddyTaskDatabaseAndAccountIsolation()
+try tests.testClaudeAndWorkBuddyPassiveLifecycle()
+tests.testStartAlertsDoNotReplayHistory()
 try await tests.testCodexInputAndApprovalTransitions()
 tests.testAgentIdentityAndActivePriority()
 try await tests.testResumedOldCodexChatAndIncrementalCompletion()

@@ -70,7 +70,7 @@ enum SkinResources {
     }()
     static let images: [String: NSImage] = {
         var result: [String: NSImage] = [:]
-        for name in ["pet-codex.png","pet-claude.png","pet-workbuddy.png","avatar-codex.png","avatar-claude.png","avatar-workbuddy.png","avatar-virxact.png","virxact-logo.png"] {
+        for name in ["pet-codex.png","pet-claude.png","pet-workbuddy.png","avatar-codex.png","avatar-claude.png","avatar-workbuddy.png","avatar-virxact.png","virxact-logo.png","agent-codex.png"] {
             if let url = SkinResources.url(name), let image = NSImage(contentsOf: url) { result[name] = image }
         }
         return result
@@ -143,7 +143,7 @@ struct AgentPortrait: View {
     }
     @ViewBuilder
     private var portrait: some View {
-        let name = id == "virxact" ? "avatar-virxact.png" : (avatar ? "avatar-\(id).png" : "pet-\(id).png")
+        let name = id == "codex" && avatar ? "agent-codex.png" : id == "virxact" ? "avatar-virxact.png" : (avatar ? "avatar-\(id).png" : "pet-\(id).png")
         Group {
             if let image = SkinResources.images[name] {
                 if id == "virxact" {

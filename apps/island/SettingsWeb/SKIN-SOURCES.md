@@ -10,3 +10,6 @@
 `skin-effects.js`与原生`SkinFlow.swift`负责轻动效，隐藏、关闭动效或系统减少动态时停下；原有控件布局不参与动画。
 
 构建：`./scripts/build.sh` → `./scripts/package-skin-preview.sh` → `./scripts/skin-preview.sh`。预览使用独立bundle、设置和18776端口，不连接真实业务数据，也不会替换已安装应用。
+
+## build40 Codex 标识
+用户指定紫蓝色云朵终端图标。`dist/agent-codex.png` 逐字节复制本机已安装 ChatGPT.app 的 `Contents/Resources/icon-codex-dark-color.png`，用于 Agent 选择、胶囊和状态提醒，不再用 OpenAI 结形图标或机器人头像代替。`pet-codex.png` 和原 `avatar-codex.png` 仍保留作角色素材。未修改原始图像像素。

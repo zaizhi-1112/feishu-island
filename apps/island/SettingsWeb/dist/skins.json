@@ -165,13 +165,13 @@
   "agents": {
     "codex": {
       "portrait": "pet-codex.png",
-      "avatar": "avatar-codex.png",
+      "avatar": "agent-codex.png",
       "atlas": "codex-atlas.webp",
       "cell": [
         192,
         208
       ],
-      "source": "Official Codex app bundled codex-spritesheet-v6"
+      "source": "Codex logo: installed ChatGPT.app icon-codex-dark-color.png, matched to user supplied cloud terminal reference. Original pet artwork retained separately."
     },
     "claude": {
       "portrait": "pet-claude.png",

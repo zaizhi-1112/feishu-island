@@ -14,8 +14,11 @@ struct AgentConnectionsView:View {
                 HStack {
                     Text(entry.name).font(.system(size:16,weight:.medium))
                     Spacer()
-                    Text(entry.taskProvider != nil ? "可交给 AI" : entry.id == "claude" ? "状态待接入 · 可配置项目连接" : "本机状态与额度 · 可配置项目连接")
+                    Text(entry.taskProvider != nil ? "可交给 AI" : "本机状态提醒 · 可配置项目连接")
                         .font(.system(size:13)).foregroundStyle(.secondary)
+                    if ["claude", "workbuddy"].contains(entry.id) {
+                        Button("连接状态提醒") { AgentStore.shared.connectStatus(entry.id); feedback="正在配置 "+entry.name+" 状态事件；已打开的客户端若未生效，请新建任务后查看。" }
+                    }
                     Button("选择") { catalog.select(entry.id,in:workspace); AgentStore.shared.monitorSelected(entry.id); feedback="已选择 "+entry.name }
                 }
             }

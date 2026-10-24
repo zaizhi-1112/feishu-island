@@ -37,7 +37,7 @@ extension FusionTests {
         for id in ["codex","claude","workbuddy","dot","doubao"] {
             for state in [AgentState.working,.waiting,.completed] {
                 let name=AgentCatalogStore.builtins.first{$0.id==id}!.name
-                let notice=AgentCompletionNotice(profileID:id,name:name,count:1,stillWorking:state == .working,attention:state == .waiting ? "approval":nil)
+                let notice=AgentCompletionNotice(profileID:id,name:name,count:1,stillWorking:state == .working,attention:state == .working ? "running" : state == .waiting ? "approval":nil)
                 let view=HStack(spacing:10) { AgentIdentityIcon(id:id,size:22);AgentCompletionStatus(notice:notice,motion:false) }.padding(10).background(Color.black).preferredColorScheme(.dark)
                 let host=NSHostingView(rootView:view);host.wantsLayer=true;host.appearance=NSAppearance(named:.darkAqua)
                 let size=host.fittingSize

@@ -13,7 +13,7 @@ enum WorkBuddyReader {
     static func sessions(now: Double, root: URL = WorkBuddyReader.root) throws -> [AgentSession] {
         let accountURL = root.appendingPathComponent("storage/skeleton/account-snapshot.json")
         guard let raw = try? JSONSerialization.jsonObject(with: Data(contentsOf: accountURL)) as? [String: Any],
-              let primary = raw["primary"] as? [String: Any], let uid = primary["uid"] as? String else { return [] }
+              let primary = raw["primary"] as? [String: Any], let uid = primary["uid"] as? String else { return root == WorkBuddyReader.root ? AgentStatusConnection.sessions(provider: "workbuddy", now: now) : [] }
         var db: OpaquePointer?
         guard sqlite3_open_v2(root.appendingPathComponent("workbuddy.db").path, &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, nil) == SQLITE_OK else {
             if db != nil { sqlite3_close(db) }; throw AgentReadError.unavailable("请先打开并登录WorkBuddy。")
@@ -36,13 +36,17 @@ enum WorkBuddyReader {
             case "running", "in_progress", "working", "planning": state = .working
             case "completed": state = .completed
             case "error", "failed", "cancelled", "interrupted", "terminated": state = .failed
-            case "pending", "waiting", "waiting_for_approval": state = .waiting
+            case "waiting_for_input", "awaiting_input", "waiting_input", "waiting_user_input": state = .waiting
+            case "waiting_for_approval", "waiting_for_permission": state = .waiting
+            // WorkBuddy also uses pending for a brand-new, unstarted turn. Hooks disambiguate.
+            case "pending", "waiting": state = .unknown
             default: continue
             }
             // The database is authoritative. Old rows remain historical and do not light up the island.
-            result.append(AgentSession(id: id, state: state, updatedAt: timestamp))
+            let reason = state == .waiting ? (value.contains("permission") || value.contains("approval") ? "approval" : "input") : nil
+            result.append(AgentSession(id: AgentHookRecord.digest(id), state: state, updatedAt: timestamp, attentionID: reason.map { _ in value }, attentionReason: reason))
         }
-        return result
+        return AgentStatusConnection.merge(database: result, events: root == WorkBuddyReader.root ? AgentStatusConnection.sessions(provider: "workbuddy", now: now) : [], now: now)
     }
     static func quotas(now: Double) throws -> [AgentQuota] {
         let client = try WorkBuddyIPC(discovery: root.appendingPathComponent("wbipc/endpoint.json"))
