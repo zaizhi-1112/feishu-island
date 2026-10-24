@@ -2,7 +2,7 @@
 
 当前开发基线是 `codex/integrate-youzi-075`：保留飞书只读接收、透明桌面弹幕、Dot/Codex/豆包任务、中台卡片、公司授权、云文档/表格归档、Chrome 收录和冲屏提醒；接入柚子的 Agent 状态、四套皮肤、导航与拖拽改进。统一到原工作区：待办在“进行中／已完成／已归档”查看，归档可恢复，不沿用历史版30天彻底删除。原外壳的400点内容高度不沿用，保持紧凑灵动岛。设置入口在普通工作台“Agent 与皮肤”；Agent 状态监测默认关闭，仅主动开启并选中的来源可读取。
 
-候选源码已融合，尚未安装或正式发布。现有日用版不变。完整说明见 [双人融合说明](../../docs/双人融合说明-0.8.0.html)。原生构建使用 `ISLAND_APP_OUTPUT` 指定不存在的新路径；不覆盖运行中的应用。合成检查用 `bash scripts/check.sh island`、`fusion`、`island-reader`。Agent 纯合成检查：在本目录运行 `swift run --sdk <已安装兼容SDK> AgentChecks`，不使用 `--live-read`。两人各建功能分支，均从共同融合基线出发；main 仍需两位负责人确认最终同一版本。
+候选源码已融合，2026-10-24 本人要求后已在本机安装 build35 供体验。旧 build34 与工作区已备份；4条任务、接收设置和5个稳定helper保持，中台及Dot订阅恢复。尚未正式发布、合入main或更新中台；同事设备另行验收。完整说明见 [双人融合说明](../../docs/双人融合说明-0.8.0.html)。原生构建使用 `ISLAND_APP_OUTPUT` 指定不存在的新路径；不覆盖运行中的应用。合成检查用 `bash scripts/check.sh island`、`fusion`、`island-reader`。Agent 纯合成检查：在本目录运行 `swift run --sdk <已安装兼容SDK> AgentChecks`，不使用 `--live-read`。两人各建功能分支，均从共同融合基线出发；main 仍需两位负责人确认最终同一版本。
 
 # 柚子 0.7.5 历史交接（非当前日用说明）
 
