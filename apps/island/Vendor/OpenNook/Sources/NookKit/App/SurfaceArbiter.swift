@@ -116,6 +116,7 @@ final class SurfaceArbiter {
 
     /// The module whose claim is on screen, or `nil` when idle.
     var topModuleID: String? { stack.last?.claim.moduleID }
+    var topPresentation: NookSurfacePresentation? { stack.last?.claim.presentation }
 
     /// Grants `claim` the surface when it outranks the current holder, the user is not
     /// engaging the surface, and a background module's claim is `.urgent`. The decision
@@ -148,8 +149,13 @@ final class SurfaceArbiter {
             topClaimChanged()
             // A peek claim grows the pill when the module has a peek; otherwise, and for every
             // other claim, the surface opens.
-            let peeked = claim.presentation == .peek ? await peek() : false
-            if !peeked { await expand() }
+            if claim.presentation == .compact {
+                await endPeek()
+                await compact()
+            } else {
+                let peeked = claim.presentation == .peek ? await peek() : false
+                if !peeked { await expand() }
+            }
             granted = token
         }
         return granted

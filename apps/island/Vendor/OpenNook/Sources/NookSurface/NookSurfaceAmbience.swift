@@ -115,3 +115,12 @@ extension View {
         preference(key: NookAmbientColorPreferenceKey.self, value: color)
     }
 }
+
+private struct NookSurfaceAnimationActiveKey: EnvironmentKey { static let defaultValue = true }
+public extension EnvironmentValues {
+    /// False while edge-retracted or hidden, so custom backdrops suspend their frame clocks.
+    var nookSurfaceAnimationActive: Bool {
+        get { self[NookSurfaceAnimationActiveKey.self] }
+        set { self[NookSurfaceAnimationActiveKey.self] = newValue }
+    }
+}

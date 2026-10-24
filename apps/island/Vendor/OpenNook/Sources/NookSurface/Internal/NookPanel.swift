@@ -133,7 +133,7 @@ final class NookDragInterceptingView: NSView {
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        registerForDraggedTypes([.fileURL])
+        registerForDraggedTypes([.fileURL, .URL, .string])
     }
 
     @available(*, unavailable)
@@ -150,17 +150,18 @@ final class NookDragInterceptingView: NSView {
     }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        let urls = readFileURLs(from: sender.draggingPasteboard)
-        guard !urls.isEmpty else { return [] }
-        return dragDestination?.nookPanelDraggingEntered(urls) ?? []
+        guard dragDestination?.nookPanelAcceptsDrag(at: sender.draggingLocation) == true else {
+            dragDestination?.nookPanelDraggingExited()
+            return []
+        }
+        guard let payload = NookDropPayload.read(from: sender.draggingPasteboard) else { return [] }
+        return dragDestination?.nookPanelDraggingEntered(payload) ?? []
     }
 
     /// Forward updates as `entered` again - `Nook` is idempotent on enter - so the
     /// returned drag operation stays accurate as the cursor moves within the view.
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        let urls = readFileURLs(from: sender.draggingPasteboard)
-        guard !urls.isEmpty else { return [] }
-        return dragDestination?.nookPanelDraggingEntered(urls) ?? []
+        draggingEntered(sender)
     }
 
     override func draggingExited(_ sender: NSDraggingInfo?) {
@@ -174,21 +175,16 @@ final class NookDragInterceptingView: NSView {
     }
 
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        !readFileURLs(from: sender.draggingPasteboard).isEmpty
+        dragDestination?.nookPanelAcceptsDrag(at: sender.draggingLocation) == true && NookDropPayload.read(from: sender.draggingPasteboard) != nil
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        let urls = readFileURLs(from: sender.draggingPasteboard)
-        guard !urls.isEmpty else { return false }
-        return dragDestination?.nookPanelPerformDrop(urls) ?? false
+        guard prepareForDragOperation(sender) else { dragDestination?.nookPanelDraggingExited(); return false }
+        guard let payload = NookDropPayload.read(from: sender.draggingPasteboard) else { return false }
+        return dragDestination?.nookPanelPerformDrop(payload) ?? false
     }
 
-    private func readFileURLs(from pasteboard: NSPasteboard) -> [URL] {
-        guard let items = pasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] else {
-            return []
-        }
-        return items
-    }
+
 }
 
 /// SwiftUI tap gestures must receive the first mouse-down even when another app is active.

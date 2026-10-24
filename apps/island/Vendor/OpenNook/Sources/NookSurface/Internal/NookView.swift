@@ -182,12 +182,17 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             .clipShape(notchShape)
             .background { rimHalo() }
             .background { chromeShadow() }
-            .onGeometryChange(for: CGFloat.self, of: \.size.height) { measuredChromeHeight = $0 }
+            .environment(\.nookSurfaceAnimationActive, nook.state != .hidden && (!nook.edgeDocked || nook.state == .expanded || nook.isHovering || nook.isPeeking || nook.compactRevealActive))
+            .onGeometryChange(for: CGSize.self, of: \.size) {
+                measuredChromeHeight = $0.height
+                nook.dragTargetSize = $0
+                nook.noteChromeExtent($0.height + max(nook.physicalNotchHeight, nook.menubarHeight) + 8)
+            }
     }
 
     private var edgeLayout: NookEdgeDockLayout {
         NookEdgeDockLayout(
-            state: nook.state, hovering: nook.isHovering, peeking: nook.isPeeking,
+            state: nook.state, hovering: nook.isHovering || nook.compactRevealActive, peeking: nook.isPeeking,
             contentHeight: max(measuredChromeHeight, nook.notchSize.height),
             shownTopInset: floatingTopInset,
             physicalNotchHeight: nook.physicalNotchHeight
@@ -198,7 +203,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     private var positionedChrome: some View {
         if fusesWithHardwareNotch {
             let layout = NookNotchDockLayout(
-                state: nook.state, hovering: nook.isHovering, peeking: nook.isPeeking,
+                state: nook.state, hovering: nook.isHovering || nook.compactRevealActive, peeking: nook.isPeeking,
                 notchSize: nook.notchSize
             )
             chrome
@@ -225,7 +230,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 .accessibilityLabel(layout.isRetracted ? "刘海感应区，移入露出状态" : "灵动岛")
                 .accessibilityValue(layout.isRetracted ? "已融入刘海" : (nook.state == .compact ? "就绪，点击展开" : "已展开"))
                 .accessibilityIdentifier("island.edgeDock")
-        } else if nook.edgeDocked {
+        } else if nook.edgeDocked && (isFloating || nook.state != .expanded) {
             let layout = edgeLayout
             chrome
                 .overlay { companionLayer() }
@@ -273,6 +278,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             }
             .animation(nook.effectiveConversionAnimation, value: nook.state)
             .animation(nook.effectivePeekAnimation, value: nook.isPeeking)
+            .animation(reduceMotion ? nil : nook.effectiveConversionAnimation, value: nook.compactRevealActive)
             .animation(nook.effectiveConversionAnimation, value: nook.isHovering)
             .animation(nook.effectiveConversionAnimation, value: [compactLeadingWidth, compactTrailingWidth])
             .environment(\.nookHasKeyboardFocus, nook.hasKeyboardFocus)
