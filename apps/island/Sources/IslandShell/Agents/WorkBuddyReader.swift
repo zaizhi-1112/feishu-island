@@ -10,22 +10,36 @@ enum AgentReadError: LocalizedError {
 
 enum WorkBuddyReader {
     static let root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".workbuddy")
-    static func sessions(now: Double, root: URL = WorkBuddyReader.root) throws -> [AgentSession] {
+    static func sessions(now: Double, root: URL = WorkBuddyReader.root, observedEvents: [AgentSession]? = nil) throws -> [AgentSession] {
+        let events = observedEvents ?? (root == WorkBuddyReader.root ? AgentStatusConnection.sessions(provider: "workbuddy", now: now) : [])
         let accountURL = root.appendingPathComponent("storage/skeleton/account-snapshot.json")
-        guard let raw = try? JSONSerialization.jsonObject(with: Data(contentsOf: accountURL)) as? [String: Any],
-              let primary = raw["primary"] as? [String: Any], let uid = primary["uid"] as? String else { return root == WorkBuddyReader.root ? AgentStatusConnection.sessions(provider: "workbuddy", now: now) : [] }
+        let raw = (try? Data(contentsOf: accountURL)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        let uid = (raw?["primary"] as? [String: Any])?["uid"] as? String
+        // Older clients lack the account snapshot. They may only refine sessions
+        // already observed through a recent local Hook; never load arbitrary tasks.
+        let observed = Dictionary(events.filter { now - $0.updatedAt < 900 && $0.updatedAt <= now + 60 }
+            .map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
+        if uid == nil && observed.isEmpty { return events }
         var db: OpaquePointer?
         guard sqlite3_open_v2(root.appendingPathComponent("workbuddy.db").path, &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, nil) == SQLITE_OK else {
-            if db != nil { sqlite3_close(db) }; throw AgentReadError.unavailable("请先打开并登录WorkBuddy。")
+            if db != nil { sqlite3_close(db) }
+            if uid == nil { return events }
+            throw AgentReadError.unavailable("请先打开并登录WorkBuddy。")
         }
         defer { sqlite3_close(db) }
         sqlite3_busy_timeout(db, 300)
         var statement: OpaquePointer?
-        let sql = "SELECT id,status,updated_at FROM sessions WHERE deleted_at IS NULL AND user_id=? ORDER BY updated_at DESC LIMIT 100"
-        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { throw AgentReadError.unavailable("WorkBuddy的任务格式已变化，需更新接入。") }
+        let sql = uid != nil
+            ? "SELECT id,status,updated_at FROM sessions WHERE deleted_at IS NULL AND user_id=? ORDER BY updated_at DESC LIMIT 100"
+            : "SELECT id,status,updated_at FROM sessions WHERE deleted_at IS NULL AND updated_at>=? ORDER BY updated_at DESC LIMIT 100"
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            if uid == nil { return events }
+            throw AgentReadError.unavailable("WorkBuddy的任务格式已变化，需更新接入。")
+        }
         defer { sqlite3_finalize(statement) }
         let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-        sqlite3_bind_text(statement, 1, uid, -1, transient)
+        if let uid { sqlite3_bind_text(statement, 1, uid, -1, transient) }
+        else { sqlite3_bind_double(statement, 1, (now - 900) * 1000) }
         var result: [AgentSession] = []
         var hints: [String: WorkBuddyPendingTool.Hint] = [:]
         var historyBudget = 8
@@ -33,6 +47,8 @@ enum WorkBuddyReader {
             guard let idRaw = sqlite3_column_text(statement, 0), let stateRaw = sqlite3_column_text(statement, 1) else { continue }
             let id = String(cString: idRaw), value = String(cString: stateRaw).lowercased()
             let timestamp = sqlite3_column_double(statement, 2) / 1000
+            let digest = AgentHookRecord.digest(id)
+            if uid == nil && observed[digest] == nil { continue }
             var state: AgentState
             switch value {
             case "running", "in_progress", "working", "planning": state = .working
@@ -49,13 +65,18 @@ enum WorkBuddyReader {
             var attentionID = reason.map { _ in value }
             if historyBudget > 0, (state == .waiting || value == "pending" || value == "waiting"), now - timestamp < 900, timestamp <= now + 60 {
                 historyBudget -= 1
-                if let hint = WorkBuddyPendingTool.hint(sessionID: id, root: root) {
-                    state = .waiting; reason = hint.reason; attentionID = hint.id; hints[AgentHookRecord.digest(id)] = hint
+                // pending also describes a new, unstarted task. The unresolved tool
+                // and the client's awaiting-input state must agree. A newer Hook
+                // resuming/finishing the task wins over a delayed database update.
+                let nativePending = value == "pending" || value == "waiting"
+                let newerEvent = observed[digest].map { $0.updatedAt > timestamp } ?? false
+                if !newerEvent, let hint = WorkBuddyPendingTool.hint(sessionID: id, root: root, awaitingNativePermission: nativePending) {
+                    state = .waiting; reason = hint.reason; attentionID = hint.id; hints[digest] = hint
                 }
             }
-            result.append(AgentSession(id: AgentHookRecord.digest(id), state: state, updatedAt: timestamp, attentionID: attentionID, attentionReason: reason))
+            result.append(AgentSession(id: digest, state: state, updatedAt: timestamp, attentionID: attentionID, attentionReason: reason))
         }
-        return AgentStatusConnection.merge(database: result, events: root == WorkBuddyReader.root ? AgentStatusConnection.sessions(provider: "workbuddy", now: now) : [], now: now).map { item in
+        return AgentStatusConnection.merge(database: result, events: events, now: now).map { item in
             var item = item
             if item.state == .waiting, let hint = hints[item.id] { item.attentionReason = hint.reason; item.attentionID = hint.id }
             return item
@@ -86,6 +107,9 @@ private final class WorkBuddyIPC {
     private var buffer = Data()
     private var requestID = 0
     init(discovery: URL) throws {
+        guard FileManager.default.fileExists(atPath: discovery.path) else {
+            throw AgentReadError.unavailable("当前WorkBuddy版本未提供本机积分接口；状态提醒仍可使用。")
+        }
         var info = stat()
         guard lstat(discovery.path, &info) == 0, info.st_uid == getuid(), info.st_mode & 0o077 == 0,
               info.st_mode & S_IFMT == S_IFREG,

@@ -274,6 +274,46 @@ final class AgentTests {
         let policy=try JSONDecoder().decode(AgentHookPolicy.self,from:Data(contentsOf:policyRoot.appendingPathComponent("policy.json")))
         XCTAssertTrue(policy.enabled);XCTAssertEqual(policy.visibleIDs,["workbuddy"])
     }
+    func testWorkBuddyNativeApprovalWithoutAccountSnapshot() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("island-native-approval-\(UUID().uuidString)")
+        let folder = root.appendingPathComponent("projects/synthetic")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.trashItem(at: root, resultingItemURL: nil) }
+        let hookOnly = session(AgentHookRecord.digest("known"), .working, now - 1)
+        XCTAssertTrue(try WorkBuddyReader.sessions(now: now, root: root).isEmpty)
+        XCTAssertEqual(try WorkBuddyReader.sessions(now: now, root: root, observedEvents: [hookOnly]), [hookOnly])
+        var db: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(root.appendingPathComponent("workbuddy.db").path, &db), SQLITE_OK)
+        defer { sqlite3_close(db) }
+        XCTAssertEqual(sqlite3_exec(db, "CREATE TABLE sessions(id TEXT,user_id TEXT,status TEXT,updated_at REAL,deleted_at REAL); INSERT INTO sessions VALUES('known','current','pending',1000000000,NULL),('foreign','other','pending',1000000000,NULL),('unstarted','current','pending',1000000000,NULL)", nil, nil, nil), SQLITE_OK)
+        let call: [String: Any] = ["type":"function_call", "sessionId":"known", "name":"Bash", "callId":"safe-call", "arguments":"PRIVATE-NOT-RETAINED"]
+        var bytes = try JSONSerialization.data(withJSONObject: call); bytes.append(10)
+        try bytes.write(to: folder.appendingPathComponent("known.jsonl"))
+        XCTAssertNil(WorkBuddyPendingTool.parse(bytes, sessionID: "known"))
+        XCTAssertEqual(WorkBuddyPendingTool.parse(bytes, sessionID: "known", awaitingNativePermission: true)?.reason, "approval")
+        let observed = session(AgentHookRecord.digest("known"), .working, now - 1)
+        XCTAssertTrue(try WorkBuddyReader.sessions(now: now, root: root).isEmpty)
+        let pending = try WorkBuddyReader.sessions(now: now, root: root, observedEvents: [observed])
+        XCTAssertEqual(pending.count, 1); XCTAssertEqual(pending.first?.state, .waiting)
+        XCTAssertEqual(pending.first?.attentionReason, "approval")
+        var tracker = AgentAlertTracker(); _ = tracker.attentionRequests([observed], now: now - 1)
+        XCTAssertEqual(tracker.attentionRequests(pending, now: now).count, 1)
+        XCTAssertEqual(tracker.attentionRequests(pending, now: now + 1).count, 0)
+        // A long-running command is working, even with an unresolved Bash call.
+        XCTAssertEqual(sqlite3_exec(db,"UPDATE sessions SET status='working' WHERE id='known'",nil,nil,nil),SQLITE_OK)
+        XCTAssertEqual(try WorkBuddyReader.sessions(now: now, root: root, observedEvents: [observed]).first?.state, .working)
+        // A stale pending database row must not resurrect a finished/resumed Hook.
+        XCTAssertEqual(sqlite3_exec(db,"UPDATE sessions SET status='pending' WHERE id='known'",nil,nil,nil),SQLITE_OK)
+        let completed = session(observed.id, .completed, now + 1)
+        XCTAssertEqual(try WorkBuddyReader.sessions(now: now + 1, root: root, observedEvents: [completed]).first?.state, .completed)
+        XCTAssertEqual(try WorkBuddyReader.sessions(now: now + 1, root: root, observedEvents: [session(observed.id,.working,now+1)]).first?.state,.working)
+        XCTAssertEqual(try WorkBuddyReader.sessions(now: now, root: root, observedEvents: [session(AgentHookRecord.digest("unstarted"),.working,now-1)]).first?.state,.unknown)
+        // Matching result and a new user turn both clear the old permission request.
+        var result = try JSONSerialization.data(withJSONObject: ["type":"function_call_result","sessionId":"known","callId":"safe-call","status":"failed","output":"PRIVATE-NOT-RETAINED"]); result.append(10)
+        XCTAssertNil(WorkBuddyPendingTool.parse(bytes + result,sessionID:"known",awaitingNativePermission:true))
+        var next = try JSONSerialization.data(withJSONObject: ["type":"message","sessionId":"known","role":"user","content":"PRIVATE-NOT-RETAINED"]); next.append(10)
+        XCTAssertNil(WorkBuddyPendingTool.parse(bytes + next,sessionID:"known",awaitingNativePermission:true))
+    }
     func testStartAlertsDoNotReplayHistory() {
         var tracker=AgentAlertTracker()
         XCTAssertEqual(tracker.starts([session("existing",.working,now)],now:now),0)
@@ -453,10 +493,18 @@ try tests.testWorkBuddyTaskDatabaseAndAccountIsolation()
 try tests.testClaudeAndWorkBuddyPassiveLifecycle()
 tests.testStartAlertsDoNotReplayHistory()
 try tests.testWorkBuddyPendingToolMetadata()
+try tests.testWorkBuddyNativeApprovalWithoutAccountSnapshot()
 try await tests.testCodexInputAndApprovalTransitions()
 tests.testAgentIdentityAndActivePriority()
 try await tests.testResumedOldCodexChatAndIncrementalCompletion()
 print("\(assertionCount) Agent checks passed.")
+if let index = CommandLine.arguments.firstIndex(of: "--probe-workbuddy-session"), index + 1 < CommandLine.arguments.count {
+    let id = CommandLine.arguments[index + 1]
+    guard AgentBridge.validID(id) else { exit(2) }
+    let own = try WorkBuddyReader.sessions(now: Date().timeIntervalSince1970).first { $0.id == AgentHookRecord.digest(id) }
+    let summary: [String: Any] = ["state": own?.state.rawValue ?? "unknown", "reason": own?.attentionReason as Any? ?? NSNull(), "request": own?.attentionID as Any? ?? NSNull()]
+    print(String(decoding:try JSONSerialization.data(withJSONObject: summary,options:.sortedKeys),as:UTF8.self))
+}
 if CommandLine.arguments.contains("--live-read") {
     let codex = CodexReader()
     let sessions = await codex.sessions(now: Date())

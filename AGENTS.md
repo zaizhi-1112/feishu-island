@@ -189,3 +189,8 @@
 - build41最终实测：原生合成问题与岛内“等你输入”一致，回答A后返回“输入提醒最终通过41”；最终版运行/输入/继续/完成弹幕入队和播放从0递增到1/2/3/4且曾可见。前一轮超时修复后实际等待3m6s也成功返回。原测试直接运行返回“WorkBuddy真实联调完成40”。这是真实客户端/真实模型处理合成任务，不是注入状态。
 - 审批仍未真实触发：5.3.14无EnterPlanMode/ExitPlanMode，默认权限直接放行安全打印及一份独立临时文件。没有改安全模式、没有代批准，不能把它算作真人审批通过；审批提示维持合成验证边界。临时诊断Hook只移除自己的命令，原配置/其他Hooks保留；临时文件已移入废纸篓，没有工作岛任务或到期提醒残留。
 - 623Agent、987融合、69独立helper与11打包检查、Release和白名单DMG审计通过。本人本机已装build41，原5条工作区任务及完整数据、接收配置和5个授权helper保持，接收140/142、Dot有效订阅1；只重启工作岛未退出飞书，接收随更新短暂停止后恢复。备份.build/local-install-backups/state41-final-20261025-030117，脱敏回执install41-final-before/after.json；真实监测证据在忽略的workbuddy-live41-*及workbuddy-live40/verified-summary.json。DMG SHA256 879817671616185ed889cdfbff814fb9437a9af2c0ecfcf829317baf240e9953，仅本机待体验。源码同步开发分支PR8，不合main、不更新公司入口；Claude原模型/客户端限制未变。
+
+
+- 2026-10-25 build42：真实WorkBuddy 5.3.14沙箱审批已补验，发现原生审批不触发普通Hook，旧版仍报working。WorkBuddyReader现在结合只读数据库pending与对应未结束工具标waiting/approval；pending新任务且无工具仍unknown，working耗时工具不标确认，更新的继续/完成Hook优先。无账号快照时只细化近期Hook已监测哈希，不读取其他会话正文；有快照仍按原账号隔离，最多100条元数据、8份尾部/每份512KiB/512个目录。积分IPC缺失改为接口不可用说明，不重复要求登录。
+- 本机安装build42后真实审批时“WorkBuddy · 等你确认”，Agent弹幕入队/播放1→2；拒绝后继续/完成3→4，客户端返回“真实确认复验42完成，命令未执行”。单条原生询问规则仅限合成打印，未改变默认权限/关闭沙箱/批准操作，验收后移除。另核对输入与正常耗时任务；最终事实以本机忽略目录.build/agent42-validation为准。643Agent、987融合、69helper与Release/DMG白名单通过。
+- 原5条工作区任务、完整JSON、接收设置与5个授权helper保持；本机已装42，备份.build/local-install-backups/state42-20261025-034328。只重启工作岛，接收短暂停止后恢复，未退出飞书。DMG SHA256 a118108dbada87ae4753e335e00b524493ef7fe846ca9ae80a36d503c39acb70，仅本地体验；源码同步PR8，不合main、不更新公司入口。Claude真实任务按本人本轮回复明确暂缓；原模型配置与被供应商管理器覆盖的Hooks已恢复，不宣称真实Claude任务通过，不购套餐、不读其他客户端密钥。
