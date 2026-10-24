@@ -31,6 +31,25 @@ final class FusionTests {
         let defaults = UserDefaults(suiteName:suite)!
         return (FeishuStore(defaults:defaults),defaults,suite)
     }
+    func testIntegratedArchiveAndPrivacyDefaults() throws {
+        XCTAssertFalse(AgentPreferences().enabled)
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent("island-archive-integration-"+UUID().uuidString)
+        let store=WorkspaceStore(root:root,startTimers:false)
+        let id=try store.add(text:"双方融合合成待办：保留原文和附件",minutes:1)
+        store.archiveItem(id); XCTAssertNil(store.disk.items[0].archivedAt)
+        store.complete(id); store.archiveItem(id)
+        XCTAssertTrue(store.disk.items[0].archivedAt != nil); XCTAssertNil(store.disk.items[0].due)
+        let reloaded=WorkspaceStore(root:root,startTimers:false)
+        XCTAssertEqual(reloaded.disk.items[0].input,"双方融合合成待办：保留原文和附件")
+        XCTAssertTrue(reloaded.disk.items[0].archivedAt != nil)
+        reloaded.unarchiveItem(id); XCTAssertNil(reloaded.disk.items[0].archivedAt)
+        XCTAssertEqual(reloaded.disk.items[0].state,"done")
+        // Optional new fields preserve old on-disk schema compatibility.
+        var json=try JSONSerialization.jsonObject(with:JSONEncoder().encode(reloaded.disk)) as! [String:Any]
+        var items=json["items"] as! [[String:Any]]; items[0].removeValue(forKey:"archivedAt"); json["items"]=items
+        let old=try JSONDecoder().decode(WorkDisk.self,from:JSONSerialization.data(withJSONObject:json))
+        XCTAssertNil(old.items[0].archivedAt); XCTAssertEqual(old.items[0].id,id)
+    }
     func testTaskEditingTrashAndRestore() throws {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent("island-edit-check-"+UUID().uuidString)
         let s=WorkspaceStore(root:root,startTimers:false)
@@ -590,6 +609,7 @@ final class FusionTests {
             try tests.testArchiveAutomation()
             try await tests.testWebMaterial()
             try tests.testAgentNoticeRoutingAndTiming()
+            try tests.testIntegratedArchiveAndPrivacyDefaults()
             try tests.testTaskEditingTrashAndRestore()
             try await tests.testWorkspacePersistenceRemindersAndOAuthBoundary()
             await tests.testFreshInstallIsStoppedAndRendererIsLazy()

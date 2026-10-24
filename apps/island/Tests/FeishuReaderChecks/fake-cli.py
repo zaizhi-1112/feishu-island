@@ -17,7 +17,10 @@ try:
 except FileNotFoundError: state={'attempts':{},'read':[],'bad':[],'statusChecks':{}}
 if profile != "synthetic-island": state['bad'].append("profile mismatch")
 def save():
-    with open(path,'w') as f: json.dump(state,f)
+    # The reader deliberately cancels child processes on stop. Never truncate the
+    # last complete fixture state if cancellation lands during a write.
+    with open(path+'.tmp','w') as f: json.dump(state,f)
+    os.replace(path+'.tmp',path)
 def out(data):
     save();print(json.dumps({'ok':True,'identity':'user','data':data}));sys.exit(0)
 if 'status' in args:

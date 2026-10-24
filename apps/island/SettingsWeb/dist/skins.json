@@ -1,0 +1,187 @@
+{
+  "version": 2,
+  "skins": [
+    {
+      "id": "codex",
+      "title": "Codex · 石墨终端",
+      "subtitle": "安静的石墨，蓝色的小伙伴。",
+      "mood": "GRAPHITE / QUIET SIGNAL",
+      "pet": "codex",
+      "source": "https://developers.openai.com/modretro",
+      "dark": {
+        "bg": "#17191E",
+        "surface": "#202329",
+        "sidebar": "#14161B",
+        "well": "#2B2F36",
+        "ink": "#F0F1F4",
+        "secondary": "#B1B6C1",
+        "muted": "#929AA7",
+        "border": "#FFFFFF18",
+        "line": "#FFFFFF0D",
+        "accent": "#C3D2F2",
+        "accentInk": "#E0E8F9",
+        "accentSoft": "#A9C7FF12",
+        "onAccent": "#17202E",
+        "glow": "#709BFF"
+      },
+      "light": {
+        "bg": "#F4F5F7",
+        "surface": "#FFFFFF",
+        "sidebar": "#ECEEF2",
+        "well": "#E8EBF0",
+        "ink": "#20242D",
+        "secondary": "#59616F",
+        "muted": "#697382",
+        "border": "#D9DEE6",
+        "line": "#E4E8EF",
+        "accent": "#344B6E",
+        "accentInk": "#253A58",
+        "accentSoft": "#344B6E0D",
+        "onAccent": "#FFFFFF",
+        "glow": "#7398D9"
+      }
+    },
+    {
+      "id": "claude",
+      "title": "Claude · 暖陶纸光",
+      "subtitle": "柔软的纸面，轻轻落下的暖光。",
+      "mood": "PAPER / AMBER DUST",
+      "pet": "claude",
+      "source": "https://claude.com/product/claude-code",
+      "dark": {
+        "bg": "#241F1B",
+        "surface": "#302823",
+        "sidebar": "#211C19",
+        "well": "#3B3028",
+        "ink": "#F4EDE4",
+        "secondary": "#C7B6A7",
+        "muted": "#AA9789",
+        "border": "#EDCFB923",
+        "line": "#EDCFB910",
+        "accent": "#E7AA8B",
+        "accentInk": "#F8C9AF",
+        "accentSoft": "#D9775715",
+        "onAccent": "#382117",
+        "glow": "#DFA26F"
+      },
+      "light": {
+        "bg": "#F8F4EC",
+        "surface": "#FFFCF6",
+        "sidebar": "#F1EAE0",
+        "well": "#EEE5D9",
+        "ink": "#302820",
+        "secondary": "#746153",
+        "muted": "#826F60",
+        "border": "#E3D8CA",
+        "line": "#EDE4D9",
+        "accent": "#A25435",
+        "accentInk": "#874024",
+        "accentSoft": "#A254350E",
+        "onAccent": "#FFFFFF",
+        "glow": "#C98C5F"
+      }
+    },
+    {
+      "id": "workbuddy",
+      "title": "WorkBuddy · 薄荷工坊",
+      "subtitle": "一点薄荷光，陪你把事情做好。",
+      "mood": "MINT / SMALL MOMENTUM",
+      "pet": "workbuddy",
+      "source": "https://www.workbuddy.cn/work/",
+      "dark": {
+        "bg": "#12251F",
+        "surface": "#1A3028",
+        "sidebar": "#102019",
+        "well": "#234035",
+        "ink": "#ECF7F0",
+        "secondary": "#ADC7BA",
+        "muted": "#88A899",
+        "border": "#9FE6C724",
+        "line": "#9FE6C710",
+        "accent": "#68DDB3",
+        "accentInk": "#A8EBD0",
+        "accentSoft": "#68DDB313",
+        "onAccent": "#103626",
+        "glow": "#58D9B3"
+      },
+      "light": {
+        "bg": "#F1F8F3",
+        "surface": "#FCFFFC",
+        "sidebar": "#E8F1E9",
+        "well": "#E1EEE4",
+        "ink": "#20372C",
+        "secondary": "#536E5D",
+        "muted": "#65816E",
+        "border": "#D1E1D4",
+        "line": "#DFEBE1",
+        "accent": "#167253",
+        "accentInk": "#0B5B40",
+        "accentSoft": "#1672530D",
+        "onAccent": "#FFFFFF",
+        "glow": "#4FB98E"
+      }
+    },
+    {
+      "id": "virxact",
+      "title": "虚实 · 流光之间",
+      "subtitle": "流动的虚，凝聚成形的实。",
+      "mood": "VIRXACT / FIELD & FORM",
+      "pet": "virxact",
+      "source": "https://virxact.com",
+      "dark": {
+        "bg": "#101112",
+        "surface": "#1A1C1F",
+        "sidebar": "#0D0F10",
+        "well": "#25272B",
+        "ink": "#F4F4F4",
+        "secondary": "#B5B9BA",
+        "muted": "#92999B",
+        "border": "#FFFFFF20",
+        "line": "#FFFFFF0D",
+        "accent": "#E2E4E6",
+        "accentInk": "#FFFFFF",
+        "accentSoft": "#FFFFFF0D",
+        "onAccent": "#17191B",
+        "glow": "#F2F3F4"
+      },
+      "light": {
+        "bg": "#F3F4F5",
+        "surface": "#FDFDFD",
+        "sidebar": "#EBECEE",
+        "well": "#E4E6E9",
+        "ink": "#25282D",
+        "secondary": "#626870",
+        "muted": "#747B85",
+        "border": "#D5D9DF",
+        "line": "#E2E5EA",
+        "accent": "#404A58",
+        "accentInk": "#27323F",
+        "accentSoft": "#404A580C",
+        "onAccent": "#FFFFFF",
+        "glow": "#778493"
+      }
+    }
+  ],
+  "agents": {
+    "codex": {
+      "portrait": "pet-codex.png",
+      "avatar": "avatar-codex.png",
+      "atlas": "codex-atlas.webp",
+      "cell": [
+        192,
+        208
+      ],
+      "source": "Official Codex app bundled codex-spritesheet-v6"
+    },
+    "claude": {
+      "portrait": "pet-claude.png",
+      "avatar": "avatar-claude.png",
+      "source": "Official Claude app install-hub/clawd-laptop.mov"
+    },
+    "workbuddy": {
+      "portrait": "pet-workbuddy.png",
+      "avatar": "avatar-workbuddy.png",
+      "source": "https://download.codebuddy.cn/web/website/a5b2fb510f0e7b156f19d072fae0cd12ae1f2f19/assets/buddy-worker-woRTGfZH.png"
+    }
+  }
+}

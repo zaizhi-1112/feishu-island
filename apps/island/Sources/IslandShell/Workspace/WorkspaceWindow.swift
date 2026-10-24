@@ -16,6 +16,7 @@ import WebKit
     func openProcessing(store: WorkspaceStore) { show(store:store,page:3) }
     func openHub(store:WorkspaceStore) { show(store:store,page:2) }
     func openReminders(store: WorkspaceStore) { show(store:store,page:5) }
+    func openAgents(store: WorkspaceStore) { show(store:store,page:7) }
     private func show(store: WorkspaceStore,page:Int) {
         navigation.page=page
         if let window { window.makeKeyAndOrderFront(nil); NSApp.activate(); return }
@@ -29,15 +30,15 @@ import WebKit
 struct WorkspaceDesk: View {
     @ObservedObject var store: WorkspaceStore
     @ObservedObject var navigation: WorkspaceDeskNavigation
-    private let titles=["材料","待办与提醒","虚实中台","处理与归档","账号与消息","冲屏素材","外观与交互"]
-    private let symbols=["tray.and.arrow.down","checklist","square.grid.2x2","slider.horizontal.3","bubble.left.and.bubble.right","play.rectangle","paintbrush"]
+    private let titles=["材料","待办与提醒","虚实中台","处理与归档","账号与消息","冲屏素材","外观与交互","Agent 与皮肤"]
+    private let symbols=["tray.and.arrow.down","checklist","square.grid.2x2","slider.horizontal.3","bubble.left.and.bubble.right","play.rectangle","paintbrush","sparkles"]
     var body: some View {
         HStack(spacing:0) {
             VStack(alignment:.leading,spacing:6) {
                 HStack(spacing:9) { Image(systemName:"capsule.fill").foregroundStyle(.cyan); Text("工作岛").font(.system(size:18,weight:.semibold)) }.padding(.bottom,22)
                 sidebarSection("工作",items:0...2)
                 Text("设置").font(.system(size:11)).foregroundStyle(.secondary).padding(.top,22).padding(.bottom,5)
-                ForEach(3...6,id:\.self) { row($0) }
+                ForEach(3...7,id:\.self) { row($0) }
                 Spacer()
                 HStack(spacing:6) { Circle().fill(store.hub.connected ? .green : .gray).frame(width:5,height:5); Text(store.hub.connected ? "中台已连接" : "中台未连接").font(.system(size:11)).foregroundStyle(.secondary) }
             }.padding(18).frame(width:180).frame(maxHeight:.infinity).background(Color.white.opacity(0.025))
@@ -47,6 +48,7 @@ struct WorkspaceDesk: View {
                 Divider()
                 if navigation.page == 4 { WorkspaceAccountSettings() }
                 else if navigation.page == 5 { ScrollView { WorkspaceReminderLibrary(store:store).padding(24) } }
+                else if navigation.page == 7 { ScrollView { IntegrationAgentSettings().padding(24) } }
                 else if navigation.page == 6 { ScrollView { WorkspaceShellSettings().padding(24) } }
                 else { ScrollView { WorkspaceView(store:store,desktop:true,pageOverride:navigation.page,onTaskCreated:{navigation.page=1}) } }
             }.frame(maxWidth:.infinity,maxHeight:.infinity)

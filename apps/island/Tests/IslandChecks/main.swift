@@ -1,5 +1,5 @@
 import AppKit
-import IslandShell
+@testable import IslandShell
 import NookApp
 
 var passed = 0
@@ -80,7 +80,7 @@ MainActor.assumeIsolated {
     expect(host.chromeBehavior.edgeDocked, "host enables three-stage edge interaction")
     expect(host.chromeBehavior.hoverIntent?.action == .some(.expand), "hover opens the island reading surface")
     let registry = host.makeRegistry()
-    expect(registry.descriptors.count == 4, "messages, workspace and isolated test modules")
+    expect(registry.descriptors.count == 5, "messages, workspace, Agent and isolated test modules")
     expect(registry.module(for: IslandHost.workspaceID)?.makeConfiguration().onFileDrop != nil, "workspace accepts the native shell file drop callback")
     expect(registry.module(for: IslandHost.feishuID)?.makeConfiguration().onFileDrop != nil, "message module also routes native files into workspace")
     expect(!registry.isLoaded(IslandHost.sampleID), "sample module is lazy")

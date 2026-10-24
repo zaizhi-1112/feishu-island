@@ -14,15 +14,17 @@ final class WorkspaceModule: NookModule {
     func makeConfiguration() -> NookConfiguration {
         var c = IslandHost.baseConfiguration(title:"工作台",symbol:"tray.and.arrow.down.fill")
         c.expandedWidth = 400
+        c.allowsHorizontalModuleSwipe = false
         c.topBar.showsStatusBanner = false
         c.topBar.showsSettings = false
         c.onFileDrop = { WorkspaceDrop.acceptFiles($0,store:.shared) }
         c.setCompactLeading { WorkspaceDropMark(store:.shared) }
         c.setCompactTrailing { WorkspaceCompact(store:.shared) }
-        c.setHome { WorkspaceDropSurface(store:.shared) { WorkspaceView(store:.shared) } }
+        c.setHome { WorkspaceHomeSurface() }
         c.onReady = { [context] coordinator in
             let store = WorkspaceStore.shared
             IslandModuleNavigation.shared.bind(coordinator:coordinator)
+            IslandModuleAttention.shared.attach(coordinator)
             store.openBoard = { [weak coordinator] in coordinator?.switchModule(to:IslandHost.workspaceID); coordinator?.showNook() }
             store.notify = { title in
                 var activity = NookLiveActivity(id:"work-result",priority:.high,lifetime:.transient(.seconds(20)),alert:.peek(.seconds(5)),accessibilityLabel:title) {
@@ -82,6 +84,14 @@ struct WorkspaceDropMark: View {
 
 @MainActor
 enum WorkspaceDrop {
+    static func acceptPayload(_ payload: NookDropPayload, store: WorkspaceStore) -> Bool {
+        switch payload {
+        case .files(let urls): return acceptFiles(urls,store:store)
+        case .text(let text): return accept([NSItemProvider(object:text as NSString)],store:store)
+        case .link(let url): return accept([NSItemProvider(object:url as NSURL)],store:store)
+        }
+    }
+
     static func acceptFiles(_ urls: [URL], store: WorkspaceStore) -> Bool {
         guard !urls.isEmpty, urls.count <= 20, urls.allSatisfy(\.isFileURL) else {
             store.error = "请选择1到20个本机材料文件。"; return false
@@ -142,6 +152,8 @@ struct WorkspaceView: View {
     private var input: String { store.draftText }
     @State private var agentCopied = false
     @State private var recoveryURL = ""
+    @State private var taskFilter = 0
+    private var shownTasks:[WorkItem] { store.disk.items.filter { item in taskFilter == 2 ? item.archivedAt != nil : item.archivedAt == nil && (taskFilter == 1 ? item.state == "done" : item.state != "done") } }
     var body: some View {
         Group {
             if desktop {
@@ -171,7 +183,7 @@ struct WorkspaceView: View {
                 }
             }
         }.foregroundStyle(.white)
-            .onAppear { if Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview" { do { try dotPairing.load() } catch { store.error=error.localizedDescription } } }
+            .onAppear { if Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview", !IslandRuntime.isSkinPreview, !ProcessInfo.processInfo.arguments.contains("--self-test") { do { try dotPairing.load() } catch { store.error=error.localizedDescription } } }
             .onChange(of:store.draftProject) { _,_ in dotCopied=false; agentCopied=false }
             .confirmationDialog("连接Dot到「\(confirmedProject)」？",isPresented:$confirmDot,titleVisibility:.visible) {
                 Button("允许此项目长期连接并复制") {
@@ -406,8 +418,9 @@ struct WorkspaceView: View {
             VStack(alignment:.leading,spacing:12) {
                 WorkspaceReminderShelf(store:store,compact:!desktop)
                 HStack { Text("待办").font(.system(size:desktop ? 17 : 13,weight:.semibold)); Spacer(); Text("\(store.disk.items.filter{$0.state != "done"}.count)项待处理").font(.system(size:11)).foregroundStyle(.secondary) }.padding(.top,4)
-                if store.disk.items.isEmpty { Text("把材料拖进来，或在“材料”里存一条待办。").font(.system(size:13)).foregroundStyle(.secondary).padding(.vertical,20) }
-                ForEach(store.disk.items) { item in
+                Picker("待办范围",selection:$taskFilter) { Text("进行中").tag(0); Text("已完成").tag(1); Text("已归档").tag(2) }.pickerStyle(.segmented)
+                if shownTasks.isEmpty { Text("把材料拖进来，或在“材料”里存一条待办。").font(.system(size:13)).foregroundStyle(.secondary).padding(.vertical,20) }
+                ForEach(shownTasks) { item in
                     VStack(alignment:.leading,spacing:7) {
                         HStack(alignment:.top,spacing:8) {
                             Button { store.selected = store.selected == item.id ? nil : item.id } label: {
@@ -416,7 +429,12 @@ struct WorkspaceView: View {
                                     Text(label(item.state)+(item.screenReminder == nil ? "" : " · 冲屏提醒")).font(.system(size:10)).foregroundStyle(.secondary)
                                 }.frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle())
                             }.buttonStyle(.plain)
-                            Button { store.selected=item.id; store.beginEdit(item.id) } label: { Image(systemName:"pencil") }.buttonStyle(.plain).padding(4).disabled(!WorkspaceStore.canEdit(item)).help("编辑待办").accessibilityLabel("编辑："+item.title)
+                            if item.archivedAt != nil {
+                                Button { store.unarchiveItem(item.id) } label: { Image(systemName:"arrow.uturn.backward") }.buttonStyle(.plain).padding(4).help("移回已完成")
+                            } else if item.state == "done" {
+                                Button { store.archiveItem(item.id) } label: { Image(systemName:"archivebox") }.buttonStyle(.plain).padding(4).help("归档待办（保留材料）")
+                            }
+                            Button { store.selected=item.id; store.beginEdit(item.id) } label: { Image(systemName:"pencil") }.buttonStyle(.plain).padding(4).disabled(!WorkspaceStore.canEdit(item) || item.archivedAt != nil).help("编辑待办").accessibilityLabel("编辑："+item.title)
                             Button(role:.destructive) { store.deleteItem(item.id) } label: { Image(systemName:"trash") }.buttonStyle(.plain).padding(4).disabled(["running","queued","dot_running"].contains(item.state)).help("删除待办（可恢复）").accessibilityLabel("删除："+item.title)
                         }
                         if store.selected == item.id {
@@ -489,4 +507,9 @@ struct WorkspaceView: View {
     }
     private func label(_ state: String) -> String { ["dot_waiting":"等待Dot领取","dot_running":"Dot处理中","todo":"待办","queued":"排队中","running":"处理中","succeeded":"已完成 · 可取结果","failed":"处理失败","interrupted":"上次中断","done":"已处理"][state] ?? state }
     private var cards: some View { WorkspaceHubView(store:store,desktop:desktop) }
+}
+
+/// A concrete root keeps the macOS 15 Sendable boundary at the module closure.
+struct WorkspaceHomeSurface: View, Sendable {
+    var body:some View { WorkspaceDropSurface(store:.shared) { WorkspaceView(store:.shared) }.modifier(IslandReadingModule(moduleID:IslandHost.workspaceID)) }
 }

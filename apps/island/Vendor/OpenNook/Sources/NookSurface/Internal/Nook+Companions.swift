@@ -176,11 +176,22 @@ extension Nook {
     /// companion hanging below a tall expanded surface. It only grows, never shrinks, for the
     /// life of the window - a panel rebuild starts from half height again - so a companion
     /// folding away never makes the window jump.
+    func noteChromeExtent(_ extent: CGFloat) {
+        chromeExtent = extent
+        guard !isPanelGrowthScheduled else { return }
+        isPanelGrowthScheduled = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.isPanelGrowthScheduled = false
+            self.growPanelToFitCompanions()
+        }
+    }
+
     func growPanelToFitCompanions() {
         guard let window = windowController?.window,
-            let screen = window.screen ?? resolvedScreen,
-            let extent = companionExtents.values.max()
+            let screen = window.screen ?? resolvedScreen
         else { return }
+        let extent = max(chromeExtent, companionExtents.values.max() ?? 0)
         let height = Self.panelHeight(
             fitting: extent,
             currentHeight: window.frame.height,

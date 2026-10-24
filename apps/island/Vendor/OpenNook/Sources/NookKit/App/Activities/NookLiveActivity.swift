@@ -60,6 +60,8 @@ public struct NookLiveActivity: Identifiable, Sendable {
     public enum Alert: Equatable, Sendable {
         /// It only appears in the pill.
         case none
+        /// Reveals only the compact slots, without adding a peek or opening the panel.
+        case compact(Duration)
         /// The pill grows into the activity's peek for this long.
         case peek(Duration)
         /// The nook opens on the activity's expanded view for this long.

@@ -84,6 +84,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
     /// Retract compact chrome to a small edge; hover reveals, click expands.
     @Published public var edgeDocked = false
+    /// A transient host claim can reveal the second stage without simulating hover.
+    @Published public var compactRevealActive = false
     @Published private(set) var physicalNotchHeight: CGFloat = 0
 
     /// Side-effects applied while the pointer is over the chrome. Read on every hover change
@@ -239,6 +241,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// app layer's concern; the engine never sees it.
     ///
     /// `@MainActor`-isolated: invoked from the surface's main-actor drag pipeline.
+    public var onDrop: (@MainActor (NookDropPayload) -> Bool)?
+    var dragTargetSize: CGSize = .zero
+
     public var onFileDrop: (@MainActor ([URL]) -> Bool)?
 
     /// Fired when the chrome transitions **into** the expanded surface - from any source:
@@ -393,6 +398,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
     /// The lowest point, in the panel's coordinates, each companion reaches.
     var companionExtents: [String: CGFloat] = [:]
+    var chromeExtent: CGFloat = 0
 
     /// `true` while a panel resize to fit companions is queued for the next main-actor turn.
     var isPanelGrowthScheduled = false
@@ -884,7 +890,9 @@ extension Nook {
     /// target - typically the host's persisted display preference via ``screenProvider``.
     public func expand(on screen: NSScreen? = nil) async {
         guard let target = screen ?? resolvedScreen else { return }
-        let skipHide = transitionConfiguration.skipIntermediateHides
+        // Preserve the peek owner until the expanded-state observer has selected
+        // its activity view. An intermediate hidden state would clear that owner.
+        let skipHide = isPeeking || transitionConfiguration.skipIntermediateHides
         await runTransition(toward: .expanded) { [weak self] generation in
             await self?._expand(on: target, skipHide: skipHide, generation: generation)
         }.value
@@ -1414,6 +1422,7 @@ extension Nook {
         layoutForm = presentation.isFloating(screenHasNotch: screen.hasNotch) ? .floating : .notch
         // Extents were measured in the window being replaced; the new one re-reports them.
         companionExtents.removeAll()
+        chromeExtent = 0
 
         let size = NSSize(
             width: screen.frame.width,

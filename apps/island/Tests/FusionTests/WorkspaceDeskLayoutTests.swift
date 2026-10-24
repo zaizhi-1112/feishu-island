@@ -41,7 +41,7 @@ extension FusionTests {
         let originalSelection = store.selected
         let evidence = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/workbench-layout-check")
         try FileManager.default.createDirectory(at: evidence, withIntermediateDirectories: true)
-        let pageNames = ["materials", "tasks", "hub", "processing", "account-container", "reminder-library", "shell-settings-unbound"]
+        let pageNames = ["materials", "tasks", "hub", "processing", "account-container", "reminder-library", "shell-settings-unbound", "agent-and-skins"]
 
         func descendants(_ view: NSView) -> [NSView] { view.subviews.flatMap { [$0] + descendants($0) } }
         for size in [NSSize(width: 960, height: 680), NSSize(width: 760, height: 540)] {

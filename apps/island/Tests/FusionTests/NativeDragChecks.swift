@@ -32,9 +32,10 @@ private final class SyntheticDrag: NSObject, NSDraggingInfo {
 @MainActor
 private final class SyntheticDestination: NookDragDestination {
     var entered = 0; var exited = 0; var dropped = 0
-    func nookPanelDraggingEntered(_ urls:[URL]) -> NSDragOperation { entered += 1; return .copy }
+    func nookPanelAcceptsDrag(at point:NSPoint) -> Bool { true }
+    func nookPanelDraggingEntered(_ payload:NookDropPayload) -> NSDragOperation { entered += 1; return .copy }
     func nookPanelDraggingExited() { exited += 1 }
-    func nookPanelPerformDrop(_ urls:[URL]) -> Bool { dropped += 1; return true }
+    func nookPanelPerformDrop(_ payload:NookDropPayload) -> Bool { dropped += 1; return true }
 }
 @MainActor
 func verifyNativeDragPreview() {

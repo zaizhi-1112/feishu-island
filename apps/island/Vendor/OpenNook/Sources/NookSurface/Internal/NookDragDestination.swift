@@ -18,13 +18,14 @@ import AppKit
 /// conformer (`Nook`) is main-actor-isolated.
 @MainActor
 protocol NookDragDestination: AnyObject {
+    func nookPanelAcceptsDrag(at point: NSPoint) -> Bool
     /// Drag entered the panel's bounds. Return the operation we want to advertise to
     /// the dragging source (`.copy` registers the green "+" badge users expect).
-    func nookPanelDraggingEntered(_ urls: [URL]) -> NSDragOperation
+    func nookPanelDraggingEntered(_ payload: NookDropPayload) -> NSDragOperation
 
     /// Drag left without dropping - restore prior state.
     func nookPanelDraggingExited()
 
     /// Drop landed. Returning `true` tells AppKit the drop was accepted.
-    func nookPanelPerformDrop(_ urls: [URL]) -> Bool
+    func nookPanelPerformDrop(_ payload: NookDropPayload) -> Bool
 }

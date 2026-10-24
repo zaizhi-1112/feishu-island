@@ -41,7 +41,7 @@ struct FeishuView: View {
             }.padding(WorkspaceLayout.padding)
         }
         .accessibilityIdentifier("feishu.home")
-        .islandHorizontalSwipe { _ in IslandModuleNavigation.shared.openWorkspace() }
+        .modifier(IslandReadingModule(moduleID:IslandHost.feishuID))
     }
 
     @ViewBuilder private var errorBanner: some View {
@@ -91,7 +91,7 @@ struct FeishuView: View {
             Text(!store.enabled ? "在工作台设置中，可以重新开始接收。" : "按你的规则筛选，继续遵守免打扰。")
                 .font(.system(size: 10)).foregroundStyle(theme.tertiaryLabel)
         }
-        .frame(maxWidth: .infinity).frame(height: 157).modifier(IslandCard())
+        .frame(maxWidth: .infinity, maxHeight: .infinity).modifier(IslandCard())
     }
 
     private func row(_ message: FeishuMessage) -> some View {

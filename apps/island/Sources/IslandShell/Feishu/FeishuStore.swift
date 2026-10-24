@@ -55,6 +55,7 @@ public final class FeishuStore: ObservableObject {
         wireReader()
         playback.configure(danmu,appearance:appearance)
         if !enabled { status = "接收已停止" }
+        if !live && IslandRuntime.isSkinPreview { status = "皮肤预览 · 未连接飞书"; account = "独立预览" }
     }
 
     #if DEBUG

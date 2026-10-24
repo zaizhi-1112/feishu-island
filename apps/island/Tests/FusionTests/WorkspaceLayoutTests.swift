@@ -100,7 +100,7 @@ extension FusionTests {
 
         // Render the real OpenNook expanded chrome as well as the workspace: an island-only
         // assertion would miss the external top bar/padding that originally hid lower actions.
-        let shellState = AppState(preferenceDefaults: NookPreferenceDefaults())
+        let shellState = AppState(preferenceDefaults: IslandHost.configuration().preferenceDefaults)
         var bar = NookTopBarConfiguration.default
         bar.showsStatusBanner = false
         let shell = NookExpandedView(appState: shellState, services: AppServices(), toggleKeepOpen: {}, hide: {}, resetAllSettings: {}, home: { AnyView(WorkspaceView(store: store)) }, topBar: bar, width: 400)
@@ -109,5 +109,15 @@ extension FusionTests {
         let expectedShellHeight = 326 + 16 + 24 + 8 + 8
         try await render(shell, name: "expanded-shell", expectedHeight: CGFloat(expectedShellHeight), shell: true)
         XCTAssertLessThan(expectedShellHeight, 400)
+        let integratedBar=IslandHost.baseConfiguration(title:"工作台",symbol:"tray").topBar
+        let destinations=IslandHost.configuration().makeRegistry().descriptors.filter{[IslandHost.workspaceID,IslandHost.feishuID,IslandHost.agentID].contains($0.id)}
+        let switcher=NookModuleSwitcher(modules:destinations,activeID:IslandHost.workspaceID,attentionIDs:[],switchTo:{_ in})
+        let integratedShell=NookExpandedView(appState:shellState,services:AppServices(),toggleKeepOpen:{},hide:{},resetAllSettings:{},home:{AnyView(WorkspaceView(store:store))},topBar:integratedBar,width:400,moduleSwitcher:switcher).padding(.bottom,8).environment(\.workspaceScreenHeight,1440)
+        let integratedHeight=NSHostingView(rootView:integratedShell).fittingSize.height
+        XCTAssertGreaterThan(integratedHeight,326); XCTAssertLessThan(integratedHeight,400)
+        try await render(integratedShell,name:"integrated-shell",expectedHeight:integratedHeight,shell:true)
+        let barSwitcher=NookTopBarContext.ModuleSwitcher(modules:destinations,activeID:IslandHost.workspaceID,attentionIDs:[],switchTo:{_ in})
+        let standaloneBar=IntegrationTopBar(bar:NookTopBarContext(title:"工作台",moduleSwitcher:barSwitcher)).frame(width:400,height:28)
+        try await render(standaloneBar,name:"integration-navigation-bar",expectedHeight:28,shell:true)
     }
 }

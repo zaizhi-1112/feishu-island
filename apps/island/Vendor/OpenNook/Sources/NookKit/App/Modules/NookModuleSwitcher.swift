@@ -79,4 +79,10 @@ public struct NookModuleSwitcher {
     public var activeDescriptor: NookModuleDescriptor? {
         modules.first { $0.id == activeID }
     }
+
+    /// With two modules the current cluster is a direct toggle, without a popup.
+    public var directTarget: NookModuleDescriptor? {
+        guard modules.count == 2, activeDescriptor != nil else { return nil }
+        return modules.first { $0.id != activeID }
+    }
 }

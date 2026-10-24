@@ -25,6 +25,7 @@ struct WorkItem: Codable, Identifiable, Equatable {
     var dotClaim: DotClaim?
     var dotDispatch: UUID?
     var dotQueuedAt: Date?
+    var archivedAt: Date?
     var aiCompletedAt: Date?
     var aiStartedAt: Date?
     var dotDeliveries: [String:DotDelivery]?
@@ -173,7 +174,7 @@ final class WorkAI: WorkRunning, @unchecked Sendable {
 
 @MainActor
 final class WorkspaceStore: ObservableObject {
-    static let shared = WorkspaceStore(root: Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.dot-sandbox" ? Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("workspace") : Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview" ? nil : FileManager.default.temporaryDirectory.appendingPathComponent("island-workspace-fixture-"+UUID().uuidString))
+    static let shared = WorkspaceStore(root: IslandRuntime.isSkinPreview ? FileManager.default.temporaryDirectory.appendingPathComponent("island-skin-workspace-"+UUID().uuidString) : Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.dot-sandbox" ? Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("workspace") : Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview" ? nil : FileManager.default.temporaryDirectory.appendingPathComponent("island-workspace-fixture-"+UUID().uuidString))
     @Published private(set) var disk = WorkDisk()
     @Published var error = ""
     @Published var selected: UUID?
@@ -263,7 +264,7 @@ final class WorkspaceStore: ObservableObject {
             }
             try save()
         } catch { self.writable = false; self.error = "本机工作区未能载入或保存；原文件保留，已停止写入。" }
-        integrationEnabled = startTimers && Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview"
+        integrationEnabled = startTimers && !IslandRuntime.isSkinPreview && !ProcessInfo.processInfo.arguments.contains("--self-test") && Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview"
         if integrationEnabled {
             presentScreenReminder = { [weak self] request in
                 do { try ScreenReminderPresenter.shared.present(request) }
@@ -668,6 +669,14 @@ final class WorkspaceStore: ObservableObject {
         if mutate({ state in state.trash?.removeAll{$0.id==id}; state.items.insert(item,at:0) }) { selected=id }
     }
     func complete(_ id: UUID) { guard let item=disk.items.first(where:{$0.id==id}), !["running","dot_running"].contains(item.state) else { return }; _ = mutate { s in if let i = s.items.firstIndex(where:{$0.id == id}) { s.items[i].state = "done"; s.items[i].due = nil } } }
+    /// Local archive is reversible and never deletes the person's attachments.
+    func archiveItem(_ id: UUID) {
+        guard let item=disk.items.first(where:{$0.id==id}), item.state=="done", item.archive?.state != "running" else { error="请先完成任务并等待归档结束。"; return }
+        _ = mutate { state in if let index=state.items.firstIndex(where:{$0.id==id}) { state.items[index].archivedAt=Date(); state.items[index].due=nil } }
+    }
+    func unarchiveItem(_ id: UUID) {
+        _ = mutate { state in if let index=state.items.firstIndex(where:{$0.id==id}) { state.items[index].archivedAt=nil } }
+    }
     func snooze(_ id: UUID, minutes: Int = 20) { guard (1...10080).contains(minutes) else { return }; _ = mutate { s in if let i = s.items.firstIndex(where:{$0.id == id}) { s.items[i].due = Date().addingTimeInterval(Double(minutes)*60); s.items[i].reminded = false } } }
     var screenMaterials: [ScreenReminderMaterial] { ScreenReminderMaterial.builtins + (disk.screenMaterials ?? []) }
     var screenSchedules: [WorkScreenSchedule] { disk.screenSchedules ?? [] }
