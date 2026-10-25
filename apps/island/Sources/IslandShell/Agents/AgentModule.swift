@@ -9,7 +9,7 @@ final class AgentModule: NookModule {
         info.loadsAtLaunch = true; return info
     }()
     var descriptor: NookModuleDescriptor { Self.info }
-    init(context: NookModuleContext) { AgentStore.shared.start(activities: context.services.resolve(NookLiveActivitiesKey.self)) }
+    init(context: NookModuleContext) { WorkBuddyCheckinStore.shared.start(); AgentStore.shared.start(activities: context.services.resolve(NookLiveActivitiesKey.self)) }
     func makeConfiguration() -> NookConfiguration {
         var config = IslandHost.baseConfiguration(title: "Agent状态", symbol: "sparkles")
         config.setCompactLeading { AgentWorkCompactGlyph(workspace:.shared) }

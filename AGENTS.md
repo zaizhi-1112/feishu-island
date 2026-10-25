@@ -197,3 +197,6 @@
 
 - 2026-10-25 build43：WorkBuddy统一材料composer与后台队列；旧catalog选择与draftService在onAppear同步，新增workbuddy持久化与三个处理选项。WorkBuddyAI复用已安装客户端官方CLI/既有登录，独立空目录、默认权限、禁用工具/MCP/会话保存，材料stdin与结果内存，规范化PNG边界与失败结果拒绝。真实文字、图片与Swift运行器通过；1007融合、643Agent、11打包和Release/DMG审计通过。个人Codex自动任务workbuddy每天09:10通过公开UI领取免费积分，已领跳过，不使用私有API、不随包安装到他人机器；今天已领。源码PR8，本机先体验，不合main/不更新公司下载，Claude暂缓。
 - build43安装版实际岛内提交合成任务由WorkBuddy处理成功，原生结果来源一致、完成弹幕入队/播放1→3；测试标done无提醒无归档。原5项完整字段、飞书配置与5个稳定helper一致，接收140/142会话；更新仅重启工作岛，接收短暂中断后恢复。
+
+- 2026-10-25 build44：签到移入WorkBuddyCheckinStore，Agent模块常驻启动60秒调度/唤醒补查，本地时间09:10，安装默认关闭、本人开启；不依赖Codex。独立workbuddy-checkin-helper仅用AX操作本人WorkBuddy已知Buddy免费领取，宽系统权限须本人许可，不读凭据/聊天、不调私有签到接口、不付费邀人。记录在个人Application Support/FeishuIsland/WorkBuddyCheckin，0700/0600，日期+显示名摘要+状态；点击前attempted原子记录，不明不重按。新helper进入DMG白名单，源码摘要缓存稳定签名字节。原Codex自动任务仅在本机内置接管验证后暂停；同事各自开启，不打包本人配置。自然跨天领取不得以合成检查替代，main与公司下载继续等待本人体验与双人确认。
+- build44当前验收：1040融合、643Agent、11打包和Release/DMG审计通过；原生屏幕外夹具成功/不明/购买三路径分别点击1/1/0次。真实本人WorkBuddy今日已领，独立组件未重按；安装版已开启但缺其独立AX权限，已向本人申请当下确认，不能宣称最终签到验收完成。旧Codex workbuddy任务已PAUSED。原6条完整工作区数据与5个授权helper、飞书配置一致；飞书接口更新前后处于重试，未改接收设置，不以配置相同冒充正常送达。

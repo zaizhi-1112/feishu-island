@@ -51,7 +51,7 @@ struct WorkspaceDesk: View {
                 if navigation.page == 0 { ScrollView { AgentWorkspaceSurface(agents:.shared,workspace:store,catalog:catalog,desktop:true,onTaskCreated:{navigation.page=1}) } }
                 else if navigation.page == 4 { WorkspaceAccountSettings() }
                 else if navigation.page == 5 { ScrollView { WorkspaceReminderLibrary(store:store).padding(24) } }
-                else if navigation.page == 8 { ScrollView { AgentConnectionsView(catalog:catalog,workspace:store).padding(24) } }
+                else if navigation.page == 8 { ScrollView { VStack(alignment:.leading,spacing:24) { WorkBuddyCheckinSettings(); AgentConnectionsView(catalog:catalog,workspace:store) }.padding(24) } }
                 else if navigation.page == 7 { ScrollView { IntegrationAgentSettings().padding(24) } }
                 else if navigation.page == 6 { ScrollView { WorkspaceShellSettings().padding(24) } }
                 else { ScrollView { WorkspaceView(store:store,desktop:true,pageOverride:navigation.page,onTaskCreated:{navigation.page=1}) } }

@@ -33,6 +33,8 @@ cp "$ROOT/.build/hub-helper/feishu-hub-helper" "$APP/Contents/Helpers/feishu-hub
 cp "$BIN_DIR/YuIsland" "$APP/Contents/MacOS/YuIsland"
 swiftc -O -sdk "$SDK" "$ROOT/Sources/IslandShell/Agents/AgentHookProtocol.swift" "$ROOT/Sources/IslandShell/Agents/AgentModel.swift" "$ROOT/Sources/IslandShell/Agents/AgentBridge.swift" "$ROOT/Sources/IslandShell/Agents/WorkBuddyPendingTool.swift" "$ROOT/scripts/agent-status-helper.swift" -o "$APP/Contents/Helpers/agent-status-helper"
 codesign --force --sign - "$APP/Contents/Helpers/agent-status-helper"
+ISLAND_SDK="$SDK" bash "$ROOT/scripts/build-workbuddy-checkin-helper.sh"
+cp "$ROOT/.build/workbuddy-checkin-helper/workbuddy-checkin-helper" "$APP/Contents/Helpers/workbuddy-checkin-helper"
 mkdir -p "$APP/Contents/Resources/SettingsWeb"
 cp "$ROOT/SettingsWeb/dist/"* "$APP/Contents/Resources/SettingsWeb/"
 mkdir -p "$APP/Contents/Resources/BrowserBridge"

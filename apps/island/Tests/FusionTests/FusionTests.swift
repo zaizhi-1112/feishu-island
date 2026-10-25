@@ -616,6 +616,7 @@ final class FusionTests {
             try await tests.testWorkspaceIslandHeightContract()
             try await tests.testAgentWorkspaceComposition()
             try tests.testWorkBuddyDispatchContract()
+            try tests.testDailyWorkBuddySchedulingAndRecovery()
             try await tests.testQuotaCompactLayout()
             try tests.testCompanyConnectionBoundary()
             try await tests.testCompanyActivationIsolation()
