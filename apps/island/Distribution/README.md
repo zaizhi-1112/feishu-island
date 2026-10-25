@@ -4,11 +4,11 @@
 
 `site/` 是精简安装页：一个 DMG 下载入口、一个“复制交给 Agent”、三条默认折叠帮助。详细阅读帮助为 `开始使用.html`；Agent 的操作指引为 `site/agent-guide.html`，只含公开操作路径，没有令牌，也不自动授予权限。外观与项目 MCP 仍使用本机各自受限入口。
 
-当前发布包为 0.8.0 build46，沿用build46功能，仅统一“飞书工作岛”名称、DMG内App文件名与设置文案；独立授权和签到helper的签名字节保持。DMG 只展示 App 与 Applications 拖入目标，网页收录扩展保留在应用的 `Contents/Resources/BrowserBridge/chrome-reader` 内。校验清单在 DMG 旁，用户无需处理 JSON 或额外文件夹。未完成 Developer ID 公证，不承诺首次无系统来源提示；各人的飞书和 Dot 授权仍需本人完成。
+当前发布包为 0.8.0 build47，沿用build47功能，统一“飞书工作岛”名称，并更新胶囊消息图标、产品介绍页和共同发布署名；独立授权和签到helper的签名字节保持。DMG 只展示 App 与 Applications 拖入目标，网页收录扩展保留在应用的 `Contents/Resources/BrowserBridge/chrome-reader` 内。校验清单在 DMG 旁，用户无需处理 JSON 或额外文件夹。未完成 Developer ID 公证，不承诺首次无系统来源提示；各人的飞书和 Dot 授权仍需本人完成。
 
 ```sh
 python3 apps/island/scripts/package-pilot.py /absolute/path/to/application.app
-python3 apps/island/scripts/package-download-site.py /absolute/path/to/feishu-island-0.8.0-build46-arm64.dmg .build/new-download-output
+python3 apps/island/scripts/package-download-site.py /absolute/path/to/feishu-island-0.8.0-build47-arm64.dmg .build/new-download-output
 python3 apps/island/scripts/package-auth-service.py .build/new-download-output .build/new-service-output
 ```
 

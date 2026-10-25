@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-23",
+  "updated": "2026-10-26",
   "policy": "Local test and user acceptance before installer publication. Main requires both owners.",
   "releases": [
     {
@@ -17,7 +17,7 @@
       "build": "30",
       "artifact": "feishu-island-0.7.0-build30-arm64.dmg",
       "sha256": "d14573108a53b8be16e4441b80a4274bf1e27789814d6a511417507db4806801",
-      "status": "公司当前版",
+      "status": "已发布历史",
       "companyRelease": 253,
       "githubRelease": "draft v0.7.0-build30",
       "notarized": false
@@ -61,6 +61,54 @@
       "companyRelease": null,
       "githubRelease": null,
       "notarized": false
+    },
+    {
+      "version": "0.8.0",
+      "build": "45",
+      "artifact": "feishu-island-0.8.0-build45-arm64.dmg",
+      "sha256": "d101c43917c6b2389cc89200f0da8d95d4675cf310f7839d35e5b64a4f40d376",
+      "status": "已发布历史，build46统一名称后接替",
+      "companyRelease": 317,
+      "githubRelease": "https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.8.0-build45",
+      "sourceCommit": "b09d760eca1942602da5ffcd8aa4515c5990ae16",
+      "notarized": false
+    },
+    {
+      "version": "0.8.0",
+      "build": "46",
+      "artifact": "feishu-island-0.8.0-build46-arm64.dmg",
+      "sha256": "c8cebb01b2657fd9d556a61c27674dc7918b2c87931e7f70b37579308d1a9323",
+      "status": "已发布历史，build47统一品牌后接替",
+      "companyRelease": 318,
+      "githubRelease": "https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.8.0-build46",
+      "sourceCommit": "f30a604",
+      "visibility": "company",
+      "notarized": false,
+      "colleagueDeviceVerified": false,
+      "feishuAvailability": {
+        "receive": "1.0.3 / 所有员工 / 已发布",
+        "archive": "1.0.3 / 所有员工 / 已发布"
+      }
+    },
+    {
+      "version": "0.8.0",
+      "build": "47",
+      "artifact": "feishu-island-0.8.0-build47-arm64.dmg",
+      "sha256": "a5d9f3ef4619e82a14e5dd185b3355fbc4908e6245a317695f1bfdec56c39efa",
+      "status": "发布中，待线上核实",
+      "companyRelease": null,
+      "githubRelease": "https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.8.0-build47",
+      "visibility": "company",
+      "notarized": false,
+      "colleagueDeviceVerified": false,
+      "coPublishers": [
+        "宰治",
+        "柚子"
+      ],
+      "feishuAvailability": {
+        "receive": "1.0.3 / 所有员工 / 已发布",
+        "archive": "1.0.3 / 所有员工 / 已发布"
+      }
     }
   ]
 }

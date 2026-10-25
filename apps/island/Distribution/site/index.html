@@ -1,79 +1,31 @@
 <!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="island-release" content="0.8.0/46/arm64">
-  <title>飞书工作岛 · 安装</title>
-  <link rel="icon" href="icon.png">
-  <link rel="stylesheet" href="virxact-ui.css">
-  <link rel="stylesheet" href="install.css">
-  <script src="vx.js" defer></script>
-  <script src="install.js" defer></script>
-</head>
-<body>
-<div class="vx-app">
-  <header class="vx-topbar">
-    <a class="vx-appname" href="./"><img src="icon.png" width="32" height="32" alt="">飞书工作岛</a>
-    <span class="vx-muted release-label">Mac 试用版</span>
-  </header>
-  <main class="vx-main">
-    <header class="vx-page-header">
-      <div>
-        <h1 class="vx-page-title">工作，收进灵动岛</h1>
-        <p class="vx-page-desc">看飞书消息，放下材料交给 AI，完成后回到这里。</p>
-      </div>
-      <button class="vx-btn" id="copy-agent" type="button"><svg class="vx-icon" data-icon="copy" aria-hidden="true"></svg><span>复制交给 Agent</span></button>
-    </header>
-    <p id="agent-feedback" class="feedback" role="status" aria-live="polite" hidden></p>
-    <div id="copy-fallback" class="copy-fallback" hidden>
-      <label class="vx-label" for="agent-text">浏览器未允许复制，请选中下方文字复制给 Agent</label>
-      <textarea id="agent-text" class="vx-textarea" rows="4" readonly></textarea>
-      <button class="vx-btn vx-btn-sm" id="close-copy" type="button">收起</button>
-    </div>
-    <section class="vx-card install-card" aria-labelledby="install-title">
-      <div class="install-main">
-        <div class="install-identity">
-          <img class="product-icon" src="icon.png" alt="飞书工作岛图标" width="80" height="80">
-          <div>
-            <h2 id="install-title">飞书工作岛</h2>
-            <p class="requirements">Apple M 系列 · macOS 15 或更新版本</p>
-            <p class="release-detail">0.8.0 · build 46 · 共同融合版</p>
-          </div>
-        </div>
-        <div class="install-action">
-          <a class="vx-btn vx-btn-primary" id="download" href="feishu-island-0.8.0-build46-arm64.dmg" download><svg class="vx-icon" data-icon="download" aria-hidden="true"></svg>安装到 Mac</a>
-          <span class="vx-muted">DMG 安装包</span>
-        </div>
-      </div>
-      <ol class="install-steps" aria-label="安装步骤">
-        <li><span class="step-number">1</span><div><strong>打开下载的 DMG</strong><p>在浏览器下载列表中打开。</p></div></li>
-        <li><span class="step-number">2</span><div><strong>拖进“应用程序”</strong><p>把工作岛图标拖到右侧文件夹。</p></div></li>
-        <li><span class="step-number">3</span><div><strong>打开，连接自己的飞书</strong><p>按应用提示授权，不用填密钥。</p></div></li>
-      </ol>
-      <div id="download-feedback" class="download-feedback" role="status" aria-live="polite" hidden>已请求下载。下载完成后打开 DMG，再把工作岛拖进“应用程序”。</div>
-      <footer class="install-footer">
-        <span>已安装？<a href="http://127.0.0.1:18766/" target="_blank" rel="noopener">打开本机连接页 <span aria-hidden="true">↗</span></a></span>
-        <a href="SHA256SUMS" class="checksum">安装包校验值</a>
-      </footer>
-    </section>
-    <section class="help-section" aria-labelledby="help-title">
-      <h2 id="help-title">需要时再看</h2>
-      <details>
-        <summary>第一次打开，怎么连接？<svg class="vx-icon" data-icon="chevron" aria-hidden="true"></svg></summary>
-        <div class="help-content"><p>新增 WorkBuddy 材料处理与每日免费积分。自动签到在“Agent接入”开启，首次允许 WorkBuddyCheckin，使用你自己的账号，无需开着 Codex。在工作台侧栏“账号与消息”点“连接自己的飞书”，用你本人的账号授权。消息接收和材料归档分别连接，已有正常接收保持原样。Dot 需要连接你自己的账号；可以点页面上方“复制交给 Agent”让它协助。</p><a href="start.html#connect">查看连接步骤</a></div>
-      </details>
-      <details>
-        <summary>网页收录、外观和中台卡片怎么设置？<svg class="vx-icon" data-icon="chevron" aria-hidden="true"></svg></summary>
-        <div class="help-content"><p>打开完整工作台，在侧栏“处理与归档”“外观与交互”调整用法；“虚实中台”里选择自己的卡片。网页收录扩展已经包含在应用内，需要时再装。你也可以复制给 Agent，告诉它想收录什么、怎么显示。</p><a href="start.html#browser">查看网页收录步骤</a></div>
-      </details>
-      <details>
-        <summary>打不开，或已经装过旧版？<svg class="vx-icon" data-icon="chevron" aria-hidden="true"></svg></summary>
-        <div class="help-content"><p>已有旧版时先退出工作岛，再替换应用；不用退出飞书。这个试用包还未完成 Apple 公证，首次打开可能出现系统来源提示，按系统提示确认即可，不要关闭安全保护。</p><p>若浏览器阻止下载，请由本人检查此站点的“自动下载／多个文件”权限，再点一次安装。</p><p>目前支持 M 系列 Mac。Windows、Intel Mac 暂不提供安装包。</p><a href="start.html#install">查看安装帮助</a></div>
-      </details>
-    </section>
-    <footer class="page-footer"><span>宰治 × 柚子 · 共同开发</span><a href="start.html#status">试用范围与更新</a></footer>
-  </main>
-</div>
-</body>
-</html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="island-release" content="0.8.0/47/arm64">
+<title>飞书工作岛 · 让消息与 Agent 留在视线里</title>
+<meta name="description" content="常驻在你的 MAC 灵动岛里的工具，将飞书、豆包工作、Codex等 Agent打通为一体，便于大家高效工作，同时飞书消息、Agent 的状态像看直播、电视一样有弹幕飘过你的电脑桌面">
+<link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="virxact-story.css"><link rel="stylesheet" href="landing.css"><script src="vx.js" defer></script><script src="install.js" defer></script>
+</head><body class="vn-page">
+<header class="vn-header"><a class="vn-logo island-brand" href="./"><img src="icon.svg" width="38" height="38" alt="">飞书工作岛</a><nav class="vn-nav" aria-label="页面导航"><a href="#workflow">怎么用</a><a href="#install">安装与连接</a><a href="http://127.0.0.1:18766/" target="_blank" rel="noopener">打开工作台 ↗</a></nav></header>
+<main>
+<section class="vn-hero island-hero" aria-labelledby="hero-title"><div class="vn-wrap hero-grid">
+<div class="hero-copy"><p class="vn-marker">你的 Mac 顶部，多一个工作伙伴</p><h1 class="vn-display" id="hero-title">飞书、Agent，<br>都在灵动岛。</h1><p class="vn-lead hero-lead">材料交给 AI，手头工作继续。<br>消息、进度和结果，抬眼就能看见。</p>
+<div class="vn-actions"><a class="vn-btn" id="download" href="feishu-island-0.8.0-build47-arm64.dmg" download>安装到 Mac <span aria-hidden="true">↓</span></a><button class="vn-link" id="copy-agent" type="button"><span>复制交给 Agent</span> <span aria-hidden="true">↗</span></button></div><p class="vn-note compatibility">Apple M 系列 · macOS 15+ · 0.8.0 build 47</p>
+<p id="download-feedback" class="inline-feedback" role="status" aria-live="polite" hidden>下载已开始。打开 DMG，把工作岛拖进 Applications。</p><p id="agent-feedback" class="inline-feedback" role="status" aria-live="polite" hidden></p>
+<div id="copy-fallback" class="copy-fallback" hidden><label for="agent-text">复制下面的内容给你的 Agent</label><textarea id="agent-text" rows="4" readonly></textarea><button class="vn-link" id="close-copy" type="button">收起</button></div></div>
+<div class="product-exhibit"><div class="exhibit-heading"><span>在这里试一下</span><span>交互演示 · 合成内容</span></div>
+<div class="desktop-demo" id="desktop-demo" role="group" aria-label="灵动岛交互演示"><div class="demo-menubar"><span>工作中的 Mac</span><span>09:41</span></div><div class="demo-island"><span class="demo-source" id="demo-source">飞书</span><span class="camera-space" aria-hidden="true"></span><span id="demo-status">新消息</span></div>
+<div class="demo-document"><div class="document-sidebar"><span>工作周报</span><span>本周计划</span><span>材料收录</span></div><div class="document-body"><span class="document-eyebrow">我的工作区</span><h3>继续做你的事。</h3><p>提醒，会自己出现。</p><div class="document-line"></div><div class="document-line short"></div><div class="document-line"></div><div class="document-line short"></div></div></div>
+<div class="demo-danmu" id="demo-danmu" aria-hidden="true">飞书 · 下午的讨论改到 3 点，收到后继续忙。</div><div class="demo-open-island" id="demo-open-island" hidden><span>材料处理完成</span><strong>两条客户反馈已整理</strong><p>已存入飞书文档，回到工作岛查看。</p></div><div class="demo-caption" id="demo-caption">消息飘过桌面，手头工作不被打断。</div></div>
+<div class="demo-controls" role="group" aria-label="切换演示内容"><button type="button" data-demo="feishu" aria-pressed="true">飞书消息</button><button type="button" data-demo="agent" aria-pressed="false">Agent 状态</button><button type="button" data-demo="result" aria-pressed="false">完成与归档</button><button type="button" id="replay-demo" aria-label="重新播放当前演示">重播 ↻</button></div></div>
+</div><div class="hero-bottom vn-wrap"><span>宰治 × 柚子 · 共同发布</span><a href="#workflow">看看怎么用 ↓</a></div></section>
+<section class="vn-section vn-light workflow-section" id="workflow"><div class="vn-wrap"><div class="vn-head vn-split"><div><p class="vn-marker">从随手一放，到拿到结果</p><h2 class="vn-title">少切几个窗口。<br>多做一点正事。</h2></div><p class="vn-body">飞书消息、材料处理、待办和 Agent 状态，放到同一个入口。需要时展开，鼠标移开就收回。</p></div>
+<ol class="vn-rows workflow-rows"><li><span class="vn-n">01</span><div><h3>放下材料</h3><p class="vn-en">文字 · 链接 · 图片 · 文件</p></div><p class="vn-desc">拖进灵动岛，或直接输入、粘贴截图。先存待办，也可以直接归档。</p></li><li><span class="vn-n">02</span><div><h3>交给常用的 AI</h3><p class="vn-en">Dot · Codex · 豆包工作 · WorkBuddy</p></div><p class="vn-desc">选择工具，再点“交给 AI”。继续做其他事，完成或需要你确认时再提醒。</p></li><li><span class="vn-n">03</span><div><h3>结果回到飞书</h3><p class="vn-en">云文档 · 追加收录 · 多维表格</p></div><p class="vn-desc">按你选择的位置归档，文档链接回到岛内。接入的是你自己的账号和权限。</p></li></ol></div></section>
+<section class="vn-section install-section" id="install"><div class="vn-wrap"><div class="vn-head vn-split"><div><p class="vn-marker">安装，只留三步</p><h2 class="vn-title">把工作岛，<br>放上你的 Mac。</h2></div><div class="install-side"><p class="vn-body">全公司同事可用。每人连接自己的飞书和 Agent，不共用其他人的账号。</p><a class="vn-link" href="#download">下载 Mac 安装包 ↑</a><a class="vn-more" href="SHA256SUMS">查看安装包校验值</a></div></div>
+<ol class="install-steps"><li><span>01</span><h3>打开 DMG</h3><p>下载后，在浏览器下载列表中打开。</p></li><li><span>02</span><h3>拖入 Applications</h3><p>一个应用，一个拖入目标。安装就这些。</p></li><li><span>03</span><h3>连接自己的账号</h3><p>按工作台提示授权，不用填写应用密钥。</p></li></ol><div class="install-bottom"><span>已经安装？</span><a class="vn-link" href="http://127.0.0.1:18766/" target="_blank" rel="noopener">打开本机工作台 ↗</a></div></div></section>
+<section class="vn-section vn-light help-section" id="help"><div class="vn-wrap"><div class="help-grid"><h2 class="vn-subtitle">需要时，再看。</h2><div>
+<details><summary>第一次怎么连接？<span aria-hidden="true">+</span></summary><div class="help-content"><p>在工作台“账号与消息”连接自己的飞书，消息接收与材料归档分别授权。Dot 需连接自己的项目；不会复制开发者的账号。需要协助，点首屏“复制交给 Agent”。</p><a class="vn-link" href="start.html#connect">查看连接说明</a></div></details>
+<details><summary>网页收录、提醒和外观在哪里？<span aria-hidden="true">+</span></summary><div class="help-content"><p>打开完整工作台，可设置网页收录、中台卡片、提醒和外观。WorkBuddy 自动签到在“Agent 接入”开启，使用自己的账号，首次需本人允许签到组件的系统权限。</p><a class="vn-link" href="start.html#browser">查看使用说明</a></div></details>
+<details><summary>旧版更新，或首次打不开？<span aria-hidden="true">+</span></summary><div class="help-content"><p>先退出旧工作岛，再替换应用，不用退出飞书。旧版本可能仍叫“飞书工作岛预览版”。当前包尚未完成 Apple 公证；如遇系统来源提示，使用 macOS 提供的确认入口，不关闭安全保护。Windows 和 Intel Mac 暂不提供安装包。</p><a class="vn-link" href="start.html#install">查看安装帮助</a></div></details>
+</div></div></div></section>
+</main><footer class="vn-footer island-footer"><div class="vn-wrap"><div class="footer-top"><a class="island-brand" href="./"><img src="icon.svg" width="38" height="38" alt="">飞书工作岛</a><span>宰治 × 柚子 · 共同发布</span></div><p class="product-description">常驻在你的 MAC 灵动岛里的工具，将飞书、豆包工作、Codex等 Agent打通为一体，便于大家高效工作，同时飞书消息、Agent 的状态像看直播、电视一样有弹幕飘过你的电脑桌面</p><div class="footer-bottom"><span>虚实传媒 · 全公司可用</span><a href="start.html#status">版本与使用范围 ↗</a></div></div></footer>
+</body></html>

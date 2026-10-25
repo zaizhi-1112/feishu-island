@@ -1,0 +1,1125 @@
+/* 虚实传媒 叙事页: pages that tell — an event, a product, the company, a year — in the brand VI's language, the way the
+   official site virxact.com sets it. Black and white only; four grays for hierarchy and hairlines, nothing else. Lines
+   are one pixel. Big type is Light. Squares are the logo's anchors: hollow for 虚 (planned), solid for 实 (done). The
+   margin is a fifteenth of the window's short side. Sections alternate black and white. The words are set in MiSans
+   where the reader has it, otherwise in the system's own face; no font is downloaded. No rounded corners, no shadows,
+   no gradients, no colour.
+
+   Put class="vn-page" on <body>, and add vn.js (or vx.js) for the arrivals: [data-in] rises as it comes into view,
+   [data-in="lines"] lifts each .vn-line from behind its own edge, [data-in="rule"] draws, [data-count] counts up.    Built from virxact-hub@28f0ac1 on 2026-10-13; what each class is for: references/story.md. */
+
+:root {
+  --vn-black: #000000;
+  --vn-white: #ffffff;
+  --vn-gray-20: #cccccc;
+  --vn-gray-40: #999999;
+  --vn-gray-60: #666666;
+  --vn-gray-80: #333333;
+  --vn-font: MiSans, -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", sans-serif;
+  /* The VI's grid: the margin a fifteenth of the short side, the gutter between columns a fraction of it. */
+  --vn-m: clamp(20px, calc(100vmin / 15), 96px);
+  --vn-gutter: clamp(16px, calc(var(--vn-m) / 2.5), 32px);
+  /* The VI's five levels (note 0.75, body 1, subtitle 1.5, title 3, display 5), fluid between phone and wall. */
+  --vn-fs-note: clamp(11px, calc(0.3vw + 8px), 13px);
+  --vn-fs-body: clamp(15px, calc(0.35vw + 10.5px), 18px);
+  --vn-fs-sub: clamp(19px, calc(0.6vw + 13px), 26px);
+  --vn-fs-title: clamp(30px, 3.4vw, 60px);
+  --vn-fs-display: clamp(40px, 6vw, 104px);
+  --vn-header: 72px;
+  --vn-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --vn-ease-draw: cubic-bezier(0.65, 0, 0.35, 1);
+  /* What a section is drawn in. Black sections by default; .vn-light swaps them. */
+  --vn-fg: var(--vn-white);
+  --vn-bg: var(--vn-black);
+  --vn-muted: var(--vn-gray-40);
+  --vn-faint: var(--vn-gray-60);
+  --vn-line: var(--vn-gray-80);
+  --vn-soft: var(--vn-gray-20);
+}
+.vn-light {
+  --vn-fg: var(--vn-black);
+  --vn-bg: var(--vn-white);
+  --vn-muted: var(--vn-gray-60);
+  --vn-faint: var(--vn-gray-40);
+  --vn-line: var(--vn-gray-20);
+  --vn-soft: var(--vn-gray-80);
+  color-scheme: light;
+}
+
+/* ---- the page ------------------------------------------------------------------------------------------------------ */
+/* The resets weigh nothing (:where), so every class below wins over them. */
+:where(.vn-page),
+:where(.vn-page) *,
+:where(.vn-page) *::before,
+:where(.vn-page) *::after {
+  box-sizing: border-box;
+}
+html:has(> .vn-page) {
+  background: var(--vn-black);
+  color-scheme: dark;
+  scroll-padding-top: var(--vn-header);
+  -webkit-text-size-adjust: 100%;
+}
+.vn-page {
+  margin: 0;
+  overflow-x: clip;
+  background: var(--vn-black);
+  color: var(--vn-white);
+  font: 400 var(--vn-fs-body) / 1.7 var(--vn-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+:where(.vn-page) :where(h1, h2, h3, h4, p, ol, ul, li, dl, dt, dd, figure, figcaption, blockquote) {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+}
+:where(.vn-page) :where(ol, ul) {
+  list-style: none;
+}
+:where(.vn-page) :where(a) {
+  color: inherit;
+  text-decoration: none;
+}
+:where(.vn-page) :where(button) {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+:where(.vn-page) :where(img, svg, canvas, video) {
+  display: block;
+}
+:where(.vn-page) ::selection {
+  background: var(--vn-fg);
+  color: var(--vn-bg);
+}
+:where(.vn-page) :focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: 3px;
+}
+.vn-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---- type: a marker, a title, a lead, the body ---------------------------------------------------------------------
+   .vn-marker   the small line over a section: "§ 01 / 公司"; a hairline runs in front of it
+   .vn-title    a section's title (Light); .vn-title.vn-strong for a heading among others (Medium)
+   .vn-display  the page's one big statement; .vn-word a single huge word (an English one reads best: CASES.)
+   .vn-lead     the paragraph under a title; .vn-body running text; .vn-note the smallest */
+.vn-marker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--vn-muted);
+  font-size: var(--vn-fs-note);
+  line-height: 1.6;
+  letter-spacing: 0.06em;
+}
+.vn-marker::before {
+  content: "";
+  flex: none;
+  width: 28px;
+  height: 1px;
+  background: currentColor;
+}
+.vn-title {
+  font-size: var(--vn-fs-title);
+  font-weight: 300;
+  line-height: 1.18;
+}
+.vn-title.vn-strong {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.vn-subtitle {
+  font-size: var(--vn-fs-sub);
+  font-weight: 500;
+  line-height: 1.35;
+}
+.vn-display {
+  font-size: var(--vn-fs-display);
+  font-weight: 300;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+.vn-word {
+  font-size: clamp(56px, 9vw, 150px);
+  font-weight: 300;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+}
+.vn-lead {
+  max-width: 46em;
+  color: var(--vn-muted);
+  font-size: clamp(16px, calc(0.45vw + 11px), 20px);
+  line-height: 1.85;
+}
+.vn-body {
+  max-width: 32em;
+  color: var(--vn-muted);
+  line-height: 1.85;
+}
+.vn-note {
+  color: var(--vn-muted);
+  font-size: var(--vn-fs-note);
+  letter-spacing: 0.06em;
+}
+.vn-en {
+  color: var(--vn-muted);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+.vn-faint {
+  color: var(--vn-faint);
+}
+.vn-num {
+  font-variant-numeric: tabular-nums;
+}
+.vn-title,
+.vn-display,
+.vn-word {
+  line-break: strict;
+  text-wrap: balance;
+}
+.vn-lead,
+.vn-body,
+.vn-marker {
+  line-break: strict;
+  text-wrap: pretty;
+}
+:is(.vn-title, .vn-display, .vn-word) .vn-line {
+  display: block;
+}
+/* A line set as a label: the section's ink as its ground. */
+.vn-ribbon {
+  display: inline-block;
+  padding: 6px 16px;
+  background: var(--vn-fg);
+  color: var(--vn-bg);
+  font-size: var(--vn-fs-sub);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+/* ---- sections ------------------------------------------------------------------------------------------------------
+   <section class="vn-section">            black (the default)
+   <section class="vn-section vn-light">   white; alternate them the way the official site does
+     <div class="vn-wrap"> … </div>        holds everything to the margins */
+.vn-section {
+  position: relative;
+  padding: calc(var(--vn-m) * 1.8) 0;
+  background: var(--vn-bg);
+  color: var(--vn-fg);
+}
+.vn-wrap {
+  padding: 0 var(--vn-m);
+}
+.vn-head {
+  display: grid;
+  gap: 18px;
+  margin-bottom: calc(var(--vn-m) * 1.1);
+}
+.vn-head.vn-split {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 18px var(--vn-m);
+}
+.vn-head.vn-split > .vn-body {
+  max-width: 28em;
+}
+@media (max-width: 860px) {
+  .vn-head.vn-split {
+    grid-template-columns: 1fr;
+  }
+}
+.vn-rule {
+  display: block;
+  height: 1px;
+  border: 0;
+  background: var(--vn-line);
+}
+.vn-cols-2,
+.vn-cols-3,
+.vn-cols-4 {
+  display: grid;
+  gap: var(--vn-gutter);
+}
+.vn-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.vn-cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.vn-cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 1100px) {
+  .vn-cols-3,
+  .vn-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 720px) {
+  .vn-cols-2,
+  .vn-cols-3,
+  .vn-cols-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- the header: the logo on the left margin, the sections and one action on the right -------------------------------
+   Over the first screen it stands on the picture; once the page scrolls (vn.js adds .is-solid) it gets a black ground
+   and a hairline under it. */
+.vn-header {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  height: var(--vn-header);
+  padding: 0 var(--vn-m);
+  color: var(--vn-white);
+}
+.vn-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-bottom: 1px solid var(--vn-gray-80);
+  background: var(--vn-black);
+  opacity: 0;
+  transition: opacity 300ms linear;
+}
+.vn-header.is-solid::before {
+  opacity: 1;
+}
+.vn-header .vn-logo {
+  width: 160px;
+}
+.vn-logo svg,
+.vn-logo img {
+  width: 100%;
+  height: auto;
+  fill: currentColor;
+}
+.vn-nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 2.4vw, 36px);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.vn-nav a:not(.vn-btn) {
+  position: relative;
+  color: var(--vn-gray-40);
+  line-height: 2.4;
+  transition: color 200ms;
+}
+.vn-nav a:not(.vn-btn):is(:hover, [aria-current]) {
+  color: var(--vn-white);
+}
+.vn-nav a:not(.vn-btn)::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -11px;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  background: var(--vn-white);
+  opacity: 0;
+  transition: opacity 300ms;
+}
+.vn-nav a[aria-current]::before {
+  opacity: 1;
+}
+@media (max-width: 860px) {
+  .vn-nav a:not(.vn-btn) {
+    display: none;
+  }
+}
+
+/* ---- actions ---------------------------------------------------------------------------------------------------------
+   .vn-btn    a solid block in the section's ink (white on black, black on white); .vn-btn-sm in the header
+   .vn-link   words on a hairline, with an arrow; .vn-more small, spaced and gray, with an arrow
+   Arrows: <svg class="vn-arrow" viewBox="0 0 18 10"><path d="M0 5h17M12.5 0.5 17 5l-4.5 4.5"/></svg> */
+.vn-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 22px;
+  background: var(--vn-fg);
+  color: var(--vn-bg);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  transition: background-color 200ms;
+}
+.vn-btn:hover {
+  background: var(--vn-soft);
+}
+.vn-btn-sm {
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+.vn-btn-line {
+  border: 1px solid var(--vn-fg);
+  background: transparent;
+  color: var(--vn-fg);
+}
+.vn-btn-line:hover {
+  background: var(--vn-fg);
+  color: var(--vn-bg);
+}
+.vn-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid currentColor;
+  color: var(--vn-fg);
+  opacity: 0.85;
+  transition: opacity 200ms;
+}
+.vn-link:hover {
+  opacity: 1;
+}
+.vn-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--vn-muted);
+  font-size: var(--vn-fs-note);
+  letter-spacing: 0.1em;
+  transition: color 200ms;
+}
+.vn-more:hover {
+  color: var(--vn-fg);
+}
+.vn-arrow {
+  display: inline-block;
+  flex: none;
+  width: 18px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  transition: transform 300ms var(--vn-ease-out);
+}
+a:hover > .vn-arrow {
+  transform: translateX(4px);
+}
+.vn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 28px;
+}
+
+/* ---- the first screen ------------------------------------------------------------------------------------------------
+   The words on the left margin with their middle on the screen's centre line; the 虚实环 (.vn-ring-cover) sweeps in
+   from beyond the bottom right. One brand moment: nothing else moves here. */
+.vn-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: calc(var(--vn-header) + var(--vn-m)) var(--vn-m) var(--vn-m);
+  overflow: hidden;
+  background: var(--vn-black);
+  color: var(--vn-white);
+}
+.vn-hero-words {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: start;
+  gap: clamp(16px, 1.9vw, 34px);
+  max-width: min(56rem, 62vw);
+}
+.vn-hero-words .vn-tagline {
+  color: var(--vn-gray-40);
+  font-size: clamp(14px, 1.35vw, 22px);
+  letter-spacing: 0.16em;
+}
+.vn-hero-foot {
+  position: absolute;
+  right: var(--vn-m);
+  bottom: var(--vn-m);
+  left: var(--vn-m);
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--vn-gray-40);
+  font-size: var(--vn-fs-note);
+  letter-spacing: 0.1em;
+}
+/* The cue to scroll: a short line with a hollow anchor running down it. */
+.vn-cue {
+  position: relative;
+  width: 1px;
+  height: clamp(36px, 6vh, 64px);
+  background: var(--vn-gray-80);
+}
+.vn-cue::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -2px;
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--vn-white);
+  background: var(--vn-black);
+  animation: vn-cue 2400ms var(--vn-ease-draw) infinite;
+}
+@keyframes vn-cue {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  70%,
+  100% {
+    transform: translateY(calc(clamp(36px, 6vh, 64px) - 5px));
+    opacity: 0;
+  }
+}
+@media (max-aspect-ratio: 4/5) {
+  .vn-hero {
+    justify-content: flex-start;
+  }
+  .vn-hero-words {
+    max-width: none;
+  }
+  /* The ring arches up through the foot here, so the cue gives way to it. */
+  .vn-hero-foot {
+    display: none;
+  }
+}
+
+/* ---- 虚实环, framed as the VI frames it ------------------------------------------------------------------------------
+   The ring is the mark's own circle: its lower right half solid (实), its upper left half nine lines thinning to the
+   tail (虚). Only ever black or white, only scaled; the cut stays at 45° (it may only turn 180°); its centre is outside
+   the frame so the whole ring never shows; its radius is one to one and a half times the frame's short side; one ring
+   to a frame, a margin clear of the words. These framings are the VI's and need nothing else:
+   .vn-ring-cover   the cover's: lines sweeping in from beyond the bottom right (the first screen)
+   .vn-ring-rise    the back cover's: thick lines arching up from below (the foot of the page)
+   Put the ring (<svg class="vn-ring" …>, from brand/xushi-ring.svg or data-brand="ring") straight inside the section,
+   which clips it. */
+.vn-ring {
+  position: absolute;
+  z-index: 0;
+  height: auto;
+  fill: currentColor;
+  pointer-events: none;
+}
+.vn-ring-cover {
+  right: -198vmin;
+  bottom: -205vmin;
+  width: 296vmin;
+}
+.vn-ring-rise {
+  bottom: -230vmin;
+  left: -95vmin;
+  width: 268vmin;
+}
+/* On an upright screen the words take the top, so the cover's ring arches up from the foot instead, as on the back
+   cover: lines only, clear of the words. */
+@media (max-aspect-ratio: 4/5) {
+  .vn-ring-cover {
+    right: auto;
+    bottom: -230vmin;
+    left: -95vmin;
+    width: 268vmin;
+  }
+}
+
+/* ---- figures, rows, cards ---------------------------------------------------------------------------------------------
+   .vn-stats   a row of big Light figures, each with its label under it, a hairline over the row
+   .vn-rows    numbered rows (01, 02 …): the number, a title with its English under it, what it means, a small drawing
+   .vn-cards   cards drawn with a hairline, no fill: .vn-card-index on the corner, .vn-card-body, .vn-card-foot
+   .vn-tags    words in hairline boxes; .vn-chip a small spaced label, .vn-chip.vn-solid filled */
+.vn-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 40px 24px;
+  padding-top: calc(var(--vn-m) * 0.8);
+  border-top: 1px solid var(--vn-line);
+}
+.vn-stats dd,
+.vn-stat-value {
+  font-size: clamp(42px, 5vw, 84px);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.vn-stats dd small,
+.vn-stat-value small {
+  color: var(--vn-muted);
+  font-size: 0.32em;
+  letter-spacing: 0;
+}
+.vn-stats dt,
+.vn-stat-label {
+  margin-top: 12px;
+  color: var(--vn-muted);
+  font-size: var(--vn-fs-note);
+}
+.vn-stats > div {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+}
+@media (max-width: 860px) {
+  .vn-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.vn-rows {
+  border-bottom: 1px solid var(--vn-line);
+}
+.vn-rows > li {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 260px) minmax(0, 1fr) minmax(0, 200px);
+  align-items: center;
+  gap: clamp(20px, 3vw, 44px);
+  padding: clamp(26px, 3vw, 40px) 0;
+  border-top: 1px solid var(--vn-line);
+}
+.vn-rows .vn-n {
+  font-size: clamp(44px, 5vw, 76px);
+  font-weight: 300;
+  line-height: 1;
+}
+.vn-rows h3 {
+  font-size: clamp(19px, 1.6vw, 24px);
+  font-weight: 500;
+  line-height: 1.35;
+}
+.vn-rows .vn-en {
+  margin-top: 8px;
+}
+.vn-rows .vn-desc {
+  max-width: 30em;
+  color: var(--vn-soft);
+  line-height: 1.8;
+}
+.vn-rows .vn-figure {
+  aspect-ratio: 16 / 10;
+}
+@media (max-width: 1100px) {
+  .vn-rows > li {
+    grid-template-columns: 70px minmax(0, 1fr) minmax(0, 160px);
+  }
+  .vn-rows .vn-desc {
+    grid-column: 2;
+  }
+  .vn-rows .vn-figure {
+    grid-row: 1 / span 2;
+    grid-column: 3;
+  }
+}
+@media (max-width: 640px) {
+  .vn-rows > li {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+  .vn-rows .vn-figure {
+    display: none;
+  }
+}
+.vn-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--vn-gutter);
+}
+@media (max-width: 1280px) {
+  .vn-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 720px) {
+  .vn-cards {
+    grid-template-columns: 1fr;
+  }
+}
+.vn-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--vn-line);
+  transition: border-color 300ms, transform 300ms var(--vn-ease-out);
+}
+a.vn-card:hover {
+  border-color: var(--vn-faint);
+  transform: translateY(-4px);
+}
+.vn-card.vn-dashed {
+  border-style: dashed;
+}
+.vn-card-index {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 1;
+  padding: 3px 10px;
+  background: var(--vn-bg);
+  color: var(--vn-fg);
+  font-size: 15px;
+  font-weight: 300;
+  letter-spacing: 0.14em;
+}
+.vn-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  padding: clamp(20px, 2vw, 28px);
+}
+.vn-card-body h3 {
+  font-size: clamp(19px, 1.5vw, 23px);
+  font-weight: 500;
+  line-height: 1.35;
+}
+.vn-card-body p {
+  flex: 1;
+  color: var(--vn-muted);
+  font-size: 14.5px;
+  line-height: 1.85;
+}
+.vn-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--vn-line);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.vn-card-foot li,
+.vn-points li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.vn-card-foot li::before,
+.vn-points li::before {
+  content: "";
+  flex: none;
+  width: 4px;
+  height: 4px;
+  background: var(--vn-fg);
+}
+.vn-points {
+  display: grid;
+  gap: 10px;
+}
+.vn-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.vn-tags > * {
+  padding: 6px 14px;
+  border: 1px solid var(--vn-fg);
+  font-size: 15px;
+  font-weight: 500;
+}
+.vn-chip {
+  display: inline-block;
+  padding: 2px 9px;
+  border: 1px solid var(--vn-line);
+  color: var(--vn-muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+.vn-chip.vn-solid {
+  border-color: var(--vn-fg);
+  background: var(--vn-fg);
+  color: var(--vn-bg);
+}
+
+/* ---- photographs: in black and white; they open along the logo's 45° slash as they arrive ------------------------------ */
+.vn-photo {
+  position: relative;
+  overflow: hidden;
+  background: var(--vn-gray-80);
+}
+.vn-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.04);
+  transition: transform 700ms var(--vn-ease-out);
+}
+a:hover .vn-photo img {
+  transform: scale(1.03);
+}
+.vn-photo figcaption {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 22px 16px 10px;
+  background: var(--vn-black);
+  color: var(--vn-gray-20);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+/* ---- names on a hairline grid (partners, clients, accounts) --------------------------------------------------------------- */
+.vn-names {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  border-top: 1px solid var(--vn-line);
+  border-left: 1px solid var(--vn-line);
+}
+.vn-names > * {
+  display: grid;
+  place-items: center;
+  min-height: clamp(62px, 6vw, 100px);
+  padding: 12px;
+  border-right: 1px solid var(--vn-line);
+  border-bottom: 1px solid var(--vn-line);
+  font-weight: 500;
+  text-align: center;
+  transition: background-color 200ms, color 200ms;
+}
+.vn-names > :hover {
+  background: var(--vn-fg);
+  color: var(--vn-bg);
+}
+@media (max-width: 1100px) {
+  .vn-names {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .vn-names {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---- a programme: times down the left, what happens and who, a hairline between -------------------------------------- */
+.vn-agenda {
+  border-top: 1px solid var(--vn-fg);
+}
+.vn-agenda > li {
+  display: grid;
+  grid-template-columns: minmax(0, 9em) minmax(0, 1fr) minmax(0, 16em);
+  align-items: baseline;
+  gap: clamp(16px, 3vw, 44px);
+  padding: clamp(18px, 2vw, 26px) 0;
+  border-bottom: 1px solid var(--vn-line);
+}
+.vn-agenda time {
+  font-size: clamp(22px, 2vw, 30px);
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.vn-agenda h3 {
+  font-size: clamp(17px, 1.4vw, 21px);
+  font-weight: 500;
+  line-height: 1.4;
+}
+.vn-agenda p {
+  margin-top: 6px;
+  color: var(--vn-muted);
+  line-height: 1.7;
+}
+.vn-agenda .vn-who {
+  color: var(--vn-muted);
+  font-size: 14px;
+  text-align: right;
+}
+.vn-agenda .vn-who strong {
+  display: block;
+  color: var(--vn-fg);
+  font-weight: 500;
+}
+@media (max-width: 860px) {
+  .vn-agenda > li {
+    grid-template-columns: minmax(0, 6.5em) minmax(0, 1fr);
+  }
+  .vn-agenda .vn-who {
+    grid-column: 2;
+    text-align: left;
+  }
+}
+
+/* ---- people: a square in black and white (a photo, or the name's first character), the name, what they do -------------- */
+.vn-people {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: var(--vn-gutter);
+}
+.vn-person {
+  display: grid;
+  gap: 12px;
+}
+.vn-person-face {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--vn-line);
+  font-size: clamp(40px, 5vw, 72px);
+  font-weight: 300;
+}
+.vn-person-face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1);
+}
+.vn-person strong {
+  display: block;
+  font-size: clamp(17px, 1.3vw, 20px);
+  font-weight: 500;
+}
+.vn-person span {
+  color: var(--vn-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ---- facts set as a list: a small label, then what it is (when, where, how to come) ---------------------------------- */
+.vn-facts > div {
+  padding: 14px 0;
+  border-top: 1px solid var(--vn-line);
+}
+.vn-facts dt {
+  color: var(--vn-faint);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+.vn-facts dd {
+  margin-top: 4px;
+  font-size: var(--vn-fs-sub);
+  font-weight: 300;
+  line-height: 1.4;
+}
+
+/* ---- the construction drawing's parts: anchors and the registration cross --------------------------------------------- */
+.vn-anchor {
+  display: inline-block;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border: 1px solid currentColor;
+  background: currentColor;
+}
+.vn-anchor.vn-hollow {
+  background: transparent;
+}
+.vn-cross {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+.vn-cross::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+.vn-cross::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(currentColor, currentColor) center / 100% 1px no-repeat, linear-gradient(currentColor, currentColor) center / 1px 100% no-repeat;
+}
+/* The four corners of a frame marked, as the VI marks a page's type area. */
+.vn-registered {
+  position: relative;
+}
+.vn-registered::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--vn-m) * -0.4);
+  background:
+    linear-gradient(var(--vn-faint), var(--vn-faint)) left top / 12px 1px no-repeat,
+    linear-gradient(var(--vn-faint), var(--vn-faint)) left top / 1px 12px no-repeat,
+    linear-gradient(var(--vn-faint), var(--vn-faint)) right top / 12px 1px no-repeat,
+    linear-gradient(var(--vn-faint), var(--vn-faint)) right top / 1px 12px no-repeat,
+    linear-gradient(var(--vn-faint), var(--vn-faint)) left bottom / 12px 1px no-repeat,
+    linear-gradient(var(--vn-faint), var(--vn-faint)) left bottom / 1px 12px no-repeat,
+    linear-gradient(var(--vn-faint), var(--vn-faint)) right bottom / 12px 1px no-repeat,
+    linear-gradient(var(--vn-faint), var(--vn-faint)) right bottom / 1px 12px no-repeat;
+  pointer-events: none;
+}
+
+/* ---- a band asking for one thing (sign up, write to us) ------------------------------------------------------------------ */
+.vn-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px var(--vn-m);
+}
+
+/* ---- the foot: the logo, the facts, the way to reach us; the 虚实环 arching up from below ------------------------------ */
+.vn-footer {
+  position: relative;
+  min-height: 92vh;
+  min-height: 92svh;
+  overflow: hidden;
+  padding: calc(var(--vn-m) * 1.5) var(--vn-m) 0;
+  background: var(--vn-black);
+  color: var(--vn-white);
+}
+.vn-footer > :not(.vn-ring) {
+  position: relative;
+  z-index: 1;
+}
+.vn-footer-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--vn-m);
+}
+.vn-footer .vn-logo {
+  width: clamp(180px, 16vw, 250px);
+}
+.vn-footer-lines {
+  margin-top: 26px;
+  color: var(--vn-gray-40);
+  font-size: 14px;
+  line-height: 1.85;
+}
+.vn-footer-contact {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+.vn-footer-contact small {
+  color: var(--vn-gray-60);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+.vn-footer-contact a {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-size: clamp(24px, 2.6vw, 38px);
+  font-weight: 300;
+}
+.vn-footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  margin-top: 44px;
+  padding-top: 26px;
+  border-top: 1px solid var(--vn-gray-80);
+  color: var(--vn-gray-40);
+  font-size: 14px;
+}
+.vn-footer-nav a:hover,
+.vn-footer-bottom a:hover {
+  color: var(--vn-white);
+}
+.vn-footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px 24px;
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--vn-gray-80);
+  color: var(--vn-gray-60);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+@media (max-width: 640px) {
+  .vn-footer-contact {
+    justify-items: start;
+  }
+}
+
+/* ---- arriving: lines rise from behind their own edge, the rest rises and clears, rules draw, photos open at 45° ---------
+   Only once the page has said it can (vn.js puts .js on <html>), so a page without the script shows everything. */
+.js [data-in] {
+  opacity: 0;
+  transform: translateY(18px);
+}
+.js :is(.in[data-in], .in [data-in]) {
+  opacity: 1;
+  transform: none;
+  transition: opacity 900ms var(--vn-ease-out) var(--d, 0ms), transform 1200ms var(--vn-ease-out) var(--d, 0ms);
+}
+.js [data-in="lines"] {
+  opacity: 1;
+  transform: none;
+}
+.js [data-in="lines"] .vn-line {
+  overflow: hidden;
+  margin-bottom: -0.14em;
+  padding-bottom: 0.14em;
+}
+.js [data-in="lines"] .vn-line > span {
+  display: inline-block;
+  transform: translateY(108%);
+}
+.js :is(.in [data-in="lines"], .in[data-in="lines"]) .vn-line > span {
+  transform: none;
+  transition: transform 1300ms var(--vn-ease-out) calc(var(--d, 0ms) + var(--i, 0) * 110ms);
+}
+.js [data-in="rule"] {
+  opacity: 1;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.js :is(.in [data-in="rule"], .in[data-in="rule"]) {
+  transform: none;
+  transition: transform 1100ms var(--vn-ease-draw) var(--d, 0ms);
+}
+.js .vn-photo[data-in] {
+  opacity: 1;
+  transform: none;
+  clip-path: polygon(0 0, 0 0, 0 0, 0 0);
+}
+.js :is(.in .vn-photo[data-in], .vn-photo.in[data-in]) {
+  clip-path: polygon(0 0, 200% 0, 0 200%, 0 0);
+  transition: clip-path 1400ms var(--vn-ease-draw) var(--d, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vn-page *,
+  .vn-page *::before,
+  .vn-page *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .js [data-in],
+  .js [data-in="lines"] .vn-line > span,
+  .js [data-in="rule"] {
+    opacity: 1;
+    transform: none;
+    clip-path: none;
+  }
+}

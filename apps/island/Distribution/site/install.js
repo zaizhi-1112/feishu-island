@@ -28,3 +28,26 @@ document.querySelector('#close-copy').addEventListener('click', () => { fallback
 document.querySelector('#download').addEventListener('click', () => {
   document.querySelector('#download-feedback').hidden = false;
 });
+
+// This visual example stays inside the page; it never contacts the desktop bridge.
+const demoStates = {
+  feishu: { source: '飞书', status: '新消息', text: '飞书 · 下午的讨论改到 3 点，收到后继续忙。', caption: '消息飘过桌面，手头工作不被打断。' },
+  agent: { source: 'Codex', status: '等你确认', text: 'Codex · 需要你确认，准备好时再回来。', caption: '运行、完成、等你输入或确认，都能看见。' },
+  result: { source: 'Dot', status: '已完成', text: 'Dot · 反馈已整理，文档链接已回到工作岛。', caption: '处理完成，结果和飞书文档链接一起回来。' }
+};
+let demoMode = 'feishu';
+function showDemo(mode) {
+  demoMode = mode;
+  const state = demoStates[mode];
+  document.querySelector('#demo-source').textContent = state.source;
+  document.querySelector('#demo-status').textContent = state.status;
+  document.querySelector('#demo-caption').textContent = state.caption;
+  const danmu = document.querySelector('#demo-danmu');
+  danmu.textContent = state.text;
+  document.querySelector('#demo-open-island').hidden = mode !== 'result';
+  document.querySelectorAll('[data-demo]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.demo === mode)));
+  danmu.classList.remove('playing');
+  requestAnimationFrame(() => requestAnimationFrame(() => danmu.classList.add('playing')));
+}
+document.querySelectorAll('[data-demo]').forEach(button => button.addEventListener('click', () => showDemo(button.dataset.demo)));
+document.querySelector('#replay-demo').addEventListener('click', () => showDemo(demoMode));

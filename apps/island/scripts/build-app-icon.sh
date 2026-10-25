@@ -1,8 +1,8 @@
 #!/bin/bash
-# Convert the user-approved original artwork; no design changes or personal assets.
+# Build consistent app and portal icons from the product SVG raster source.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SOURCE="$ROOT/Distribution/brand/work-island-original.png"
+SOURCE="$ROOT/Distribution/brand/work-island.png"
 mkdir -p "$ROOT/.build"
 STAGE="$(mktemp -d "$ROOT/.build/app-icon.XXXXXX")"
 ICONSET="$STAGE/AppIcon.iconset"

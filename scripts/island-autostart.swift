@@ -1,10 +1,15 @@
 import AppKit
 // Observe public app-launch events only; no desktop login inspection or message access.
-let target = NSHomeDirectory() + "/Applications/飞书工作岛预览版.app"
+let targets = [
+    "/Applications/飞书工作岛.app",
+    NSHomeDirectory() + "/Applications/飞书工作岛.app",
+    NSHomeDirectory() + "/Applications/飞书工作岛预览版.app",
+    "/Applications/飞书工作岛预览版.app"
+]
 let identifier = "local.zaizhi.feishu-island.preview"
 func openIsland() {
     guard NSRunningApplication.runningApplications(withBundleIdentifier: identifier).isEmpty,
-          FileManager.default.fileExists(atPath: target) else { return }
+          let target = targets.first(where: { FileManager.default.fileExists(atPath: $0) }) else { return }
     let config = NSWorkspace.OpenConfiguration()
     config.activates = false
     NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: target), configuration: config) { _, _ in }
