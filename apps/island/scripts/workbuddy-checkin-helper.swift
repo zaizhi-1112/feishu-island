@@ -7,8 +7,18 @@ import Darwin
 typealias Receipt = WorkBuddyDailyFlow.Receipt
 let fm=FileManager.default
 let root=fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/FeishuIsland/WorkBuddyCheckin")
+let request:UUID? = {
+    let a=CommandLine.arguments;guard let i=a.firstIndex(of:"--request"),a.indices.contains(i+1) else{return nil};return UUID(uuidString:a[i+1])
+}()
+let requests=root.appendingPathComponent("requests")
+if request != nil {try? fm.createDirectory(at:requests,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])}
+func cancelled()->Bool { request.map{fm.fileExists(atPath:requests.appendingPathComponent($0.uuidString+".cancel").path)} ?? false }
 func output(_ state:String) -> Never {
     let bytes=(try? JSONSerialization.data(withJSONObject:["state":state])) ?? Data()
+    if let request {
+        let target=requests.appendingPathComponent(request.uuidString+".json")
+        try? bytes.write(to:target,options:.atomic);try? fm.setAttributes([.posixPermissions:0o600],ofItemAtPath:target.path)
+    }
     FileHandle.standardOutput.write(bytes);exit(0)
 }
 func attr(_ e:AXUIElement,_ key:String) -> CFTypeRef? { var v:CFTypeRef?; guard AXUIElementCopyAttributeValue(e,key as CFString,&v) == .success else{return nil};return v }
@@ -21,6 +31,7 @@ func parent(_ e:AXUIElement)->AXUIElement? { guard let x=attr(e,kAXParentAttribu
 func find(_ start:AXUIElement, budget:Int=600, test:(AXUIElement)->Bool)->AXUIElement? {
     var stack:[(AXUIElement,Int)]=[(start,0)], visited=0
     while let (e,depth)=stack.popLast(),visited<budget {
+        if cancelled(){output("cancelled")}
         visited+=1;if test(e){return e}
         if depth<20 {stack.append(contentsOf:children(e).prefix(64).reversed().map{($0,depth+1)})}
     }
@@ -29,6 +40,9 @@ func find(_ start:AXUIElement, budget:Int=600, test:(AXUIElement)->Bool)->AXUIEl
 func enabled(_ e:AXUIElement)->Bool { (attr(e,kAXEnabledAttribute) as? Bool) == true }
 func press(_ e:AXUIElement)->Bool { AXUIElementPerformAction(e,kAXPressAction as CFString) == .success }
 let args=CommandLine.arguments
+if Bundle.main.bundleIdentifier=="local.zaizhi.feishu-island.workbuddy-checkin" {_ = NSApplication.shared;NSApp.setActivationPolicy(.prohibited)}
+if let request {let p=requests.appendingPathComponent(request.uuidString+".pid");try? Data(String(ProcessInfo.processInfo.processIdentifier).utf8).write(to:p,options:.atomic);try? fm.setAttributes([.posixPermissions:0o600],ofItemAtPath:p.path)}
+if cancelled(){output("cancelled")}
 if args.contains("--authorize") {
     let ok=AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String:true] as CFDictionary)
     output(ok ? "ready" : "permission_required")
@@ -97,7 +111,7 @@ let buttons=controls.filter{ e in
     if s.hasSuffix("→"){s.removeLast()}
     return role(e)==kAXButtonRole && enabled(e) && s.range(of:"^(立即领取|免费领取|今日领取|领取)([0-9]+积分)?$",options:.regularExpression) != nil
 }
-let state=WorkBuddyDailyFlow.run(day:day,account:account,claimed:isClaimed(),eligible:eligible && buttons.count==1,allowClaim:args.contains("--check"),records:records,save:record,press:{press(buttons[0])},verify:{
+let state=WorkBuddyDailyFlow.run(day:day,account:account,claimed:isClaimed(),eligible:eligible && buttons.count==1,allowClaim:args.contains("--check"),records:records,save:record,press:{cancelled() ? false : press(buttons[0])},verify:{
     for _ in 0..<16 {Thread.sleep(forTimeInterval:0.5);if isClaimed(){return true}}
     return false
 })

@@ -14,7 +14,8 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-HELPERS = {'workbuddy-checkin-helper', 'agent-status-helper', 'lark-cli', 'feishu-hub-helper', 'feishu-dot-auth', 'feishu-tunnel-auth', 'tunnel-client'}
+HELPERS = { 'agent-status-helper', 'lark-cli', 'feishu-hub-helper', 'feishu-dot-auth', 'feishu-tunnel-auth', 'tunnel-client'}
+CHECKIN_FILES = {'Contents/Helpers/WorkBuddyCheckin.app/Contents/Info.plist', 'Contents/Helpers/WorkBuddyCheckin.app/Contents/MacOS/workbuddy-checkin-helper', 'Contents/Helpers/WorkBuddyCheckin.app/Contents/_CodeSignature/CodeResources'}
 RESOURCE_FILES = {'AppIcon.icns', 'LarkCLI-LICENSE', 'OpenNook-LICENSE', 'NookSurface-LICENSE', 'OpenNook-NOTICE.md'}
 RESOURCE_DIRS = {'ThirdPartyLicenses', 'TunnelClientLicenses'}
 WEB_FILES = {'avatar-virxact.png', 'pet-codex.png', 'style.css', 'codex-atlas.webp', 'virxact-logo.svg', 'agent-codex.png', 'pet-workbuddy.svg', 'avatar-workbuddy.png', 'agent-workbuddy.png', 'avatar-codex.png', 'pet-workbuddy.png', 'avatar-claude.png', 'todos.js', 'skin-v2.css', 'agent-claude.png', 'app.js', 'brand-flow.json', 'index.html', 'skin-effects.js', 'virxact-logo.png', 'brand-geometry.json', 'pet-codex.svg', 'pet-claude.png', 'skins.json', 'pet-claude.svg'}
@@ -50,6 +51,8 @@ def allowed(path):
     name = path.as_posix()
     if any(p.startswith('.') for p in parts):
         return False
+    if name in CHECKIN_FILES:
+        return True
     if name in {'Contents/Info.plist', 'Contents/MacOS/YuIsland', 'Contents/_CodeSignature/CodeResources'}:
         return True
     if len(parts) == 3 and parts[:2] == ('Contents', 'Helpers'):
@@ -85,6 +88,7 @@ def inspect(app):
             raise ValueError('Unexpected application file; distribution stopped: ' + relative.as_posix())
         entries.append({'path': relative.as_posix(), 'sha256': hashlib.sha256(item.read_bytes()).hexdigest()})
     required = {'Contents/Info.plist', 'Contents/MacOS/YuIsland', 'Contents/Resources/AppIcon.icns'} | {'Contents/Helpers/' + x for x in HELPERS}
+    required |= CHECKIN_FILES
     required |= {'Contents/Resources/BrowserBridge/chrome-reader/' + x for x in EXTENSION_FILES}
     required |= {'Contents/Resources/ScreenReminder/' + x for x in REMINDER_FILES}
     if not required.issubset({e['path'] for e in entries}):
@@ -99,8 +103,9 @@ def inspect(app):
 def verify_runtime(app):
     """Read-only verification; preserve the app and every helper's signing bytes."""
     subprocess.run(['codesign', '--verify', '--strict', str(app)], check=True, capture_output=True)
+    subprocess.run(['codesign', '--verify', '--strict', str(app/'Contents/Helpers/WorkBuddyCheckin.app')], check=True, capture_output=True)
     architectures = set(subprocess.check_output(['lipo', '-archs', str(app/'Contents/MacOS/YuIsland')], text=True).split())
-    for name in HELPERS:
+    for name in list(HELPERS) + ['WorkBuddyCheckin.app/Contents/MacOS/workbuddy-checkin-helper']:
         helper_archs = set(subprocess.check_output(['lipo', '-archs', str(app/'Contents/Helpers'/name)], text=True).split())
         if not architectures.issubset(helper_archs):
             raise ValueError('Helper architecture mismatch: ' + name)

@@ -200,3 +200,6 @@
 
 - 2026-10-25 build44：签到移入WorkBuddyCheckinStore，Agent模块常驻启动60秒调度/唤醒补查，本地时间09:10，安装默认关闭、本人开启；不依赖Codex。独立workbuddy-checkin-helper仅用AX操作本人WorkBuddy已知Buddy免费领取，宽系统权限须本人许可，不读凭据/聊天、不调私有签到接口、不付费邀人。记录在个人Application Support/FeishuIsland/WorkBuddyCheckin，0700/0600，日期+显示名摘要+状态；点击前attempted原子记录，不明不重按。新helper进入DMG白名单，源码摘要缓存稳定签名字节。原Codex自动任务仅在本机内置接管验证后暂停；同事各自开启，不打包本人配置。自然跨天领取不得以合成检查替代，main与公司下载继续等待本人体验与双人确认。
 - build44当前验收：1040融合、643Agent、11打包和Release/DMG审计通过；原生屏幕外夹具成功/不明/购买三路径分别点击1/1/0次。真实本人WorkBuddy今日已领，独立组件未重按；安装版已开启但缺其独立AX权限，已向本人申请当下确认，不能宣称最终签到验收完成。旧Codex workbuddy任务已PAUSED。原6条完整工作区数据与5个授权helper、飞书配置一致；飞书接口更新前后处于重试，未改接收设置，不以配置相同冒充正常送达。
+
+- 2026-10-25 build45纠正44的TCC归属：原裸CLI子进程权限仍归主程序，列表旧授权on但安装版实际permission_required；未绕过系统校验。独立WorkBuddyCheckin.app通过LaunchServices启动，自己的固定bundle/signature，0700目录UUID状态文件与取消标记，仅状态/PID，不传凭据正文。本人明确批准新AX许可并在系统完成身份验证，WorkBuddyCheckin现已on；安装版检查与缓存副本启动均already_claimed，未重复点击。source hash只含内容不含脚本调用路径，避免同源误重签；主界面更新复用组件，自身升级可能仍需确认。1040融合/643Agent/11打包、原生屏幕外1/1/0点击、父子签名/DMG通过；未来自然跨天未代验。旧Codex workbuddy自动任务PAUSED，本机6条完整工作区与飞书配置/5个授权helper保持，飞书网络重试前已存在，不宣称真实送达正常。源码PR8、本机build45，仍不合main/不更新公司下载。
+- build45收尾：原6条任务完整字段及除screenSchedules以外的工作区字段完全一致；原循环提醒仅正常推进fireAt/lastFiredAt，未回退触发时间。飞书状态已恢复账号接收中140/142（快查6.8秒），真实新消息未另做现场验收。

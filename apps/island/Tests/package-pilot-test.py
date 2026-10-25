@@ -18,6 +18,7 @@ class DistributionChecks(unittest.TestCase):
         app = directory/'飞书工作岛预览版.app'
         files = {'Contents/MacOS/YuIsland', 'Contents/Resources/AppIcon.icns'}
         files |= {'Contents/Helpers/'+name for name in m.HELPERS}
+        files |= m.CHECKIN_FILES
         files |= {'Contents/Resources/BrowserBridge/chrome-reader/'+name for name in m.EXTENSION_FILES}
         files |= {'Contents/Resources/ScreenReminder/'+name for name in m.REMINDER_FILES}
         for name in files:
@@ -90,7 +91,8 @@ class DistributionChecks(unittest.TestCase):
         _, app = self.fixture()
         with patch.object(m.subprocess, 'run') as run, patch.object(m.subprocess, 'check_output', return_value='arm64\n'):
             self.assertEqual(m.verify_runtime(app), ['arm64'])
-            run.assert_called_once_with(['codesign', '--verify', '--strict', str(app)], check=True, capture_output=True)
+            self.assertEqual(run.call_count, 2)
+            self.assertEqual(run.call_args_list[1].args[0], ['codesign', '--verify', '--strict', str(app/'Contents/Helpers/WorkBuddyCheckin.app')])
         outputs = iter(['arm64', 'x86_64'])
         with patch.object(m.subprocess, 'run'), patch.object(m.subprocess, 'check_output', side_effect=lambda *a, **k: next(outputs)):
             with self.assertRaisesRegex(ValueError, 'architecture mismatch'): m.verify_runtime(app)

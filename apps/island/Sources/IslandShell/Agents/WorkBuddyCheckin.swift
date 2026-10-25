@@ -28,18 +28,31 @@ struct WorkBuddyCheckinSchedule {
 }
 final class WorkBuddyCheckinProcess:@unchecked Sendable {
     private let lock=NSLock();private var process:Process?;private var stopped=false
+    private var cancellation:URL?;private var pidFile:URL?;private var helperApp:URL?
     func cancel(){
-        lock.lock();stopped=true;let p=process;lock.unlock()
+        lock.lock();stopped=true;let p=process, marker=cancellation, pidURL=pidFile, helper=helperApp;lock.unlock()
+        if let marker {try? Data().write(to:marker,options:.atomic)}
+        if let helper,let pidURL,let raw=try? String(contentsOf:pidURL,encoding:.utf8),let pid=Int32(raw),
+           let app=NSRunningApplication(processIdentifier:pid),app.bundleURL?.standardizedFileURL==helper.standardizedFileURL {app.terminate()}
         if let p,p.isRunning {p.terminate();DispatchQueue.global().asyncAfter(deadline:.now()+2){if p.isRunning{Darwin.kill(p.processIdentifier,SIGKILL)}}}
     }
     func run(helper:URL,arguments:[String])->String {
-        let p=Process(),pipe=Pipe();p.executableURL=helper;p.arguments=arguments
+        let p=Process(),pipe=Pipe()
+        var reply:URL?
+        if helper.pathExtension=="app" {
+            let id=UUID().uuidString,folder=FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/FeishuIsland/WorkBuddyCheckin/requests")
+            do{try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])}catch{return "storage_error"}
+            reply=folder.appendingPathComponent(id+".json")
+            lock.lock();cancellation=folder.appendingPathComponent(id+".cancel");pidFile=folder.appendingPathComponent(id+".pid");helperApp=helper;lock.unlock()
+            p.executableURL=URL(fileURLWithPath:"/usr/bin/open");p.arguments=["-n","-g","-W",helper.path,"--args"]+arguments+["--request",id]
+        } else {p.executableURL=helper;p.arguments=arguments}
         p.standardOutput=pipe;p.standardError=FileHandle.nullDevice;p.standardInput=FileHandle.nullDevice
         defer {try? pipe.fileHandleForReading.close();try? pipe.fileHandleForWriting.close();lock.lock();process=nil;lock.unlock()}
         lock.lock();guard !stopped else{lock.unlock();return "cancelled"};process=p
         do{try p.run();lock.unlock()}catch{lock.unlock();return "client_unavailable"}
         let timeout=DispatchWorkItem{[weak self] in self?.cancel()};DispatchQueue.global().asyncAfter(deadline:.now()+25,execute:timeout);defer{timeout.cancel()}
-        let data=pipe.fileHandleForReading.readDataToEndOfFile();p.waitUntilExit()
+        let stdout=pipe.fileHandleForReading.readDataToEndOfFile();p.waitUntilExit()
+        let data=reply.flatMap{try? Data(contentsOf:$0)} ?? stdout
         lock.lock();let cancelled=stopped;lock.unlock()
         guard !cancelled else{return "cancelled"}
         guard p.terminationStatus==0,data.count<4096,let json=(try? JSONSerialization.jsonObject(with:data)) as? [String:String] else{return "client_unavailable"}
@@ -88,7 +101,7 @@ final class WorkBuddyCheckinProcess:@unchecked Sendable {
     private func invoke(authorize:Bool){
         guard unlocked,!busy,Bundle.main.bundleIdentifier=="local.zaizhi.feishu-island.preview",!IslandRuntime.isSkinPreview else{return}
         busy=true;state="checking"
-        let helper=Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/workbuddy-checkin-helper")
+        let helper=Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/WorkBuddyCheckin.app")
         let id=UUID();request=id
         task=Task {
             if !authorize,NSRunningApplication.runningApplications(withBundleIdentifier:"com.workbuddy.workbuddy").isEmpty {
