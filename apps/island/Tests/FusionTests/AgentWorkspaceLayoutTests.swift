@@ -18,14 +18,14 @@ extension FusionTests {
         let initialRevision=agents.preferences.revision
         let evidence=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent(".build/agent-workspace-layout")
         try FileManager.default.createDirectory(at:evidence,withIntermediateDirectories:true)
-        XCTAssertEqual(AgentWorkProvider.allCases.map(\.rawValue),["codex","dot","doubao"])
+        XCTAssertEqual(AgentWorkProvider.allCases.map(\.rawValue),["codex","dot","doubao","workbuddy"])
         XCTAssertEqual(IslandHost.configuration().defaultModule,IslandHost.agentID)
         func descendants(_ view:NSView)->[NSView] { view.subviews.flatMap{[$0]+descendants($0)} }
         XCTAssertEqual(catalog.entries.map(\.id),["codex","claude","workbuddy","dot","doubao"])
         XCTAssertNil(catalog.add(name:"合成助手",url:"https://example.com/assistant"))
         let customID=catalog.custom[0].id
         XCTAssertTrue(catalog.entries.first{$0.id=="claude"}?.taskProvider == nil)
-        XCTAssertTrue(catalog.entries.first{$0.id=="workbuddy"}?.taskProvider == nil)
+        XCTAssertEqual(catalog.entries.first{$0.id=="workbuddy"}?.taskProvider, .workbuddy)
         for entry in catalog.entries {
             let previousService=workspace.draftService
             catalog.select(entry.id,in:workspace)
@@ -37,6 +37,9 @@ extension FusionTests {
             XCTAssertFalse(agents.preferences.enabled)
             XCTAssertEqual(agents.preferences.revision,initialRevision)
             for height:CGFloat in [1440,480] {
+                // Before this integration WorkBuddy was only a catalog selection,
+                // so an upgrade may restore it beside the old Codex destination.
+                if entry.id == "workbuddy", height == 1440 { workspace.draftService="codex" }
                 let view=AgentWorkspaceSurface(agents:agents,workspace:workspace,catalog:catalog)
                     .environment(\.workspaceScreenHeight,height)
                     .preferredColorScheme(.dark)
@@ -51,6 +54,7 @@ extension FusionTests {
                 host.layoutSubtreeIfNeeded();host.displayIfNeeded();CATransaction.flush()
                 try await Task.sleep(for:.milliseconds(120))
                 host.layoutSubtreeIfNeeded();host.displayIfNeeded()
+                if entry.id == "workbuddy" { XCTAssertEqual(workspace.draftService,"workbuddy") }
                 XCTAssertFalse(window.isVisible)
                 let editors=descendants(host).compactMap{$0 as? NSTextView}
                 if entry.taskProvider != nil { XCTAssertTrue(editors.contains{$0.string==workspace.draftText}) }

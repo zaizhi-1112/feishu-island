@@ -542,6 +542,18 @@ final class FusionTests {
             }.value
             print(success ? "PASS: real Feishu user read-only connection, metadata only; no message bodies" : "FAIL: Feishu scoped connection unavailable");exit(success ? 0 : 1)
         }
+        if CommandLine.arguments.contains("--workbuddy-ai-check") {
+            let folder = FileManager.default.temporaryDirectory.appendingPathComponent("workbuddy-live-image-"+UUID().uuidString)
+            do {
+                try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+                let image=folder.appendingPathComponent("synthetic.png");try syntheticWorkImage().write(to:image)
+                let ai=WorkBuddyAI()
+                let result=try await Task.detached { try ai.run(input:"这是一张合成图片。",instruction:"识别图片左右两块的颜色，用左X右Y四个汉字回答。",images:[image]) }.value
+                guard result.contains("红"),result.contains("蓝") else { throw WorkError.message("合成图片颜色未识别") }
+                print("PASS: actual installed WorkBuddy CLI recognized the synthetic image; tools disabled; no credentials copied")
+                try? FileManager.default.trashItem(at:folder,resultingItemURL:nil)
+            } catch { print("FAIL: "+error.localizedDescription);exit(1) }; return
+        }
         if CommandLine.arguments.contains("--work-image-ai-check") {
             do {
                 let url = FileManager.default.temporaryDirectory.appendingPathComponent("island-synthetic-vision-"+UUID().uuidString+".png")
@@ -603,6 +615,7 @@ final class FusionTests {
             try await tests.testScreenReminderSchedulingAndTransparency()
             try await tests.testWorkspaceIslandHeightContract()
             try await tests.testAgentWorkspaceComposition()
+            try tests.testWorkBuddyDispatchContract()
             try await tests.testQuotaCompactLayout()
             try tests.testCompanyConnectionBoundary()
             try await tests.testCompanyActivationIsolation()
@@ -628,7 +641,7 @@ final class FusionTests {
             try await tests.testLongMessagesUseIslandAndKeepReaderUntilFinished()
             try await tests.testSettingsConflictValidationAndAppearanceCapability()
             try await tests.testSyntheticCLIThroughStoreToBothOutputs()
-        } catch { failures.append("Synthetic settings request failed") }
+        } catch { failures.append("Synthetic integration check failed: "+error.localizedDescription) }
         if failures.isEmpty { print("PASS: \(checks) fusion assertions; all renderer windows remained hidden; no real account calls") }
         else { print("FAIL: " + failures.joined(separator:", ")); exit(1) }
     }

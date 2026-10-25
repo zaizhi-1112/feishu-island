@@ -236,7 +236,7 @@ struct WorkspaceView: View {
             HStack(spacing:8) {
                 TextField("项目",text:$store.draftProject).textFieldStyle(.roundedBorder).accessibilityLabel("当前项目")
                 if !agentComposer { Picker("交给谁",selection:$store.draftService) {
-                    Text(WorkAI.displayName).tag("codex"); Text("豆包工作").tag("doubao"); Text("Dot").tag("dot")
+                    Text(WorkAI.displayName).tag("codex"); Text("豆包工作").tag("doubao"); Text("Dot").tag("dot"); Text("WorkBuddy").tag("workbuddy")
                 }.labelsHidden().frame(width:110).accessibilityLabel("处理工具") }
             }
             WorkInputEditor(text:$store.draftText,pasteImage:{store.attachImage($0)})
@@ -307,7 +307,7 @@ struct WorkspaceView: View {
             }
             HStack(spacing:12) {
                 if !agentComposer { Picker("交给谁",selection:$store.draftService) {
-                    Text(WorkAI.displayName).tag("codex"); Text("豆包工作").tag("doubao"); Text("Dot").tag("dot")
+                    Text(WorkAI.displayName).tag("codex"); Text("豆包工作").tag("doubao"); Text("Dot").tag("dot"); Text("WorkBuddy").tag("workbuddy")
                 } }
                 Picker("处理方式",selection:$store.draftRecipe) { ForEach(store.disk.recipes) { Text($0.title).tag($0.id) } }
             }.font(.system(size:13))
@@ -349,11 +349,12 @@ struct WorkspaceView: View {
             }
             Divider().padding(.vertical,8)
             Text("AI 连接与处理").font(.system(size:16,weight:.semibold))
-            Text(store.draftService == "dot" ? "Dot 在后台领取任务，完整结果回到待办，成功摘要出现在自己的 Dot 主对话。" : store.draftService == "doubao" ? "豆包在你的专属工作伙伴中新建任务；处理后可从待办打开原任务继续查看。" : "Codex 在后台逐条处理材料，不打开桌面聊天窗口；每次为独立任务，完整结果保存在本项目待办。").font(.system(size:13)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            Text(store.draftService == "dot" ? "Dot 在后台领取任务，完整结果回到待办，成功摘要出现在自己的 Dot 主对话。" : store.draftService == "doubao" ? "豆包在你的专属工作伙伴中新建任务；处理后可从待办打开原任务继续查看。" : store.draftService == "workbuddy" ? "WorkBuddy 在后台处理，完整结果保存在本项目待办，并按你选择的位置归档。" : "Codex 在后台逐条处理材料，不打开桌面聊天窗口；每次为独立任务，完整结果保存在本项目待办。").font(.system(size:13)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             Picker("交给谁",selection:$store.draftService) {
                 Text(WorkAI.displayName+" · 本机").tag("codex")
                 Text("豆包工作 · 本人已登录网页").tag("doubao")
                 Text("Dot · 已配对项目").tag("dot")
+                Text("WorkBuddy · 本机已登录客户端").tag("workbuddy")
             }.font(.system(size:12))
             if store.draftService == "dot" {
                 HStack {

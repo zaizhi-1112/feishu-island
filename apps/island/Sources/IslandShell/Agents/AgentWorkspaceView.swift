@@ -4,11 +4,11 @@ import SwiftUI
 
 /// These are task destinations, not the independent local monitoring adapters.
 enum AgentWorkProvider: String, CaseIterable, Identifiable {
-    case codex, dot, doubao
+    case codex, dot, doubao, workbuddy
     var id:String { rawValue }
-    var title:String { switch self { case .codex: return "Codex"; case .dot: return "Dot"; case .doubao: return "豆包工作" } }
-    var symbol:String { switch self { case .codex: return "terminal"; case .dot: return "sparkles"; case .doubao: return "bubble.left.and.text.bubble.right" } }
-    var detail:String { switch self { case .codex: return "独立后台处理"; case .dot: return "项目任务 · 自动回传"; case .doubao: return "专属伙伴 · 结果回到岛内" } }
+    var title:String { switch self { case .codex: return "Codex"; case .dot: return "Dot"; case .doubao: return "豆包工作"; case .workbuddy: return "WorkBuddy" } }
+    var symbol:String { switch self { case .codex: return "terminal"; case .dot: return "sparkles"; case .doubao: return "bubble.left.and.text.bubble.right"; case .workbuddy: return "sparkles.rectangle.stack" } }
+    var detail:String { switch self { case .codex: return "独立后台处理"; case .dot: return "项目任务 · 自动回传"; case .doubao: return "专属伙伴 · 结果回到岛内"; case .workbuddy: return "本人WorkBuddy · 后台处理并返回" } }
     @MainActor func select(in workspace:WorkspaceStore) { workspace.draftService=rawValue }
 }
 
@@ -45,6 +45,8 @@ struct AgentWorkspaceSurface:View {
                 }
             }
         }.foregroundStyle(theme.primaryLabel).accessibilityIdentifier("agent.workspace")
+            .onAppear { provider?.select(in:workspace) }
+            .onChange(of:entry.id) { _,_ in provider?.select(in:workspace) }
     }
     @ViewBuilder private var content:some View {
         if entry.taskProvider != nil { composer }

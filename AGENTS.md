@@ -194,3 +194,6 @@
 - 2026-10-25 build42：真实WorkBuddy 5.3.14沙箱审批已补验，发现原生审批不触发普通Hook，旧版仍报working。WorkBuddyReader现在结合只读数据库pending与对应未结束工具标waiting/approval；pending新任务且无工具仍unknown，working耗时工具不标确认，更新的继续/完成Hook优先。无账号快照时只细化近期Hook已监测哈希，不读取其他会话正文；有快照仍按原账号隔离，最多100条元数据、8份尾部/每份512KiB/512个目录。积分IPC缺失改为接口不可用说明，不重复要求登录。
 - 本机安装build42后真实审批时“WorkBuddy · 等你确认”，Agent弹幕入队/播放1→2；拒绝后继续/完成3→4，客户端返回“真实确认复验42完成，命令未执行”。单条原生询问规则仅限合成打印，未改变默认权限/关闭沙箱/批准操作，验收后移除。另核对输入与正常耗时任务；最终事实以本机忽略目录.build/agent42-validation为准。643Agent、987融合、69helper与Release/DMG白名单通过。
 - 原5条工作区任务、完整JSON、接收设置与5个授权helper保持；本机已装42，备份.build/local-install-backups/state42-20261025-034328。只重启工作岛，接收短暂停止后恢复，未退出飞书。DMG SHA256 a118108dbada87ae4753e335e00b524493ef7fe846ca9ae80a36d503c39acb70，仅本地体验；源码同步PR8，不合main、不更新公司入口。Claude真实任务按本人本轮回复明确暂缓；原模型配置与被供应商管理器覆盖的Hooks已恢复，不宣称真实Claude任务通过，不购套餐、不读其他客户端密钥。
+
+- 2026-10-25 build43：WorkBuddy统一材料composer与后台队列；旧catalog选择与draftService在onAppear同步，新增workbuddy持久化与三个处理选项。WorkBuddyAI复用已安装客户端官方CLI/既有登录，独立空目录、默认权限、禁用工具/MCP/会话保存，材料stdin与结果内存，规范化PNG边界与失败结果拒绝。真实文字、图片与Swift运行器通过；1007融合、643Agent、11打包和Release/DMG审计通过。个人Codex自动任务workbuddy每天09:10通过公开UI领取免费积分，已领跳过，不使用私有API、不随包安装到他人机器；今天已领。源码PR8，本机先体验，不合main/不更新公司下载，Claude暂缓。
+- build43安装版实际岛内提交合成任务由WorkBuddy处理成功，原生结果来源一致、完成弹幕入队/播放1→3；测试标done无提醒无归档。原5项完整字段、飞书配置与5个稳定helper一致，接收140/142会话；更新仅重启工作岛，接收短暂中断后恢复。

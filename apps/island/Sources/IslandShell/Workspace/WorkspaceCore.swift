@@ -208,7 +208,7 @@ final class WorkspaceStore: ObservableObject {
     private var archiveBusy = false
     @Published var draftService = "codex" {
         didSet {
-            guard ["codex","doubao","dot"].contains(draftService), draftService != oldValue else { return }
+            guard ["codex","doubao","dot","workbuddy"].contains(draftService), draftService != oldValue else { return }
             _ = mutate { $0.preferredService = draftService }
         }
     }
@@ -249,7 +249,7 @@ final class WorkspaceStore: ObservableObject {
             try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:self.root.path)
             let file = self.root.appendingPathComponent("workspace.json")
             if FileManager.default.fileExists(atPath:file.path) { disk = try JSONDecoder().decode(WorkDisk.self,from:Data(contentsOf:file)) }
-            if let service=disk.preferredService, ["codex","doubao","dot"].contains(service) { draftService=service }
+            if let service=disk.preferredService, ["codex","doubao","dot","workbuddy"].contains(service) { draftService=service }
             readWebLinks = disk.readWebLinks ?? false
             chromeImportEnabled = disk.chromeImportEnabled ?? false
             draftArchive = disk.archiveTarget ?? WorkArchiveTarget(mode:"new")
@@ -537,7 +537,7 @@ final class WorkspaceStore: ObservableObject {
     }
     private func publishAgentResult(_ id:UUID) {
         guard let item=disk.items.first(where:{$0.id==id}), ["succeeded","failed"].contains(item.state) else { return }
-        let source=item.service == "dot" ? "Dot" : item.service == "doubao" ? "豆包工作" : item.resultSource == "外部Agent回传" ? "Agent" : WorkAI.displayName
+        let source=item.service == "dot" ? "Dot" : item.service == "doubao" ? "豆包工作" : item.service == "workbuddy" ? "WorkBuddy" : item.resultSource == "外部Agent回传" ? "Agent" : WorkAI.displayName
         agentNotice("agent-"+id.uuidString+"-"+(item.dotDispatch?.uuidString ?? String((item.aiCompletedAt ?? item.created).timeIntervalSince1970)),source,(item.state == "succeeded" ? "已完成：" : "需要检查：")+item.title)
     }
     func heartbeatDot(_ id: UUID, grant: UUID, claim: UUID, now: Date = Date()) throws {
@@ -591,7 +591,8 @@ final class WorkspaceStore: ObservableObject {
                 guard let self else { return }; self.recordRemoteURL(id,url:url)
             } }
             ai = browser
-        } else { ai = WorkAI() }
+        } else if item.service == "workbuddy" { ai = WorkBuddyAI() }
+        else { ai = WorkAI() }
         runner = ai
         job = Task { [weak self] in
             var result: Result<String,Error> = await Task.detached { Result { try ai.run(input:item.input,instruction:item.instruction,images:images) } }.value
@@ -615,7 +616,7 @@ final class WorkspaceStore: ObservableObject {
             self.runner = nil; self.job = nil
             let saved = self.mutate { state in
                 guard let i = state.items.firstIndex(where:{$0.id == id}), state.items[i].state == "running" else { return }
-                switch result { case .success(let value): state.items[i].cloudDocuments = links; if item.exportSourceID != nil { state.items[i].exportVerifiedAt=Date() }; state.items[i].result = value; state.items[i].resultSource = item.service == "doubao" ? "豆包工作（本人网页会话）" : WorkAI.displayName; state.items[i].state = "succeeded"; state.items[i].aiCompletedAt=Date()
+                switch result { case .success(let value): state.items[i].cloudDocuments = links; if item.exportSourceID != nil { state.items[i].exportVerifiedAt=Date() }; state.items[i].result = value; state.items[i].resultSource = item.service == "doubao" ? "豆包工作（本人网页会话）" : item.service == "workbuddy" ? "WorkBuddy（本机客户端CLI）" : WorkAI.displayName; state.items[i].state = "succeeded"; state.items[i].aiCompletedAt=Date()
                 case .failure(let e): if let remoteValue { state.items[i].result=remoteValue; state.items[i].cloudDocuments=links }; state.items[i].failure = e.localizedDescription; state.items[i].state = "failed" }
             }
             if saved { self.selected = id; self.boardTab = 1; self.notify(result.isSuccess ? "材料处理完成，点开取结果" : "材料处理未完成，点开查看") }
