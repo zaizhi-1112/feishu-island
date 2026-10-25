@@ -203,3 +203,7 @@
 
 - 2026-10-25 build45纠正44的TCC归属：原裸CLI子进程权限仍归主程序，列表旧授权on但安装版实际permission_required；未绕过系统校验。独立WorkBuddyCheckin.app通过LaunchServices启动，自己的固定bundle/signature，0700目录UUID状态文件与取消标记，仅状态/PID，不传凭据正文。本人明确批准新AX许可并在系统完成身份验证，WorkBuddyCheckin现已on；安装版检查与缓存副本启动均already_claimed，未重复点击。source hash只含内容不含脚本调用路径，避免同源误重签；主界面更新复用组件，自身升级可能仍需确认。1040融合/643Agent/11打包、原生屏幕外1/1/0点击、父子签名/DMG通过；未来自然跨天未代验。旧Codex workbuddy自动任务PAUSED，本机6条完整工作区与飞书配置/5个授权helper保持，飞书网络重试前已存在，不宣称真实送达正常。源码PR8、本机build45，仍不合main/不更新公司下载。
 - build45收尾：原6条任务完整字段及除screenSchedules以外的工作区字段完全一致；原循环提醒仅正常推进fireAt/lastFiredAt，未回退触发时间。飞书状态已恢复账号接收中140/142（快查6.8秒），真实新消息未另做现场验收。
+
+- 2026-10-26 本人明确要求最新版发布公司入口，并从双人试用扩大为全公司。公司feishu-island已company范围，release318/build46统一名称“飞书工作岛”，release319/build47更新蓝色双层胶囊图标、黑白产品介绍页、本人原文简介及“宰治 × 柚子 · 共同发布”署名。现有平台工具仍记录单一真实作者，不编造另一人发布操作。飞书接收cli_aa217b534af89cdc与归档cli_aa534c191338dd29均已发布1.0.3，所有员工，权限变更暂无，对外共享关闭；每位同事独立OAuth，不共享本人凭据。公司授权服务环境和/data沿用。
+- 本轮build46/47沿用build45功能，只更新显示名、安装文件名、图标和网页；保持bundle ID与5个账号helper、独立WorkBuddyCheckin签名字节。脚本启动路径兼容/Applications和~/Applications的新旧名称，未安装新登录项。未重启/替换日用应用、退出飞书或读真实消息。Release、11包审计、26服务与2服务打包检查通过；网页1440/390无横向溢出，演示只在页面容器内。GitHub prerelease v0.8.0-build46/47已发布，源码同步PR8，不合main。其他同事账号/设备与Apple公证仍未验收。
+- build47线上续验：release319 live，全公司范围回读一致；真实已登录浏览器点击下载完整DMG，SHA256 a5d9f3ef4619e82a14e5dd185b3355fbc4908e6245a317695f1bfdec56c39efa匹配，Finder只读挂载实际显示新图标与“飞书工作岛”/Applications。已测试复制按钮、Agent/归档演示、帮助展开。/api/auth/status保持receive配置存在、archive授权存在；不据此声称同事已连接或真实新消息送达。中台卡片简介两行截断，因此把共同署名放到简介开头，用户指定简介原文完整保留在后。

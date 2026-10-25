@@ -14,4 +14,4 @@ for size in 16 32 128 256 512; do
 done
 iconutil -c icns "$ICONSET" -o "$ROOT/Resources/AppIcon.icns"
 sips -z 256 256 "$SOURCE" --out "$ROOT/Distribution/site/icon.png" >/dev/null
-printf 'Application and portal icons generated from the approved artwork.\n'
+printf 'Application and portal icons generated from the product artwork.\n'

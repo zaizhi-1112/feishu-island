@@ -95,8 +95,8 @@
       "build": "47",
       "artifact": "feishu-island-0.8.0-build47-arm64.dmg",
       "sha256": "a5d9f3ef4619e82a14e5dd185b3355fbc4908e6245a317695f1bfdec56c39efa",
-      "status": "发布中，待线上核实",
-      "companyRelease": null,
+      "status": "公司当前版，已上线",
+      "companyRelease": 319,
       "githubRelease": "https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.8.0-build47",
       "visibility": "company",
       "notarized": false,
@@ -108,7 +108,16 @@
       "feishuAvailability": {
         "receive": "1.0.3 / 所有员工 / 已发布",
         "archive": "1.0.3 / 所有员工 / 已发布"
-      }
+      },
+      "sourceCommit": "0ca7db7",
+      "pageWidthsVerified": [
+        1440,
+        390
+      ],
+      "githubArtifactDigestVerified": true,
+      "browserDownloadVerified": true,
+      "finderOpened": true,
+      "onlineDigest": "a5d9f3ef4619e82a14e5dd185b3355fbc4908e6245a317695f1bfdec56c39efa"
     }
   ]
 }
