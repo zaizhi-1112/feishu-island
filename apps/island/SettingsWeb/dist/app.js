@@ -87,20 +87,20 @@ async function load(manual = false) {
   if (saving) return;
   try {
     const state = await request(); connected = true; renderLive(state);
-    if (!saved || !dirty()) { saved = state; draft = values(state); setStatus('已与飞书工作岛预览版同步'); }
+    if (!saved || !dirty()) { saved = state; draft = values(state); setStatus('已与飞书工作岛同步'); }
     else if (state.revision !== saved.revision) { setStatus('设置在其他位置已变更，请重新连接以载入最新设置。', true); $('#connection-error').hidden = false; text('#connection-error-message', '设置在其他位置已变更，重新连接可载入最新设置。'); }
     if (manual) { saved = state; draft = values(state); setStatus('已重新载入最新设置'); }
     render();
   } catch {
-    connected = false; $('#connection-error').hidden = false; text('#connection-error-message', '无法连接飞书工作岛预览版。请先打开应用，再重新连接。');
-    text('#local-state', '等待飞书工作岛预览版连接'); $('#local-dot').classList.add('off');
-    setStatus('尚未保存；请打开飞书工作岛预览版后重新连接。', true); render();
+    connected = false; $('#connection-error').hidden = false; text('#connection-error-message', '无法连接飞书工作岛。请先打开应用，再重新连接。');
+    text('#local-state', '等待飞书工作岛连接'); $('#local-dot').classList.add('off');
+    setStatus('尚未保存；请打开飞书工作岛后重新连接。', true); render();
   }
 }
 $$('[data-setting]').forEach(button => button.addEventListener('click', () => {
   const key = button.dataset.setting;
   if (key === 'enabled') draft.enabled = !draft.enabled; else draft.rules[key] = !draft.rules[key];
-  setStatus(dirty() ? '有未保存的修改' : '已与飞书工作岛预览版同步'); render();
+  setStatus(dirty() ? '有未保存的修改' : '已与飞书工作岛同步'); render();
 }));
 $('#reset').addEventListener('click', () => { draft.enabled = true; draft.rules = Object.fromEntries(keys.map(key => [key,true])); setStatus(dirty() ? '已恢复默认选择，保存后生效' : '当前已是默认设置'); render(); });
 $('#save').addEventListener('click', async () => {
@@ -108,11 +108,11 @@ $('#save').addEventListener('click', async () => {
   saving = true; setStatus('正在保存…'); render();
   try {
     const result = await request('POST', {...draft, revision:saved.revision});
-    saved = result; draft = values(result); renderLive(result); setStatus('已保存，规则已应用到飞书工作岛预览版');
+    saved = result; draft = values(result); renderLive(result); setStatus('已保存，规则已应用到飞书工作岛');
   } catch (error) {
     setStatus(error.status ? error.message : '保存结果未确认，请重新连接核对。', true);
     if (error.status === 409) { $('#connection-error').hidden = false; text('#connection-error-message', '设置已在其他位置改变。重新连接后载入最新设置。'); }
-    if (!error.status) { connected = false; $('#connection-error').hidden = false; text('#connection-error-message', '无法连接飞书工作岛预览版。请先打开应用，再重新连接。'); }
+    if (!error.status) { connected = false; $('#connection-error').hidden = false; text('#connection-error-message', '无法连接飞书工作岛。请先打开应用，再重新连接。'); }
   } finally { saving = false; render(); }
 });
 $('#reload').addEventListener('click', () => {
@@ -122,7 +122,7 @@ $('#reload').addEventListener('click', () => {
 const customCopy = {
   people:['指定联系人的提醒', '对方在私聊或群聊中发来的消息，都按这里的规则处理。', '还没有单独设置的联系人', '从飞书选择一个人，为他的消息单独设置提醒。', '联系人规则优先于所在群的规则；被屏蔽的人或群仍优先屏蔽。'],
   groups:['指定群聊的提醒', '按群决定哪些消息需要提醒，覆盖该群的默认规则。', '还没有单独设置的群聊', '从飞书选择一个群，设置全部提醒、仅@相关或仅收录。', '群规则覆盖默认规则；如果发送者有联系人规则，优先使用联系人规则。'],
-  blocks:['不再出现在岛上的消息', '屏蔽指定联系人或群聊，飞书中的原始消息不受影响。', '目前没有屏蔽对象', '选择不需要出现在飞书工作岛预览版上的人或群。', '屏蔽优先于所有提醒：新消息不再收录，已有消息暂时隐藏。解除后恢复已有记录，不补回屏蔽期间的消息。']
+  blocks:['不再出现在岛上的消息', '屏蔽指定联系人或群聊，飞书中的原始消息不受影响。', '目前没有屏蔽对象', '选择不需要出现在飞书工作岛上的人或群。', '屏蔽优先于所有提醒：新消息不再收录，已有消息暂时隐藏。解除后恢复已有记录，不补回屏蔽期间的消息。']
 };
 const modeLabels = {all:'全部提醒', mentions:'仅@我或@所有人时提醒', quiet:'仅收录，不提醒'};
 function selectTab(tab) {
@@ -132,7 +132,7 @@ function selectTab(tab) {
   $('#reset').hidden = tab !== 'defaults';
   renderCustom();
 }
-function changed() { setStatus(dirty() ? '有未保存的修改，点击保存后生效' : '已与飞书工作岛预览版同步'); render(); }
+function changed() { setStatus(dirty() ? '有未保存的修改，点击保存后生效' : '已与飞书工作岛同步'); render(); }
 function el(tag, className, content) { const element = document.createElement(tag); if (className) element.className = className; if (content !== undefined) element.textContent = content; return element; }
 let customRenderKey = '';
 function renderCustom() {
@@ -215,7 +215,7 @@ async function searchPicker(more = false) {
     pickerLoading = false; renderPickerRows();
   } catch (error) {
     if (generation !== pickerGeneration || !$('#picker').open) return;
-    text('#picker-source', error.status ? error.message : '查询未完成，请检查飞书工作岛预览版连接后重试。');
+    text('#picker-source', error.status ? error.message : '查询未完成，请检查飞书工作岛连接后重试。');
     if (!pickerRows.length) $('#picker-results').replaceChildren(el('div','picker-empty','没有取得有效结果。输入名称后可重新搜索。'));
   } finally { if (generation === pickerGeneration) { pickerLoading = false; $('#picker-search-button').disabled = false; pickerSelection(); } }
 }
