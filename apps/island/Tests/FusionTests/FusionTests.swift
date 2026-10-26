@@ -517,6 +517,13 @@ final class FusionTests {
 
 @main struct FusionRunner {
     @MainActor static func main() async {
+        if CommandLine.arguments.contains("--product-demo-assets") {
+            do { try await FusionTests().exportProductDemoAssets() }
+            catch { print("FAIL: native product assets: " + error.localizedDescription);exit(1) }
+            if failures.isEmpty { print("PASS: \(checks) native product asset checks; every window remained hidden") }
+            else { print("FAIL: " + failures.joined(separator:", "));exit(1) }
+            return
+        }
         if CommandLine.arguments.contains("--serve-settings-fixture") {
             NSApplication.shared.setActivationPolicy(.prohibited)
             let suite="local.fusion.settings.fixture." + UUID().uuidString

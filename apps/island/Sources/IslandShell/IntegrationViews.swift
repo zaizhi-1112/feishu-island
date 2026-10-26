@@ -38,11 +38,15 @@ struct IntegrationTopBar: View {
 /// Skins do not require monitoring. Reading other agents is an explicit local opt-in.
 struct IntegrationAgentSettings: View {
     @ObservedObject private var store = AgentStore.shared
+    var showSkins=true
+    var showMonitoring=true
     var body: some View {
         VStack(alignment:.leading,spacing:22) {
+            if showSkins {
             Text("选择你的岛").font(.system(size:20,weight:.semibold))
             IslandSkinSettings(store:store)
-            Divider()
+            }
+            if showMonitoring {
             Toggle("在刘海显示 Codex 剩余额度",isOn:Binding(get:{store.preferences.quotaDisplayEnabled},set:{ value in var next=store.preferences; next.quotaDisplayEnabled=value; save(next) }))
             Text("只查询 Codex 账号额度，每3分钟刷新；收起后在摄像头两侧显示，不读取对话或开启其他 Agent 监测。").font(.system(size:13)).foregroundStyle(.secondary)
             Divider()
@@ -59,6 +63,7 @@ struct IntegrationAgentSettings: View {
             }
             Text("Claude 暂未接通。关闭的来源不会读取；额度未知时不会显示为零。").font(.system(size:13)).foregroundStyle(.secondary)
             AgentPanel(store:store)
+            }
         }.font(.system(size:15)).frame(maxWidth:680,alignment:.leading)
     }
     private func save(_ next:AgentPreferences) { do { try store.update(next) } catch { WorkspaceStore.shared.error=error.localizedDescription } }

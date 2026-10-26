@@ -2,8 +2,32 @@ import AppKit
 import SwiftUI
 import WebKit
 
+enum WorkspaceDeskSection: Int, CaseIterable, Identifiable {
+    case agents, reminders, connections, processing, appearance
+    var id:Int { rawValue }
+    var title:String { ["Agent","待办与提醒","中台与飞书","处理与归档","外观与皮肤"][rawValue] }
+    var symbol:String { ["sparkles","checklist","square.grid.2x2","tray.and.arrow.down","paintbrush"][rawValue] }
+    var pages:[Int] { switch self {
+    case .agents: [0,8,9]
+    case .reminders: [1,5]
+    case .connections: [2,4]
+    case .processing: [3]
+    case .appearance: [6,7]
+    } }
+    static func containing(_ page:Int)->Self { allCases.first { $0.pages.contains(page) } ?? .agents }
+    static func label(_ page:Int)->String {
+        [0:"交给 AI",8:"接入与签到",9:"状态与额度",1:"待办与定时提醒",5:"冲屏素材",2:"我的中台",4:"账号与消息",3:"处理与归档",6:"灵动岛与交互",7:"Agent 皮肤"][page] ?? "交给 AI"
+    }
+}
+
 @MainActor final class WorkspaceDeskNavigation: ObservableObject {
     @Published var page = 0
+    private var recent:[WorkspaceDeskSection:Int]=[:]
+    var section:WorkspaceDeskSection { .containing(page) }
+    func select(_ section:WorkspaceDeskSection) {
+        recent[self.section]=page
+        page=recent[section] ?? section.pages[0]
+    }
 }
 
 /// A normal work window. Automatic reminders never open or activate this window.
@@ -17,6 +41,7 @@ import WebKit
     func openHub(store:WorkspaceStore) { show(store:store,page:2) }
     func openReminders(store: WorkspaceStore) { show(store:store,page:5) }
     func openAgents(store: WorkspaceStore) { show(store:store,page:7) }
+    func openAgentStatus(store:WorkspaceStore) { show(store:store,page:9) }
     func openAgentConnections(store:WorkspaceStore) { show(store:store,page:8) }
     private func show(store: WorkspaceStore,page:Int) {
         navigation.page=page
@@ -32,39 +57,53 @@ struct WorkspaceDesk: View {
     @ObservedObject var store: WorkspaceStore
     @ObservedObject var navigation: WorkspaceDeskNavigation
     @ObservedObject var catalog:AgentCatalogStore = .shared
-    private let titles=["Agent","待办与提醒","虚实中台","处理与归档","账号与消息","冲屏素材","外观与交互","Agent 与皮肤","Agent 接入"]
-    private let symbols=["tray.and.arrow.down","checklist","square.grid.2x2","slider.horizontal.3","bubble.left.and.bubble.right","play.rectangle","paintbrush","sparkles","plus.circle"]
     var body: some View {
         HStack(spacing:0) {
-            VStack(alignment:.leading,spacing:6) {
-                HStack(spacing:9) { Image(systemName:"capsule.fill").foregroundStyle(.cyan); Text("工作岛").font(.system(size:18,weight:.semibold)) }.padding(.bottom,22)
-                sidebarSection("工作",items:0...2)
-                Text("设置").font(.system(size:11)).foregroundStyle(.secondary).padding(.top,22).padding(.bottom,5)
-                ForEach(3...8,id:\.self) { row($0) }
+            VStack(alignment:.leading,spacing:8) {
+                HStack(spacing:9) { Image(systemName:"capsule.fill").foregroundStyle(.cyan); Text("工作岛").font(.system(size:18,weight:.semibold)) }.padding(.bottom,24)
+                ForEach(WorkspaceDeskSection.allCases) { section in
+                    Button { navigation.select(section) } label: {
+                        HStack(spacing:10) { Image(systemName:section.symbol).frame(width:18); Text(section.title); Spacer(minLength:0) }
+                            .font(.system(size:14,weight:navigation.section == section ? .semibold : .regular))
+                            .padding(.horizontal,10).padding(.vertical,12).contentShape(Rectangle())
+                    }.buttonStyle(.plain).foregroundStyle(navigation.section == section ? .white : .secondary)
+                        .background(navigation.section == section ? Color.white.opacity(0.10) : .clear,in:RoundedRectangle(cornerRadius:8))
+                        .accessibilityLabel(section.title).accessibilityIdentifier("workspace.section.\(section.rawValue)")
+                }
                 Spacer()
                 HStack(spacing:6) { Circle().fill(store.hub.connected ? .green : .gray).frame(width:5,height:5); Text(store.hub.connected ? "中台已连接" : "中台未连接").font(.system(size:11)).foregroundStyle(.secondary) }
             }.padding(18).frame(width:180).frame(maxHeight:.infinity).background(Color.white.opacity(0.025))
             Divider()
             VStack(alignment:.leading,spacing:0) {
-                HStack { Text(titles[navigation.page]).font(.system(size:22,weight:.semibold)); Spacer(); Text("飞书工作岛").font(.system(size:11)).foregroundStyle(.secondary) }.padding(.horizontal,24).padding(.vertical,20)
+                HStack { Text(navigation.section.title).font(.system(size:22,weight:.semibold)); Spacer(); Text("飞书工作岛").font(.system(size:11)).foregroundStyle(.secondary) }.padding(.horizontal,24).padding(.top,22).padding(.bottom,16)
+                if navigation.section.pages.count > 1 {
+                    HStack(spacing:6) {
+                        ForEach(navigation.section.pages,id:\.self) { page in
+                            Button { navigation.page=page } label: {
+                                Text(WorkspaceDeskSection.label(page)).font(.system(size:13,weight:.medium))
+                                    .padding(.horizontal,14).padding(.vertical,8)
+                            }.buttonStyle(.plain).foregroundStyle(navigation.page == page ? .white : .secondary)
+                                .background(navigation.page == page ? Color.white.opacity(0.12) : .clear,in:Capsule())
+                                .accessibilityAddTraits(navigation.page == page ? [.isSelected] : [])
+                                .accessibilityIdentifier("workspace.destination.\(page)")
+                        }
+                        Spacer(minLength:0)
+                    }.padding(.horizontal,24).padding(.bottom,16)
+                }
                 Divider()
-                if navigation.page == 0 { ScrollView { AgentWorkspaceSurface(agents:.shared,workspace:store,catalog:catalog,desktop:true,onTaskCreated:{navigation.page=1}) } }
-                else if navigation.page == 4 { WorkspaceAccountSettings() }
-                else if navigation.page == 5 { ScrollView { WorkspaceReminderLibrary(store:store).padding(24) } }
-                else if navigation.page == 8 { ScrollView { VStack(alignment:.leading,spacing:24) { WorkBuddyCheckinSettings(); AgentConnectionsView(catalog:catalog,workspace:store) }.padding(24) } }
-                else if navigation.page == 7 { ScrollView { IntegrationAgentSettings().padding(24) } }
-                else if navigation.page == 6 { ScrollView { WorkspaceShellSettings().padding(24) } }
-                else { ScrollView { WorkspaceView(store:store,desktop:true,pageOverride:navigation.page,onTaskCreated:{navigation.page=1}) } }
+                pageContent
             }.frame(maxWidth:.infinity,maxHeight:.infinity)
         }.frame(minWidth:760,minHeight:500).background(Color(nsColor:.windowBackgroundColor)).preferredColorScheme(.dark)
     }
-    private func sidebarSection(_ title:String,items:ClosedRange<Int>) -> some View {
-        VStack(alignment:.leading,spacing:6) { Text(title).font(.system(size:11)).foregroundStyle(.secondary).padding(.bottom,5); ForEach(items,id:\.self) { row($0) } }
-    }
-    private func row(_ index:Int) -> some View {
-        Button { navigation.page=index } label: {
-            HStack(spacing:9) { Image(systemName:symbols[index]).frame(width:18); Text(titles[index]); Spacer(minLength:0) }.font(.system(size:13,weight:navigation.page == index ? .semibold : .regular)).padding(.horizontal,10).padding(.vertical,10).contentShape(Rectangle())
-        }.buttonStyle(.plain).foregroundStyle(navigation.page == index ? .white : .secondary).background(navigation.page == index ? Color.white.opacity(0.10) : .clear,in:RoundedRectangle(cornerRadius:8)).accessibilityLabel(titles[index])
+    @ViewBuilder private var pageContent:some View {
+        if navigation.page == 0 { ScrollView { AgentWorkspaceSurface(agents:.shared,workspace:store,catalog:catalog,desktop:true,onTaskCreated:{navigation.page=1}) } }
+        else if navigation.page == 4 { WorkspaceAccountSettings() }
+        else if navigation.page == 5 { ScrollView { WorkspaceReminderLibrary(store:store).padding(24) } }
+        else if navigation.page == 8 { ScrollView { VStack(alignment:.leading,spacing:24) { AgentConnectionsView(catalog:catalog,workspace:store); Divider(); WorkBuddyCheckinSettings() }.padding(24) } }
+        else if navigation.page == 9 { ScrollView { IntegrationAgentSettings(showSkins:false).padding(24) } }
+        else if navigation.page == 7 { ScrollView { IntegrationAgentSettings(showMonitoring:false).padding(24) } }
+        else if navigation.page == 6 { ScrollView { WorkspaceShellSettings().padding(24) } }
+        else { ScrollView { WorkspaceView(store:store,desktop:true,pageOverride:navigation.page,onTaskCreated:{navigation.page=1}) } }
     }
 }
 

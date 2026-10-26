@@ -3,7 +3,7 @@ const http=require('node:http'),fs=require('node:fs/promises'),path=require('nod
 const {constants:fsConstants}=require('node:fs');
 const {Vault,Broker,AuthError}=require('./core.cjs');
 const {DesktopAccess}=require('./desktop.cjs');
-const PUBLIC_ASSETS=new Set(['index.html','start.html','start.css','connect.html','connect.js','desktop.html','desktop.js','desktop.css','install.css','install.js','landing.css','agent-guide.html','agent-guide.js','icon.png','icon.svg','virxact-ui.css','virxact-story.css','vx.js','SHA256SUMS']);
+const PUBLIC_ASSETS=new Set(['index.html','start.html','start.css','connect.html','connect.js','desktop.html','desktop.js','desktop.css','install.css','install.js','landing.css','demo-feishu-compact.png','demo-feishu-expanded.png','demo-agent-idle.png','demo-agent-working.png','demo-agent-waiting.png','demo-agent-completed.png','demo-materials.png','demo-result.png','agent-guide.html','agent-guide.js','icon.png','icon.svg','virxact-ui.css','virxact-story.css','vx.js','SHA256SUMS']);
 const PACKAGE_NAME=/^feishu-island-\d+\.\d+\.\d+-build\d+-arm64(?:-pilot)?\.(?:zip|dmg)$/;
 const STATIC_TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.svg':'image/svg+xml','.zip':'application/zip','.dmg':'application/x-apple-diskimage'};
 function downloadRange(value,size){

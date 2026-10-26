@@ -108,9 +108,9 @@ test('every asset referenced by the real landing page is served with its browser
  const {root,base}=await fixture(t);
  const source=path.join(__dirname,'../Distribution/site');
  const html=await fs.readFile(path.join(source,'index.html'),'utf8');
- const assets=[...html.matchAll(/<(?:link|script)\b[^>]*(?:href|src)="([^"]+)"/g)].map(match=>match[1]);
+ const assets=[...new Set([...html.matchAll(/<(?:link|script|img)\b[^>]*(?:href|src)="([^"]+)"/g)].map(match=>match[1]).concat(['demo-agent-idle.png','demo-agent-working.png','demo-agent-waiting.png','demo-agent-completed.png','demo-materials.png','demo-result.png']))];
  assert(assets.includes('landing.css'));assert(assets.includes('virxact-story.css'));
- const types={'.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.svg':'image/svg+xml'};
+ const types={'.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png'};
  for(const asset of assets){
   assert.equal(path.basename(asset),asset,'homepage resources must be named local assets');
   const bytes=await fs.readFile(path.join(source,asset));await fs.writeFile(path.join(root,asset),bytes);

@@ -37,12 +37,21 @@ extension FusionTests {
         let navigation = WorkspaceDeskNavigation()
         let catalog=AgentCatalogStore(defaults:UserDefaults(suiteName:"desk.catalog.check."+UUID().uuidString)!)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        XCTAssertEqual(WorkspaceDeskSection.allCases.count,5)
+        XCTAssertEqual(WorkspaceDeskSection.allCases.flatMap(\.pages).sorted(),Array(0...9))
+        for page in 0...9 { XCTAssertTrue(WorkspaceDeskSection.containing(page).pages.contains(page)) }
+        navigation.page=8; navigation.select(.reminders); XCTAssertEqual(navigation.page,1)
+        navigation.page=5; navigation.select(.agents); XCTAssertEqual(navigation.page,8)
+        navigation.select(.reminders); XCTAssertEqual(navigation.page,5)
+        XCTAssertEqual(WorkspaceDeskSection.containing(7),.appearance)
+        XCTAssertEqual(WorkspaceDeskSection.containing(4),.connections)
+        navigation.page=0
         let originalDisk = try encoder.encode(store.disk)
         let originalText = store.draftText
         let originalSelection = store.selected
         let evidence = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/workbench-layout-check")
         try FileManager.default.createDirectory(at: evidence, withIntermediateDirectories: true)
-        let pageNames = ["materials", "tasks", "hub", "processing", "account-container", "reminder-library", "shell-settings-unbound", "agent-and-skins", "agent-connections"]
+        let pageNames = ["materials", "tasks", "hub", "processing", "account-container", "reminder-library", "shell-settings-unbound", "agent-and-skins", "agent-connections", "agent-status"]
 
         func descendants(_ view: NSView) -> [NSView] { view.subviews.flatMap { [$0] + descendants($0) } }
         for size in [NSSize(width: 960, height: 680), NSSize(width: 760, height: 540)] {
@@ -101,7 +110,7 @@ extension FusionTests {
     func showWorkspaceDeskFixture() async throws {
         let store = try syntheticDeskStore()
         let navigation = WorkspaceDeskNavigation()
-        let catalog=AgentCatalogStore(defaults:UserDefaults(suiteName:"desk.catalog.check."+UUID().uuidString)!); navigation.page = 1
+        let catalog=AgentCatalogStore(defaults:UserDefaults(suiteName:"desk.catalog.check."+UUID().uuidString)!); navigation.page = 0
         NSApplication.shared.setActivationPolicy(.accessory)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 680), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "飞书工作岛 · 合成工作台验收"

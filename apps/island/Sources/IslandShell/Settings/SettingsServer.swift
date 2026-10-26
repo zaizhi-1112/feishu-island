@@ -102,7 +102,8 @@ final class SettingsServer {
             if listener == nil, let store { start(store: store) }
             return
         }
-        if ["agents", "skins"].contains(openSection) { WorkspaceWindow.shared.openAgents(store:.shared) }
+        if openSection == "agents" { WorkspaceWindow.shared.openAgentStatus(store:.shared) }
+        else if openSection == "skins" { WorkspaceWindow.shared.openAgents(store:.shared) }
         else { WorkspaceWindow.shared.openSettings(store:.shared) }
         openSection = ""
     }

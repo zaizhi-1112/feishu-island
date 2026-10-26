@@ -209,3 +209,6 @@
 - build47线上续验：release319 live，全公司范围回读一致；真实已登录浏览器点击下载完整DMG，SHA256 a5d9f3ef4619e82a14e5dd185b3355fbc4908e6245a317695f1bfdec56c39efa匹配，Finder只读挂载实际显示新图标与“飞书工作岛”/Applications。已测试复制按钮、Agent/归档演示、帮助展开。/api/auth/status保持receive配置存在、archive授权存在；不据此声称同事已连接或真实新消息送达。中台卡片简介两行截断，因此把共同署名放到简介开头，用户指定简介原文完整保留在后。
 
 - 2026-10-26线上CSS故障纠正：release319中landing.css、virxact-story.css虽在发布包中，但未列入AuthService的PUBLIC_ASSETS，正式请求404，导致无样式页面。release326已只添加这两个公开样式名，不放宽其他文件访问、身份或CSP。新增测试从真实首页提取link/script资源，经实际HTTP服务逐个验证200、MIME、字节一致；27服务/2打包通过。线上两个CSS均200 text/css，本人原IAB页已刷新并实看黑底与grid恢复，另测1440/390无横向溢出及Agent切换。前轮本地视觉及在线交互检查没有覆盖线上样式完整性，不能沿用为完整视觉验收。此次不改build47原DMG、账号授权、范围、数据或本机日用应用。
+
+- 2026-10-26 build48本地候选：按本人标记将普通工作台9个入口合成五组：Agent（0/8/9：交给AI、接入与签到、状态额度），待办与提醒（1/5），中台与飞书（2/4），处理归档（3），外观皮肤（6/7）。WorkspaceDeskNavigation记忆分组内位置，旧open*调用保留映射；IntegrationAgentSettings按监测/皮肤分开组合。245布局/1040融合/27服务/11安装包/3服务打包通过。独立Release与DMG完成，稳定账号helper及WorkBuddyCheckin签名字节与日用版完全一致；未替换/重启日用程序、读取真实消息或做桌面试播，候选包等待本人体验，不更新公司DMG。
+- 网站演示纠正：ProductDemoAssets通过FusionChecks --product-demo-assets只用隔离合成Store及不上屏原生SwiftUI视图生成8张画面，导出脚本列出明确资源。摄像头留空179pt，消息阅读/Agent输入/结果取自真实组件；白字黑描边弹幕完整移出，悬停展开/离开收回，减少动态效果有静态替代。PUBLIC_ASSETS逐项加入8PNG，页面所有img/link/script经HTTP/MIME/字节检查。原始Resources/AppIcon.png为本人指定白色机器人，build-app-icon.sh同时更新App、下载页及AuthService覆盖层，防止服务器旧icon覆盖。当前网站修复与原生候选包分开；安装包仍build47，后续本人体验确认再推进48。

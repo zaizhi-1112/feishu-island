@@ -96,7 +96,7 @@
       "artifact": "feishu-island-0.8.0-build47-arm64.dmg",
       "sha256": "a5d9f3ef4619e82a14e5dd185b3355fbc4908e6245a317695f1bfdec56c39efa",
       "status": "公司当前版，已上线",
-      "companyRelease": 326,
+      "companyRelease": 329,
       "githubRelease": "https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.8.0-build47",
       "visibility": "company",
       "notarized": false,
@@ -118,7 +118,32 @@
       "browserDownloadVerified": true,
       "finderOpened": true,
       "onlineDigest": "a5d9f3ef4619e82a14e5dd185b3355fbc4908e6245a317695f1bfdec56c39efa",
-      "webStyleFix": "2026-10-26: landing.css and virxact-story.css served from explicit whitelist; 27 service tests passed; verified live CSS MIME and IAB rendering"
+      "webStyleFix": "2026-10-26: landing.css and virxact-story.css served from explicit whitelist; 27 service tests passed; verified live CSS MIME and IAB rendering",
+      "webDemoFix": "原生SwiftUI合成画面；白字描边飘字全程移出；恢复白色机器人；仅网页更新，不切换build48候选DMG。"
+    },
+    {
+      "version": "0.8.0",
+      "build": "48",
+      "artifact": "feishu-island-0.8.0-build48-arm64.dmg",
+      "sha256": "a7b5c05db4620ed3fdc1dcf60f0e63ec860de555c9fc2b4b27e0a91572bfc401",
+      "status": "本地候选，等待本人体验；未替换日用程序，未更新公司下载",
+      "sourceBranch": "codex/integrate-youzi-075",
+      "notarized": false,
+      "colleagueDeviceVerified": false,
+      "verification": {
+        "workspaceLayoutAssertions": 245,
+        "fusionAssertions": 1040,
+        "serviceTests": 27,
+        "packageTests": 11,
+        "servicePackagingTests": 3,
+        "stableHelpersUnchanged": true
+      },
+      "changes": [
+        "工作台九个入口合并为五组，旧快捷入口跳到对应分栏",
+        "状态监测与皮肤分开归位；任务和草稿保持",
+        "恢复原始白色机器人图标",
+        "网页演示改用原生组件的合成画面"
+      ]
     }
   ]
 }

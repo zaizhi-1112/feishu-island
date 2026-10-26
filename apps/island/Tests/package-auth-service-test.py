@@ -33,6 +33,13 @@ class HostedHelpTests(unittest.TestCase):
         self.assertEqual(SOURCE.read_bytes(),before)
         self.assertIn('<style>',SOURCE.read_text())
 
+    def test_product_icon_survives_service_overlay(self):
+        result,output=self.stage(SOURCE.read_text())
+        self.assertEqual(result.returncode,0,result.stderr)
+        product=(ROOT/'Distribution/site/icon.png').read_bytes()
+        self.assertEqual((ROOT/'AuthService/public/icon.png').read_bytes(),product)
+        self.assertEqual((output/'public/icon.png').read_bytes(),product)
+
     def test_unsupported_style_shape_stops_packaging(self):
         result,_=self.stage('<style media="print">p{color:red}</style><p>synthetic</p>')
         self.assertNotEqual(result.returncode,0)

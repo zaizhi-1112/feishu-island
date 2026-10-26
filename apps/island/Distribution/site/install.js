@@ -29,25 +29,62 @@ document.querySelector('#download').addEventListener('click', () => {
   document.querySelector('#download-feedback').hidden = false;
 });
 
-// This visual example stays inside the page; it never contacts the desktop bridge.
+// Native SwiftUI exports from synthetic stores. No real accounts or desktop bridge.
+const demo = document.querySelector('#desktop-demo');
+const island = document.querySelector('#demo-island');
+const compact = document.querySelector('#demo-compact');
+const panel = document.querySelector('#demo-panel');
+const expanded = document.querySelector('#demo-expanded');
+const caption = document.querySelector('#demo-caption');
+const danmu = document.querySelector('#demo-danmu');
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const demoStates = {
-  feishu: { source: '飞书', status: '新消息', text: '飞书 · 下午的讨论改到 3 点，收到后继续忙。', caption: '消息飘过桌面，手头工作不被打断。' },
-  agent: { source: 'Codex', status: '等你确认', text: 'Codex · 需要你确认，准备好时再回来。', caption: '运行、完成、等你输入或确认，都能看见。' },
-  result: { source: 'Dot', status: '已完成', text: 'Dot · 反馈已整理，文档链接已回到工作岛。', caption: '处理完成，结果和飞书文档链接一起回来。' }
+  feishu: { compact: 'demo-feishu-compact.png', expanded: 'demo-feishu-expanded.png', alt: '软件内的飞书消息阅读界面', text: '合成演示 · 讨论改到下午3点，方便时确认。', caption: '鼠标放到顶部展开，移开收回。消息以白字描边飘过桌面。' },
+  agent: { compact: 'demo-agent-working.png', expanded: 'demo-materials.png', alt: '软件内的 Agent 材料输入界面', text: 'Codex · 合成任务已完成。', caption: '运行 → 等你确认 → 已完成。真实确认仍由你本人操作。' },
+  result: { compact: 'demo-agent-idle.png', expanded: 'demo-materials.png', alt: '软件内的材料输入与结果界面', text: 'Codex · 两条反馈已整理，回到待办查看。', caption: '输入材料 → 后台处理 → 结果回到待办。这里使用原生界面的合成任务。' }
 };
 let demoMode = 'feishu';
+let timers = [];
+let sceneVersion = 0;
+let pointerInside = false;
+let focusInside = false;
+function openPanel(value) { panel.hidden = !value; island.setAttribute('aria-expanded', String(value)); }
+function later(ms, run) { timers.push(setTimeout(run, ms)); }
+function emitDanmu(text) {
+  danmu.textContent = text;
+  danmu.style.setProperty('--danmu-travel', `-${demo.clientWidth + danmu.scrollWidth + 4}px`);
+  danmu.classList.remove('playing');
+  const version = sceneVersion;
+  requestAnimationFrame(() => requestAnimationFrame(() => { if (version === sceneVersion) danmu.classList.add('playing'); }));
+}
 function showDemo(mode) {
+  timers.forEach(clearTimeout); timers = []; sceneVersion++;
   demoMode = mode;
   const state = demoStates[mode];
-  document.querySelector('#demo-source').textContent = state.source;
-  document.querySelector('#demo-status').textContent = state.status;
-  document.querySelector('#demo-caption').textContent = state.caption;
-  const danmu = document.querySelector('#demo-danmu');
-  danmu.textContent = state.text;
-  document.querySelector('#demo-open-island').hidden = mode !== 'result';
+  compact.src = state.compact; compact.alt = mode === 'feishu' ? '飞书消息：1条，中间为摄像头留空' : 'Codex 状态与额度，摄像头在中间';
+  expanded.src = state.expanded; expanded.alt = state.alt;
+  caption.textContent = state.caption;
+  openPanel(pointerInside || focusInside);
   document.querySelectorAll('[data-demo]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.demo === mode)));
+  if (reducedMotion.matches || mode === 'feishu') { emitDanmu(state.text); return; }
   danmu.classList.remove('playing');
-  requestAnimationFrame(() => requestAnimationFrame(() => danmu.classList.add('playing')));
+  if (mode === 'agent') {
+    later(2000, () => { compact.src = 'demo-agent-waiting.png'; emitDanmu('Codex · 等你确认。'); });
+    later(5300, () => { compact.src = 'demo-agent-completed.png'; emitDanmu(state.text); });
+  } else {
+    openPanel(true);
+    later(2600, () => { openPanel(false); compact.src = 'demo-agent-working.png'; });
+    later(5200, () => { compact.src = 'demo-agent-completed.png'; expanded.src = 'demo-result.png'; openPanel(true); emitDanmu(state.text); });
+    later(9800, () => { if (!pointerInside && !focusInside) openPanel(false); });
+  }
 }
+island.addEventListener('mouseenter', () => { pointerInside = true; openPanel(true); });
+island.addEventListener('mouseleave', () => { pointerInside = false; later(180, () => { if (!pointerInside && !focusInside) openPanel(false); }); });
+island.addEventListener('focusin', () => { focusInside = true; openPanel(true); });
+island.addEventListener('focusout', () => { focusInside = false; if (!pointerInside) openPanel(false); });
+island.addEventListener('click', () => openPanel(true));
+document.addEventListener('pointerdown', event => { if (!island.contains(event.target)) openPanel(false); });
+island.addEventListener('keydown', event => { if (event.key === 'Escape') { openPanel(false); island.blur(); } else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openPanel(panel.hidden); } });
 document.querySelectorAll('[data-demo]').forEach(button => button.addEventListener('click', () => showDemo(button.dataset.demo)));
 document.querySelector('#replay-demo').addEventListener('click', () => showDemo(demoMode));
+showDemo('feishu');

@@ -80,7 +80,7 @@ struct AgentWorkspaceSurface:View {
             }
             if !workspace.error.isEmpty { Text(workspace.error).font(.system(size:12)).foregroundStyle(.orange) }
             if entry.monitorID != nil {
-                Button("状态、额度与皮肤设置") { WorkspaceWindow.shared.openAgents(store:workspace) }.buttonStyle(IslandButtonStyle())
+                Button("状态与额度设置") { WorkspaceWindow.shared.openAgentStatus(store:workspace) }.buttonStyle(IslandButtonStyle())
             }
         }.onChange(of:entry.id) { _,_ in connectionCopied=false }
     }
@@ -130,9 +130,9 @@ struct AgentWorkspaceSurface:View {
                 Text(status).font(.system(size:10)).foregroundStyle(theme.secondaryLabel).lineLimit(1)
             }
             Spacer(minLength:4)
-            Button { WorkspaceWindow.shared.openAgents(store:workspace) } label: {
+            Button { WorkspaceWindow.shared.openAgentStatus(store:workspace) } label: {
                 Image(systemName:"chart.bar.xaxis").frame(width:24,height:28)
-            }.buttonStyle(.plain).help("查看 Agent 状态、额度与皮肤").accessibilityLabel("Agent状态与额度")
+            }.buttonStyle(.plain).help("查看 Agent 状态与额度").accessibilityLabel("Agent状态与额度")
         }
     }
     private var status:String {
