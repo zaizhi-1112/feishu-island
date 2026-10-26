@@ -14,13 +14,13 @@ read.addEventListener('click',async()=>{
   } catch(e) { status.textContent=e.message; } finally {read.disabled=false;}
 });
 send.addEventListener('click',async()=>{
-  if(!material)return;send.disabled=true;read.disabled=true;status.textContent='正在送入工作岛…';
+  if(!material)return;send.disabled=true;read.disabled=true;status.textContent='正在送入你的飞包…';
   try {
     const payload={...material,text:preview.value};
     if(!payload.text.trim()||new TextEncoder().encode(JSON.stringify(payload)).length>120000) throw new Error('正文为空或过长，请调整后重试。');
     const response=await fetch('http://127.0.0.1:18766/api/chrome-import',{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(8000)});
     const result=await response.json();
     if(!response.ok||!result.saved) throw new Error(result.error||'未保存，请重试。');
-    status.textContent='已送到工作岛「材料」草稿。回到灵动岛，可选交给 AI 或直接归档。';material=null;
-  } catch(e) {status.textContent=e.name==='TypeError'?'无法连接本机工作岛，请确认应用已打开并开启“接收Chrome当前网页”。':e.message;send.disabled=false;} finally {read.disabled=false;}
+    status.textContent='已送到你的飞包「材料」草稿。回到灵动岛，可选交给 AI 或直接归档。';material=null;
+  } catch(e) {status.textContent=e.name==='TypeError'?'无法连接本机你的飞包，请确认应用已打开并开启“接收Chrome当前网页”。':e.message;send.disabled=false;} finally {read.disabled=false;}
 });

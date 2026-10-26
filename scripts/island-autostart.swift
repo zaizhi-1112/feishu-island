@@ -1,6 +1,8 @@
 import AppKit
 // Observe public app-launch events only; no desktop login inspection or message access.
 let targets = [
+    "/Applications/你的飞包.app",
+    NSHomeDirectory() + "/Applications/你的飞包.app",
     "/Applications/飞书工作岛.app",
     NSHomeDirectory() + "/Applications/飞书工作岛.app",
     NSHomeDirectory() + "/Applications/飞书工作岛预览版.app",

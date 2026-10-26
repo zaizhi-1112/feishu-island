@@ -1,5 +1,5 @@
 'use strict';
-const agentBrief = `帮我安装、连接或调整飞书工作岛。先阅读这个操作指南：https://feishu-island.virxact.net/agent-guide.html 。
+const agentBrief = `帮我安装、连接或调整你的飞包。先阅读这个操作指南：https://feishu-island.virxact.net/agent-guide.html 。
 公司安装入口：https://feishu-island.virxact.net/ 。请在我自己的 Mac 上检查安装和连接状态，按我的具体需求继续。已正常运行的飞书接收、项目材料和连接要保留，不重复配对、不读取真实聊天来测试。
 我想定制首页或数据时，用我自己的虚实中台 MCP，先读 get_spec 和 get_page，再按我的需求调整；灵动岛卡片在“中台”里选择，外观使用本机设置“接入 Agent”的受限接口，核心功能由项目维护者管理。
 需要扫码、系统确认或新授权时告诉我点哪里，不索取密码，不复制其他人的凭据。用明确的合成材料验证，只报告实际通过的环节。`;

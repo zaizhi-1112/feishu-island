@@ -124,7 +124,7 @@ struct WorkBuddyCheckinSettings:View {
     var body:some View {
         VStack(alignment:.leading,spacing:12){
             Toggle("每天自动领取 WorkBuddy 免费积分",isOn:Binding(get:{store.enabled},set:{store.setEnabled($0)})).accessibilityIdentifier("workbuddy.daily.enabled")
-            Text("每天9:10用本机WorkBuddy已登录账号领取。工作岛运行即可，无需Codex；睡眠或退出期间不执行，下次运行补查。每位同事自行开启和授权。").font(.system(size:13)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            Text("每天9:10用本机WorkBuddy已登录账号领取。你的飞包运行即可，无需Codex；睡眠或退出期间不执行，下次运行补查。每位同事自行开启和授权。").font(.system(size:13)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             Text(WorkBuddyCheckinSchedule.message(store.state)).font(.system(size:13)).accessibilityIdentifier("workbuddy.daily.state")
             HStack{
                 Button("检查今日积分"){store.check()}.disabled(!store.enabled || store.busy)

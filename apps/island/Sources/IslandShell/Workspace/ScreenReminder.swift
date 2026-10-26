@@ -139,7 +139,7 @@ enum ScreenReminderMedia {
         guard let bounds = testFrame ?? (screen ?? NSScreen.screens.first(where:{$0.frame.contains(NSEvent.mouseLocation)}) ?? NSScreen.main)?.visibleFrame else { throw WorkError.message("当前没有可用显示器。") }
         dismiss()
         let panel=ScreenReminderPanel(contentRect:bounds,styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
-        panel.title="工作岛冲屏画面"
+        panel.title="你的飞包冲屏画面"
         panel.isReleasedWhenClosed=false; panel.level = .floating
         panel.backgroundColor = .clear; panel.isOpaque=false; panel.hasShadow=false
         panel.ignoresMouseEvents=true; panel.hidesOnDeactivate=false
@@ -166,7 +166,7 @@ enum ScreenReminderMedia {
         caption.frame=CGRect(x:bounds.width*0.15,y:24,width:bounds.width*0.7,height:72)
         root.addSubview(caption)
         let close=ScreenReminderPanel(contentRect:CGRect(x:bounds.maxX-146,y:bounds.maxY-50,width:130,height:34),styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
-        close.title="工作岛冲屏关闭"
+        close.title="你的飞包冲屏关闭"
         close.isReleasedWhenClosed=false; close.level = .floating; close.isOpaque=false
         close.backgroundColor = .clear; close.hidesOnDeactivate=false
         close.collectionBehavior=panel.collectionBehavior

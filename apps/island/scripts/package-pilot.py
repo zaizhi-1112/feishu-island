@@ -21,7 +21,7 @@ RESOURCE_DIRS = {'ThirdPartyLicenses', 'TunnelClientLicenses'}
 WEB_FILES = {'avatar-virxact.png', 'pet-codex.png', 'style.css', 'codex-atlas.webp', 'virxact-logo.svg', 'agent-codex.png', 'pet-workbuddy.svg', 'avatar-workbuddy.png', 'agent-workbuddy.png', 'avatar-codex.png', 'pet-workbuddy.png', 'avatar-claude.png', 'todos.js', 'skin-v2.css', 'agent-claude.png', 'app.js', 'brand-flow.json', 'index.html', 'skin-effects.js', 'virxact-logo.png', 'brand-geometry.json', 'pet-codex.svg', 'pet-claude.png', 'skins.json', 'pet-claude.svg'}
 EXTENSION_FILES = {'manifest.json', 'popup.html', 'popup.css', 'popup.js', 'extract.js'}
 REMINDER_FILES = {'rick-portal.mov', 'SOURCE.txt'}
-VOLUME_NAME = '飞书工作岛'
+VOLUME_NAME = '你的飞包'
 VOLUME_METADATA = {'.DS_Store', '.fseventsd', '.Trashes', '.TemporaryItems', '.VolumeIcon.icns'}
 LAYOUT_DIR = ROOT/'scripts/dmg-layout'
 

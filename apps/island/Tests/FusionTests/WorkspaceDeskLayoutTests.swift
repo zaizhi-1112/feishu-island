@@ -113,7 +113,7 @@ extension FusionTests {
         let catalog=AgentCatalogStore(defaults:UserDefaults(suiteName:"desk.catalog.check."+UUID().uuidString)!); navigation.page = 0
         NSApplication.shared.setActivationPolicy(.accessory)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 680), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "飞书工作岛 · 合成工作台验收"
+        window.title = "你的飞包 · 合成工作台验收"
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 760, height: 540)
         window.contentView = NSHostingView(rootView: WorkspaceDesk(store: store, navigation: navigation,catalog:catalog))

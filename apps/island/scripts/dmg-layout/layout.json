@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "appName": "飞书工作岛.app",
+  "appName": "你的飞包.app",
   "defaultView": "icon",
   "alwaysOpenInIconView": true,
   "windowWidth": 600,
   "windowHeight": 360,
   "iconSize": 96,
   "positions": {
-    "飞书工作岛.app": [
+    "你的飞包.app": [
       150,
       160
     ],
@@ -16,6 +16,6 @@
       160
     ]
   },
-  "sha256": "1cd92bfa9a076e18e5762807d019385a8b769071f4df582b6b036a7186d06289",
+  "sha256": "29908d5cb3b46e3f9a5091bf26e30c83e0850171bb6498ded2eabb3e1d496e90",
   "generator": "ds_store==1.3.1"
 }

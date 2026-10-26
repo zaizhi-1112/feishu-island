@@ -193,8 +193,8 @@ final class WorkspaceStore: ObservableObject {
     private var webInput: String?
     @Published private(set) var chromeDraft = false
     func importChrome(_ data: Data) throws {
-        guard chromeImportEnabled else { throw WorkError.message("请先在工作岛材料页开启接收Chrome网页。") }
-        guard draftText.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty, draftImages.isEmpty, draftFiles.isEmpty, !webBusy else { throw WorkError.message("工作岛已有草稿，请先处理或清空；本次没有覆盖。") }
+        guard chromeImportEnabled else { throw WorkError.message("请先在你的飞包材料页开启接收Chrome网页。") }
+        guard draftText.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty, draftImages.isEmpty, draftFiles.isEmpty, !webBusy else { throw WorkError.message("你的飞包已有草稿，请先处理或清空；本次没有覆盖。") }
         draftText = try WorkChromeImport.material(data); chromeDraft=true; boardTab=0; error=""
     }
     @Published var draftProject = "日常工作"
@@ -768,7 +768,7 @@ final class WorkspaceStore: ObservableObject {
                 ScreenReminderRules.advance(&state.screenSchedules![index],now:now)
             }
         }) else { return }
-        if !due.isEmpty { selected=due.first?.id; boardTab=1; notify("\(due.count)项待办到提醒时间了"); for item in due { agentNotice("due-"+item.id.uuidString+"-"+String((item.due ?? now).timeIntervalSince1970),"工作岛提醒",item.title) } }
+        if !due.isEmpty { selected=due.first?.id; boardTab=1; notify("\(due.count)项待办到提醒时间了"); for item in due { agentNotice("due-"+item.id.uuidString+"-"+String((item.due ?? now).timeIntervalSince1970),"你的飞包提醒",item.title) } }
         else if !scheduled.isEmpty { notify("\(scheduled.count)个定时提醒到时间了") }
         // A single desktop reminder represents this batch; no overlapping windows or
         // storm of catch-up animations after sleeping or a long offline period.

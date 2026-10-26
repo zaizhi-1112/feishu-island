@@ -145,6 +145,18 @@
         "网页演示改用原生组件的合成画面"
       ],
       "githubDraft": "https://github.com/zaizhi-1112/feishu-island/releases/tag/untagged-3c4a8f8555f0b87719c7"
+    },
+    {
+      "version": "0.8.0",
+      "build": "49",
+      "productName": "你的飞包",
+      "artifact": "feishu-island-0.8.0-build49-arm64.dmg",
+      "sha256": "bde9894f0f5cbc014363e440a86dfceaf02d7a8857e24d6c4439d186caa29831",
+      "status": "本地候选，未安装，待本人体验",
+      "companyRelease": null,
+      "websiteRelease": 333,
+      "githubRelease": "draft v0.8.0-build49",
+      "notarized": false
     }
   ]
 }

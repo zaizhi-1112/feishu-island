@@ -12,7 +12,7 @@ CONFIG="${ISLAND_CONFIGURATION:-release}"
 SCRATCH="${ISLAND_SCRATCH_PATH:-$ROOT/.build}"
 swift build --scratch-path "$SCRATCH" -j 2 --sdk "$SDK" -c "$CONFIG" --product YuIsland
 BIN_DIR="$(swift build --scratch-path "$SCRATCH" --sdk "$SDK" -c "$CONFIG" --show-bin-path)"
-APP="${ISLAND_APP_OUTPUT:-$ROOT/dist/飞书工作岛.app}"
+APP="${ISLAND_APP_OUTPUT:-$ROOT/dist/你的飞包.app}"
 [[ "$APP" = /* && "$APP" = *.app ]] || { echo 'ISLAND_APP_OUTPUT 必须是绝对 .app 路径' >&2; exit 1; }
 if [[ -n "${ISLAND_APP_OUTPUT:-}" && ( -e "$APP" || -L "$APP" ) ]]; then
     echo '独立构建路径必须尚不存在，不覆盖已安装或已运行的应用。' >&2; exit 1

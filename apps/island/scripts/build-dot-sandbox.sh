@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SDK="${ISLAND_SDK:-$(xcrun --sdk macosx --show-sdk-path)}"
 SCRATCH="$ROOT/.build/dot-release"
-APP="$ROOT/.build/dot-sandbox/飞书工作岛联调.app"
+APP="$ROOT/.build/dot-sandbox/你的飞包联调.app"
 if pgrep -f "^$APP/Contents/MacOS/YuIsland$" >/dev/null; then
     echo '独立联调窗口正在运行，保留原程序；请先关闭联调窗口再重新构建。' >&2
     exit 1
@@ -16,8 +16,8 @@ python3 - "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist" <<'PY'
 import plistlib,sys
 with open(sys.argv[1],'rb') as f: p=plistlib.load(f)
 p['CFBundleIdentifier']='local.zaizhi.feishu-island.dot-sandbox'
-p['CFBundleDisplayName']='飞书工作岛联调'
-p['CFBundleName']='飞书工作岛联调'
+p['CFBundleDisplayName']='你的飞包联调'
+p['CFBundleName']='你的飞包联调'
 p['LSUIElement']=False
 with open(sys.argv[2],'wb') as f: plistlib.dump(p,f)
 PY

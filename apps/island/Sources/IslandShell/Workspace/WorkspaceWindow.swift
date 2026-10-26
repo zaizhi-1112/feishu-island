@@ -47,7 +47,7 @@ enum WorkspaceDeskSection: Int, CaseIterable, Identifiable {
         navigation.page=page
         if let window { window.makeKeyAndOrderFront(nil); NSApp.activate(); return }
         let w = NSWindow(contentRect:NSRect(x:0,y:0,width:960,height:680),styleMask:[.titled,.closable,.miniaturizable,.resizable],backing:.buffered,defer:false)
-        w.title="飞书工作岛 · 工作台"; w.isReleasedWhenClosed=false
+        w.title="你的飞包 · 工作台"; w.isReleasedWhenClosed=false
         w.minSize=NSSize(width:760,height:540)
         w.contentView=NSHostingView(rootView:WorkspaceDesk(store:store,navigation:navigation)); w.center(); window=w
         w.makeKeyAndOrderFront(nil); NSApp.activate()
@@ -60,7 +60,7 @@ struct WorkspaceDesk: View {
     var body: some View {
         HStack(spacing:0) {
             VStack(alignment:.leading,spacing:8) {
-                HStack(spacing:9) { Image(systemName:"capsule.fill").foregroundStyle(.cyan); Text("工作岛").font(.system(size:18,weight:.semibold)) }.padding(.bottom,24)
+                HStack(spacing:9) { Image(systemName:"capsule.fill").foregroundStyle(.cyan); Text("你的飞包").font(.system(size:18,weight:.semibold)) }.padding(.bottom,24)
                 ForEach(WorkspaceDeskSection.allCases) { section in
                     Button { navigation.select(section) } label: {
                         HStack(spacing:10) { Image(systemName:section.symbol).frame(width:18); Text(section.title); Spacer(minLength:0) }
@@ -75,7 +75,7 @@ struct WorkspaceDesk: View {
             }.padding(18).frame(width:180).frame(maxHeight:.infinity).background(Color.white.opacity(0.025))
             Divider()
             VStack(alignment:.leading,spacing:0) {
-                HStack { Text(navigation.section.title).font(.system(size:22,weight:.semibold)); Spacer(); Text("飞书工作岛").font(.system(size:11)).foregroundStyle(.secondary) }.padding(.horizontal,24).padding(.top,22).padding(.bottom,16)
+                HStack { Text(navigation.section.title).font(.system(size:22,weight:.semibold)); Spacer(); Text("你的飞包").font(.system(size:11)).foregroundStyle(.secondary) }.padding(.horizontal,24).padding(.top,22).padding(.bottom,16)
                 if navigation.section.pages.count > 1 {
                     HStack(spacing:6) {
                         ForEach(navigation.section.pages,id:\.self) { page in

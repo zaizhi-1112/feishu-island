@@ -15,7 +15,7 @@ class DistributionChecks(unittest.TestCase):
     def fixture(self):
         # Retain generated fixtures; do not irreversibly remove filesystem content.
         directory = Path(tempfile.mkdtemp(prefix='island-package-synthetic-'))
-        app = directory/'飞书工作岛.app'
+        app = directory/'你的飞包.app'
         files = {'Contents/MacOS/YuIsland', 'Contents/Resources/AppIcon.icns'}
         files |= {'Contents/Helpers/'+name for name in m.HELPERS}
         files |= m.CHECKIN_FILES
@@ -113,13 +113,13 @@ class DistributionChecks(unittest.TestCase):
             self.assertIn('-noautoopen', attach)
 
     def test_reviewed_icon_layout_is_pinned_to_app_and_both_positions(self):
-        metadata, data = m.layout_template('飞书工作岛.app')
+        metadata, data = m.layout_template('你的飞包.app')
         self.assertEqual(metadata['defaultView'], 'icon')
         self.assertEqual(metadata['version'], 2)
         self.assertTrue(metadata['alwaysOpenInIconView'])
         self.assertEqual((metadata['windowWidth'], metadata['windowHeight']), (600, 360))
         self.assertEqual(metadata['iconSize'], 96)
-        self.assertEqual(metadata['positions']['飞书工作岛.app'], [150, 160])
+        self.assertEqual(metadata['positions']['你的飞包.app'], [150, 160])
         self.assertEqual(metadata['positions']['Applications'], [450, 160])
         self.assertGreater(len(data), 100)
         with self.assertRaisesRegex(ValueError, 'name does not match'):

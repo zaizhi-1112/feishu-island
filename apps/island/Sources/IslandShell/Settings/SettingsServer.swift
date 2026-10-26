@@ -146,7 +146,7 @@ final class SettingsServer {
         guard headers["host"] == host else { return .error(403, "仅接受本机地址") }
         guard let url = URLComponents(string: path) else { return .error(400, "地址不正确") }
         if url.path == "/api/chrome-import" {
-            guard headers["origin"] == WorkChromeImport.origin, !sessionLocked else { return .error(403,"请解锁并使用工作岛Chrome收录扩展。") }
+            guard headers["origin"] == WorkChromeImport.origin, !sessionLocked else { return .error(403,"请解锁并使用你的飞包Chrome收录扩展。") }
             if method == "OPTIONS" { return SettingsResponse(status:200,contentType:"text/plain",body:Data(),chromeCORS:true) }
             let workspace=workspaceOverride ?? WorkspaceStore.shared
             guard method == "POST", headers["content-type"]?.hasPrefix("application/json") == true else { return .error(405,"仅接受网页材料提交").withChromeCORS() }
@@ -177,7 +177,7 @@ final class SettingsServer {
             } catch { return .error(400, (error as? AgentReadError)?.localizedDescription ?? "Agent设置格式不正确") }
         }
         if url.path == "/api/company" {
-            guard !sessionLocked, let store else { return .error(403,"请解锁并打开工作岛。") }
+            guard !sessionLocked, let store else { return .error(403,"请解锁并打开你的飞包。") }
             let company=CompanyConnection.shared
             if method == "GET" {
                 return .json(["state":company.statusJSON(),"message":store.connection.profile == CompanyConnection.profile ? "当前消息使用公司连接；材料归档单独授权。" : "现有本机接收保持原配置。首次使用请先连接自己的飞书。"])

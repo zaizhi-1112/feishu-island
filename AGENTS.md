@@ -212,3 +212,5 @@
 
 - 2026-10-26 build48本地候选：按本人标记将普通工作台9个入口合成五组：Agent（0/8/9：交给AI、接入与签到、状态额度），待办与提醒（1/5），中台与飞书（2/4），处理归档（3），外观皮肤（6/7）。WorkspaceDeskNavigation记忆分组内位置，旧open*调用保留映射；IntegrationAgentSettings按监测/皮肤分开组合。245布局/1040融合/27服务/11安装包/3服务打包通过。独立Release与DMG完成，稳定账号helper及WorkBuddyCheckin签名字节与日用版完全一致；未替换/重启日用程序、读取真实消息或做桌面试播，候选包等待本人体验，不更新公司DMG。
 - 网站演示纠正：ProductDemoAssets通过FusionChecks --product-demo-assets只用隔离合成Store及不上屏原生SwiftUI视图生成8张画面，导出脚本列出明确资源。摄像头留空179pt，消息阅读/Agent输入/结果取自真实组件；白字黑描边弹幕完整移出，悬停展开/离开收回，减少动态效果有静态替代。PUBLIC_ASSETS逐项加入8PNG，页面所有img/link/script经HTTP/MIME/字节检查。原始Resources/AppIcon.png为本人指定白色机器人，build-app-icon.sh同时更新App、下载页及AuthService覆盖层，防止服务器旧icon覆盖。当前网站修复与原生候选包分开；安装包仍build47，后续本人体验确认再推进48。
+
+- 2026-10-26 build49更名：产品显示名称统一为「你的飞包」，包括原生窗口/设置、提醒来源、Chrome收录扩展、DMG卷与App文件名、网页和中台卡片。bundle ID、URL、Keychain/helper、个人目录及归档幂等标记不改；启动脚本兼容新旧文件名，不安装登录项。公司网页release333已live，下载仍build47；本地候选49未替换日用程序，待本人体验。源码与候选包同步开发分支和草稿Release，不合main。

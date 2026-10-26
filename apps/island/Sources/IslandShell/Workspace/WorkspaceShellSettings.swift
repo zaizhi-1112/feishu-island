@@ -28,7 +28,7 @@ private struct WorkspaceShellPreferenceSections: View {
         .environment(\.nookTheme, chrome)
         .environment(\.nookThemeTokens, chrome.resolvedTokens())
         .environment(\.nookChromeLabels, IslandLabels.chinese)
-        .environment(\.nookHostBranding, NookHostBranding(hostName: "飞书工作岛", hostTagline: "常用功能，抬手即达。"))
+        .environment(\.nookHostBranding, NookHostBranding(hostName: "你的飞包", hostTagline: "常用功能，抬手即达。"))
         .environment(\.nookChromeActions, NookChromeActions(
             toggleKeepOpen: { IslandModuleNavigation.shared.toggleKeepOpen() },
             toggleSettings: {}, collapse: {},

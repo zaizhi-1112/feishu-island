@@ -42,7 +42,7 @@ extension FusionTests {
         let now=Date();work.setReminder(id,date:now.addingTimeInterval(-1))
         work.tickReminders(now:now);work.tickReminders(now:now)
         XCTAssertEqual(notices.count,2)
-        XCTAssertTrue(notices[1].hasPrefix("工作岛提醒"))
+        XCTAssertTrue(notices[1].hasPrefix("你的飞包提醒"))
         var item=work.disk.items[0];item.service="dot";item.dotQueuedAt=now
         item.dotDeliveries=["test":DotDelivery(accepted:true,acceptedAt:now.addingTimeInterval(2))]
         item.aiStartedAt=now.addingTimeInterval(20)
