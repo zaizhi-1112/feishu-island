@@ -126,7 +126,7 @@
       "build": "48",
       "artifact": "feishu-island-0.8.0-build48-arm64.dmg",
       "sha256": "a7b5c05db4620ed3fdc1dcf60f0e63ec860de555c9fc2b4b27e0a91572bfc401",
-      "status": "本地候选，等待本人体验；未替换日用程序，未更新公司下载",
+      "status": "本机候选，GitHub Draft备份，等待本人体验；未替换日用程序，未更新公司下载",
       "sourceBranch": "codex/integrate-youzi-075",
       "notarized": false,
       "colleagueDeviceVerified": false,
@@ -143,7 +143,8 @@
         "状态监测与皮肤分开归位；任务和草稿保持",
         "恢复原始白色机器人图标",
         "网页演示改用原生组件的合成画面"
-      ]
+      ],
+      "githubDraft": "https://github.com/zaizhi-1112/feishu-island/releases/tag/untagged-3c4a8f8555f0b87719c7"
     }
   ]
 }
