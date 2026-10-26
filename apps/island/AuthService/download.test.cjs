@@ -103,3 +103,20 @@ test('large release files support HEAD and a tail range without loading the whol
  const head=await fetch(base+'/'+name,{method:'HEAD',headers:owner});assert.equal(head.headers.get('content-length'),String(size));assert.equal((await head.arrayBuffer()).byteLength,0);
  const tail=await fetch(base+'/'+name,{headers:{...owner,Range:'bytes=-4'}});assert.equal(tail.status,206);assert.equal(tail.headers.get('content-range'),'bytes '+(size-4)+'-'+(size-1)+'/'+size);assert.equal(await tail.text(),'tail');
 });
+
+test('every asset referenced by the real landing page is served with its browser MIME type',async t=>{
+ const {root,base}=await fixture(t);
+ const source=path.join(__dirname,'../Distribution/site');
+ const html=await fs.readFile(path.join(source,'index.html'),'utf8');
+ const assets=[...html.matchAll(/<(?:link|script)\b[^>]*(?:href|src)="([^"]+)"/g)].map(match=>match[1]);
+ assert(assets.includes('landing.css'));assert(assets.includes('virxact-story.css'));
+ const types={'.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.svg':'image/svg+xml'};
+ for(const asset of assets){
+  assert.equal(path.basename(asset),asset,'homepage resources must be named local assets');
+  const bytes=await fs.readFile(path.join(source,asset));await fs.writeFile(path.join(root,asset),bytes);
+  const response=await fetch(base+'/'+asset,{headers:owner});
+  assert.equal(response.status,200,asset);
+  assert.equal(response.headers.get('content-type'),types[path.extname(asset)],asset);
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()),bytes,asset);
+ }
+});
