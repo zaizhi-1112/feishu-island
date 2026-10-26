@@ -8,30 +8,38 @@ struct IntegrationTopBar: View {
     @Environment(\.nookNotchCutout) private var cutout
     @Environment(\.nookResolvedTheme) private var theme
     var body: some View {
-        VStack(spacing: 0) {
-            if !cutout.isEmpty { Color.clear.frame(height: cutout.height) }
-            HStack(spacing: 6) {
-                if bar.canGoBack {
-                    Button { bar.goBack() } label: { Image(systemName: "chevron.left").frame(width: 24,height:24) }.help("返回")
-                } else if let switcher = bar.moduleSwitcher {
-                    ForEach(switcher.modules.filter { [IslandHost.workspaceID,IslandHost.feishuID,IslandHost.agentID].contains($0.id) }) { module in
-                        Button {
-                            if module.id == IslandHost.workspaceID { IslandModuleNavigation.shared.openWorkspace() }
-                            else { switcher.switchTo(module.id) }
-                        } label: {
-                            Image(systemName: module.icon).frame(width: 26,height:24)
-                                .foregroundStyle(switcher.activeID == module.id ? theme.accent : theme.secondaryLabel)
-                                .overlay(alignment:.bottom) { if attention.hints[module.id] != nil { Circle().fill(theme.accent).frame(width:4,height:4).offset(y:3) } }
-                                .background(switcher.activeID == module.id ? theme.accent.opacity(0.14) : .clear,in:RoundedRectangle(cornerRadius:6))
-                        }.help(module.displayName + " · 双指左右滑动切换").accessibilityLabel(module.displayName)
+        VStack(spacing: 4) {
+            if !cutout.isEmpty { Color.clear.frame(height: cutout.height + 4) }
+            HStack(spacing: 3) {
+                if let switcher=bar.moduleSwitcher {
+                    ForEach(switcher.modules.filter { [IslandHost.feishuID,IslandHost.agentID,IslandHost.todoID,IslandHost.platformID].contains($0.id) }) { module in
+                        Button { switcher.switchTo(module.id) } label: {
+                            HStack(spacing:4) {
+                                Image(systemName:module.icon)
+                                Text(module.id == IslandHost.feishuID ? "消息" : module.id == IslandHost.agentID ? "Agent" : module.id == IslandHost.todoID ? "待办" : "中台")
+                            }.font(.system(size:12,weight:.medium)).padding(.horizontal,9).frame(height:30)
+                                .foregroundStyle(switcher.activeID==module.id ? theme.accent:theme.secondaryLabel)
+                                .background(switcher.activeID==module.id ? theme.accent.opacity(0.14):.clear,in:Capsule())
+                                .overlay(alignment:.topTrailing) { if attention.hints[module.id] != nil { Circle().fill(theme.accent).frame(width:4,height:4) } }
+                        }.help(module.displayName).accessibilityLabel(module.displayName).accessibilityIdentifier("unified.module."+module.id)
                     }
                 }
-                Spacer(minLength:4)
-                Button { WorkspaceWindow.shared.open(store:.shared) } label: { Image(systemName:"macwindow").frame(width:24,height:24) }.help("打开工作台")
-                Button { WorkspaceWindow.shared.openSettings(store:.shared) } label: { Image(systemName:"gearshape").frame(width:24,height:24) }.help("工作台设置")
-                Button { bar.toggleKeepOpen() } label: { Image(systemName:bar.isKeepOpen ? "lock.fill" : "lock.open").frame(width:24,height:24) }.help("保持展开")
-            }.frame(height:28)
-        }.buttonStyle(.plain).font(.system(size:12)).foregroundStyle(theme.secondaryLabel)
+                Spacer(minLength:0)
+                Button { UnifiedSettingsWindow.shared.open() } label: { Image(systemName:"gearshape").frame(width:26,height:30) }.help("打开设置")
+            }
+        }.buttonStyle(.plain).foregroundStyle(theme.secondaryLabel)
+    }
+}
+struct UnifiedIslandPeek: View, Sendable {
+    let title:String
+    let symbol:String
+    var body:some View {
+        VStack(spacing:7) {
+            Capsule().fill(.white.opacity(0.65)).frame(width:74,height:2)
+            HStack(spacing:7) { Image(systemName:symbol); Text(title); Image(systemName:"chevron.down").font(.system(size:9)) }
+                .font(.system(size:12,weight:.medium)).foregroundStyle(.white.opacity(0.92))
+            Text("点击展开").font(.system(size:10)).foregroundStyle(.white.opacity(0.55))
+        }.frame(maxWidth:220).padding(.vertical,8)
     }
 }
 

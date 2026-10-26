@@ -88,11 +88,11 @@ MainActor.assumeIsolated {
     expect(host.preferenceDefaults.display == .automatic, "host automatic display default")
     expect(host.preferenceDefaults.appearance.presentation == .auto, "host automatic layout default")
     expect(host.chromeBehavior.edgeDocked, "host enables three-stage edge interaction")
-    expect(host.chromeBehavior.hoverIntent?.action == .some(.expand), "hover opens the island reading surface")
+    expect(host.chromeBehavior.hoverIntent == nil && host.preferenceDefaults.appearance.openOnHover == .immediately, "hover behavior follows persistent user preference")
     let registry = host.makeRegistry()
-    expect(registry.descriptors.count == 5, "messages, workspace, Agent and isolated test modules")
-    expect(registry.module(for: IslandHost.workspaceID)?.makeConfiguration().onFileDrop != nil, "workspace accepts the native shell file drop callback")
-    expect(registry.module(for: IslandHost.feishuID)?.makeConfiguration().onFileDrop != nil, "message module also routes native files into workspace")
+    expect(registry.descriptors.count == 6, "four product modules and two isolated test modules")
+    expect(registry.module(for: IslandHost.workspaceID) == nil, "legacy AI workspace is not registered")
+    expect(registry.module(for: IslandHost.feishuID)?.makeConfiguration().onFileDrop == nil, "message module does not accept legacy materials")
     expect(!registry.isLoaded(IslandHost.sampleID), "sample module is lazy")
     let home = registry.context(for: IslandHost.homeID)!
     let sample = registry.context(for: IslandHost.sampleID)!
@@ -187,7 +187,7 @@ expect(ordinary.importanceReason(followed: [], custom: custom) == "群规则", "
 custom.groups[0].mode = .quiet
 expect(!mine.isImportant(followed: ["oc_123"], custom: custom), "group quiet overrides mentions and followed default")
 custom.people = [.init(target: colleague, mode: .all)]
-expect(ordinary.importanceReason(followed: [], custom: custom) == "联系人", "person all overrides group quiet")
+expect(ordinary.importanceReason(followed: [], custom: custom) == nil, "explicit quiet keeps migrated conversation muted")
 custom.groups[0].mode = .all; custom.people[0].mode = .quiet
 expect(!mine.isImportant(followed: [], custom: custom), "person quiet overrides group all")
 custom.people[0].mode = .mentions

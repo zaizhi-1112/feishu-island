@@ -99,7 +99,7 @@ struct WorkspaceReminderLibrary:View {
             HStack { Text("到时间，让它来提醒你。").foregroundStyle(.secondary); Spacer() }
             HStack(spacing:12) {
                 Button(importing ? "正在导入…" : "添加自己的视频") { pickVideo() }.disabled(importing)
-                Button(copied ? "已复制" : "复制交给 Agent") { copyAgent() }
+
                 Spacer()
             }
             ForEach(store.screenMaterials) { material in
@@ -124,7 +124,7 @@ struct WorkspaceReminderLibrary:View {
         }
     }
     private func copyAgent() {
-        let prompt="请帮我制作你的飞包的个人冲屏提醒视频。我会提供我有权使用的素材和想要的效果。输出可导入的 MP4 或 MOV，最长 120 秒、150MB 以内；优先透明 MOV，静音播放一次。请先在普通窗口预览，不要创建遮挡桌面或拦截鼠标的测试。完成后指导我在工作台 → 冲屏素材 → 添加自己的视频导入，再到待办设置提醒。不要改飞书接收、账号、授权或核心功能，不读取其他材料。"
+        let prompt="请帮我制作你的飞包的个人冲屏提醒视频。我会提供我有权使用的素材和想要的效果。输出可导入的 MP4 或 MOV，最长 120 秒、150MB 以内；优先透明 MOV，静音播放一次。请先在普通窗口预览，不要创建遮挡桌面或拦截鼠标的测试。完成后指导我在设置 → 外观与交互 → 冲屏素材 → 添加自己的视频导入，再到待办设置提醒。不要改飞书接收、账号、授权或核心功能，不读取其他材料。"
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(prompt,forType:.string); copied=true
     }
 }

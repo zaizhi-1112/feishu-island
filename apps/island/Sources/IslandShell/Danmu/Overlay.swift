@@ -41,6 +41,8 @@ final class Overlay: NSObject {
     var queue: [DanmuMessage] = []
     var fontSize: CGFloat = 32
     var duration: Double = 12
+    /// nil retains the old duration setting; unified settings use points per second.
+    var movementSpeed: CGFloat?
     var opacity: CGFloat = 1
     var palette = 3
     var backdrop = true
@@ -188,7 +190,7 @@ final class Overlay: NSObject {
                 }
                 continue
             }
-            view.speed = window.frame.width / duration
+            view.speed = movementSpeed ?? (window.frame.width / duration)
             view.position -= view.speed * dt
             view.frame.origin.x = (view.position * scale).rounded() / scale
         }
@@ -257,7 +259,7 @@ final class Overlay: NSObject {
         let band = CGFloat(availableLanes) * spacing
         let top = position == 1 ? (window.frame.height + band) / 2 : position == 2 ? band + 42 : window.frame.height - 64
         view.frame.origin = NSPoint(x: width, y: max(20, top - CGFloat(lane + 1) * spacing))
-        view.position = width; view.speed = width / duration
+        view.position = width; view.speed = movementSpeed ?? (width / duration)
         view.alphaValue = opacity; view.lane = lane
         window.contentView?.addSubview(view); flying.append(view)
         onPresented?(message)

@@ -26,6 +26,13 @@ struct WorkItem: Codable, Identifiable, Equatable {
     var dotDispatch: UUID?
     var dotQueuedAt: Date?
     var archivedAt: Date?
+    /// Human completion is distinct from AI completion; older records may lack a time.
+    var completedAt: Date?
+    /// Nil keeps an older completion visible in the current list until the user folds it.
+    var completedCollapsed: Bool?
+    var todoReminder: WorkTodoReminder?
+    var completionReminder: ScreenReminderStyle?
+    var legacyTodoSource: String?
     var aiCompletedAt: Date?
     var aiStartedAt: Date?
     var dotDeliveries: [String:DotDelivery]?
@@ -72,6 +79,8 @@ struct WorkDisk: Codable {
     var chromeImportEnabled: Bool?
     var screenSchedules: [WorkScreenSchedule]?
     var screenMaterials: [ScreenReminderMaterial]?
+    var todoHistory: [WorkTodoCompletion]?
+    var importedTodoSources: [String]?
 }
 enum WorkError: LocalizedError {
     case message(String)
@@ -229,6 +238,8 @@ final class WorkspaceStore: ObservableObject {
     var openBoard: () -> Void = {}
     /// Tests replace this callback; isolated stores never create an on-screen renderer.
     var presentScreenReminder: (ScreenReminderRequest) -> Void = { _ in }
+    /// Synthetic stores do not query the user's lock state; the live store binds it below.
+    var remindersAreLocked: () -> Bool = { false }
     private let root: URL
     private var runner: (any WorkRunning)?
     private var job: Task<Void,Never>?
@@ -256,19 +267,29 @@ final class WorkspaceStore: ObservableObject {
             draftReminderMinutes = disk.reminderMinutes
             if !disk.recipes.contains(where:{$0.id == "work"}) { disk.recipes.insert(WorkRecipe.presets.first(where:{$0.id == "work"})!,at:0) }
             for i in disk.items.indices {
-                if ["running","queued"].contains(disk.items[i].state) { disk.items[i].state = "interrupted"; disk.items[i].failure = "上次运行已中断，请确认后重试。" }
+                if ["running","queued","dot_running"].contains(disk.items[i].state) {
+                    // Keep the legacy claim and result as history without resuming it.
+                    disk.items[i].state = "interrupted"; disk.items[i].failure = "旧处理任务已停止；保留原记录，可作为待办继续编辑或完成。"
+                }
                 if disk.items[i].archive?.state == "running" {
                     disk.items[i].archive?.state = disk.items[i].archive?.intent == nil ? "pending" : "failed"
                     disk.items[i].archive?.error = "归档中断，保留进度；写入不明时不自动重复。"
                 }
             }
+            migrateExistingTodoCompletions()
             try save()
         } catch { self.writable = false; self.error = "本机工作区未能载入或保存；原文件保留，已停止写入。" }
         integrationEnabled = startTimers && !IslandRuntime.isSkinPreview && !ProcessInfo.processInfo.arguments.contains("--self-test") && Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview"
         if integrationEnabled {
+            importLegacyTodosIfNeeded()
+            remindersAreLocked = { ScreenReminderSession.isLocked }
             presentScreenReminder = { [weak self] request in
+                guard self?.remindersAreLocked() == false else { return }
                 do { try ScreenReminderPresenter.shared.present(request) }
-                catch { self?.error = error.localizedDescription }
+                catch {
+                    self?.error = error.localizedDescription
+                    self?.notify("冲屏素材暂不可用 · "+request.title)
+                }
             }
             activity = ProcessInfo.processInfo.beginActivity(options:.userInitiatedAllowingIdleSystemSleep,reason:"接收飞书与处理本人后台任务")
             timer = Timer.scheduledTimer(withTimeInterval:15,repeats:true) { [weak self] _ in Task { @MainActor in self?.tick() } }
@@ -285,7 +306,8 @@ final class WorkspaceStore: ObservableObject {
         try JSONEncoder().encode(disk).write(to:file,options:.atomic)
         try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:file.path)
     }
-    private func mutate(_ change: (inout WorkDisk) -> Void) -> Bool {
+    var todoStorageRoot: URL { root }
+    func mutate(_ change: (inout WorkDisk) -> Void) -> Bool {
         guard writable else { error = "原工作区文件无法读取，已停止写入以保留原文件。"; return false }
         let old = disk; change(&disk)
         do { try save(); error = ""; return true } catch { disk = old; self.error = "保存失败，操作未生效。请检查磁盘空间。"; return false }
@@ -296,7 +318,7 @@ final class WorkspaceStore: ObservableObject {
     }
     func endMaterialDrop() { ingestSaving = false }
     @discardableResult func add(text: String, files: [URL] = [], instruction: String? = nil, minutes: Int? = nil, images: [PendingWorkImage] = [], project: String? = nil, service: String? = nil, screenReminder: ScreenReminderStyle? = nil) throws -> UUID {
-        guard disk.items.count < 500, files.count <= 20, text.utf8.count <= 200_000 else { throw WorkError.message("材料或待办过多，请先整理。") }
+        guard disk.items.filter({ $0.archivedAt == nil }).count < 500, files.count <= 20, text.utf8.count <= 200_000 else { throw WorkError.message("当前材料或待办过多，请先归档已完成事项。历史会长期保留。") }
         var parts = text.isEmpty ? [] : [text]
         for url in files { let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }; parts.append("文件：\(url.lastPathComponent)\n" + (try WorkMaterial.read(url))) }
         if !images.isEmpty { parts.append("附件图片：" + images.map { $0.image.name }.joined(separator:"、")) }
@@ -669,14 +691,32 @@ final class WorkspaceStore: ObservableObject {
         guard disk.items.count<500, let item=disk.trash?.first(where:{$0.id==id}), !disk.items.contains(where:{$0.id==id}) else { error = "待办已恢复或列表已满。"; return }
         if mutate({ state in state.trash?.removeAll{$0.id==id}; state.items.insert(item,at:0) }) { selected=id }
     }
-    func complete(_ id: UUID) { guard let item=disk.items.first(where:{$0.id==id}), !["running","dot_running"].contains(item.state) else { return }; _ = mutate { s in if let i = s.items.firstIndex(where:{$0.id == id}) { s.items[i].state = "done"; s.items[i].due = nil } } }
+    func complete(_ id: UUID, now: Date = Date()) {
+        guard let item=disk.items.first(where:{$0.id==id}), item.state != "done", item.archivedAt == nil,
+              !["running","queued","dot_running"].contains(item.state) else { return }
+        let saved = mutate { state in
+            guard let index=state.items.firstIndex(where:{$0.id==id}) else { return }
+            state.items[index].state="done"; state.items[index].completedAt=now
+            state.items[index].completedCollapsed=false
+            state.items[index].due=nil; state.items[index].reminded=true; state.items[index].todoReminder=nil
+            var history=state.todoHistory ?? []
+            history.append(WorkTodoCompletion(taskID:id,title:item.title,content:item.input,completedAt:now,project:item.project))
+            state.todoHistory=history
+        }
+        if saved, !remindersAreLocked(), let style=item.completionReminder {
+            do { presentScreenReminder(try screenReminderRequest(style:style,title:"完成了 · "+item.title)) }
+            catch { self.error=error.localizedDescription; notify("已完成 · "+item.title+"（冲屏素材暂不可用）") }
+        }
+    }
     /// Local archive is reversible and never deletes the person's attachments.
     func archiveItem(_ id: UUID) {
         guard let item=disk.items.first(where:{$0.id==id}), item.state=="done", item.archive?.state != "running" else { error="请先完成任务并等待归档结束。"; return }
         _ = mutate { state in if let index=state.items.firstIndex(where:{$0.id==id}) { state.items[index].archivedAt=Date(); state.items[index].due=nil } }
     }
     func unarchiveItem(_ id: UUID) {
-        _ = mutate { state in if let index=state.items.firstIndex(where:{$0.id==id}) { state.items[index].archivedAt=nil } }
+        _ = mutate { state in if let index=state.items.firstIndex(where:{$0.id==id}) {
+            state.items[index].archivedAt=nil; state.items[index].completedCollapsed=false
+        } }
     }
     func snooze(_ id: UUID, minutes: Int = 20) { guard (1...10080).contains(minutes) else { return }; _ = mutate { s in if let i = s.items.firstIndex(where:{$0.id == id}) { s.items[i].due = Date().addingTimeInterval(Double(minutes)*60); s.items[i].reminded = false } } }
     var screenMaterials: [ScreenReminderMaterial] { ScreenReminderMaterial.builtins + (disk.screenMaterials ?? []) }
@@ -686,10 +726,11 @@ final class WorkspaceStore: ObservableObject {
             _ = mutate { s in if let i=s.items.firstIndex(where:{$0.id==id}) { s.items[i].screenReminder=style } }
         } catch { self.error=error.localizedDescription }
     }
-    @discardableResult func upsertScreenSchedule(id: UUID? = nil, title: String, firstFire: Date, repeatMinutes: Int?, style: ScreenReminderStyle, enabled: Bool = true) throws -> UUID {
+    @discardableResult func upsertScreenSchedule(id: UUID? = nil, title: String, firstFire: Date, repeatMinutes: Int?, style: ScreenReminderStyle, enabled: Bool = true, lightOnly: Bool = false) throws -> UUID {
         try ScreenReminderRules.validate(title:title,firstFire:firstFire,repeatMinutes:repeatMinutes)
         try ScreenReminderRules.validate(style,materials:screenMaterials)
         var schedule=WorkScreenSchedule(id:id ?? UUID(),title:title.trimmingCharacters(in:.whitespacesAndNewlines),fireAt:firstFire,repeatMinutes:repeatMinutes,style:style,enabled:enabled)
+        schedule.lightOnly=lightOnly
         let existing=screenSchedules.first(where:{$0.id==schedule.id})
         guard existing != nil || screenSchedules.count < 30 else { throw WorkError.message("最多保存30个提醒，请先整理。") }
         if id != nil, existing == nil { throw WorkError.message("这个提醒已删除，请重新添加。") }
@@ -756,32 +797,46 @@ final class WorkspaceStore: ObservableObject {
     }
     func dismissScreenReminder() { if integrationEnabled { ScreenReminderPresenter.shared.dismiss() } }
     func tickReminders(now: Date = Date()) {
-        if integrationEnabled && ScreenReminderSession.isLocked { return }
-        let due=disk.items.filter { $0.state != "done" && !$0.reminded && ($0.due.map{$0 <= now} ?? false) }
+        if remindersAreLocked() { return }
+        let due=disk.items.filter { $0.archivedAt == nil && $0.state != "done" && !$0.reminded && ($0.due.map{$0 <= now} ?? false) }
         let scheduled=screenSchedules.filter { $0.enabled && $0.fireAt <= now }
         guard !due.isEmpty || !scheduled.isEmpty else { return }
         // Persist consumption before any visible effect; restart cannot replay a reminder.
         guard mutate({ state in
             let taskIDs=Set(due.map(\.id)), scheduleIDs=Set(scheduled.map(\.id))
-            for index in state.items.indices where taskIDs.contains(state.items[index].id) { state.items[index].reminded=true }
+            for index in state.items.indices where taskIDs.contains(state.items[index].id) {
+                state.items[index].reminded=true
+                if var plan=state.items[index].todoReminder {
+                    plan.pendingDates.removeAll { $0 <= now }
+                    var next=plan.pendingDates.min()
+                    if let minutes=plan.repeatMinutes, (1...10080).contains(minutes) {
+                        let repeated=now.addingTimeInterval(Double(minutes)*60)
+                        if plan.repeatUntil.map({ repeated <= $0 }) ?? true { next=min(next ?? repeated,repeated) }
+                    }
+                    state.items[index].todoReminder=plan
+                    if let next { state.items[index].due=next; state.items[index].reminded=false }
+                }
+            }
             for index in (state.screenSchedules ?? []).indices where scheduleIDs.contains(state.screenSchedules![index].id) {
                 ScreenReminderRules.advance(&state.screenSchedules![index],now:now)
             }
         }) else { return }
-        if !due.isEmpty { selected=due.first?.id; boardTab=1; notify("\(due.count)项待办到提醒时间了"); for item in due { agentNotice("due-"+item.id.uuidString+"-"+String((item.due ?? now).timeIntervalSince1970),"你的飞包提醒",item.title) } }
-        else if !scheduled.isEmpty { notify("\(scheduled.count)个定时提醒到时间了") }
+        if !due.isEmpty { selected=due.first?.id; boardTab=1 }
+        // Each event chooses one route. Todo reminders never enter the Agent/danmu feed.
+        let lightTitles=due.filter { $0.screenReminder == nil }.map(\.title) + scheduled.filter { $0.lightOnly == true }.map(\.title)
+        if let title=lightTitles.first { notify(lightTitles.count > 1 ? title+" · 还有\(lightTitles.count-1)项提醒" : title) }
         // A single desktop reminder represents this batch; no overlapping windows or
         // storm of catch-up animations after sleeping or a long offline period.
-        let candidates=due.compactMap { item in item.screenReminder.map { (item.title,$0) } } + scheduled.map { ($0.title,$0.style) }
+        let candidates=due.compactMap { item in item.screenReminder.map { (item.title,$0) } } + scheduled.filter { $0.lightOnly != true }.map { ($0.title,$0.style) }
         if let first=candidates.first {
             let title=candidates.count>1 ? "\(first.0) · 还有\(candidates.count-1)项提醒" : first.0
             do { presentScreenReminder(try screenReminderRequest(style:first.1,title:title)) }
-            catch { self.error=error.localizedDescription }
+            catch { self.error=error.localizedDescription; notify("提醒时间到了 · "+title+"（冲屏素材暂不可用）") }
         }
     }
     func tick(now: Date = Date()) {
-        if integrationEnabled { startNextArchive() }
-        expireDotClaims(now:now)
+        // The unified product monitors Agents; it no longer dispatches or resumes
+        // legacy material/AI/archive work. Old records remain available on disk.
         tickReminders(now:now)
         if integrationEnabled && now.timeIntervalSince(lastHubRefresh) > 600 { Task { await refreshHub() } }
     }

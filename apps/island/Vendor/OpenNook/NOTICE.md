@@ -60,3 +60,9 @@ removes the forced click between edge reveal and the host's expanded content.
 2026-10-25 build38: NookLiveActivity gains an opt-in keepsCompactVisible flag (default false). Activity changes and arbiter claims both preserve compact-slot visibility while that activity exists, without expanding or pinning the panel. The host uses it only for the independently enabled Codex quota badge; camera clearance and hover-exit behavior are unchanged.
 
 2026-10-25 build39: Replay the resident activities' compact-visibility flag when the activity subscription is first bound, so restarting with an existing quota preference restores side slots. No new presentation pin, authentication or message access.
+
+## 2026-10-27 统一产品融合
+- 从佑哥0.9.2移植 ModuleHost.setNavigationOrder，隐藏中台导航不卸载配置。
+- edgeDocked支持系统已有peekFirst偏好；移出结束hover拥有的peek，点击继续完整展开。
+- 收纳白色提示边缘限主体宽度65%且最多160pt，展开不套用窄遮罩。
+- `NookSurface/Nook+Peek.swift`：悬浮排队开始与 compact 转换返回后检查 transition generation、任务取消及鼠标仍在区域；收回悬浮也检查当前 generation，避免快速移入移出或新操作被旧任务覆盖。程序主动触发的 peek 不要求鼠标悬停。`Tests/UnifiedProductChecks/PeekTransitionChecks.swift` 提供不创建窗口的排队取消回归检查。

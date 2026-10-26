@@ -39,18 +39,9 @@ struct AgentQuotaCompactSummary {
 struct AgentQuotaCompactSlot:View,Sendable {
     @ObservedObject var store:AgentStore
     let leading:Bool
-    @ObservedObject private var catalog=AgentCatalogStore.shared
-    @ObservedObject private var workspace=WorkspaceStore.shared
     var body:some View {
         TimelineView(.periodic(from:.now,by:30)) { context in
-            let selected=catalog.selected(in:workspace)
-            let active=AgentActivityDisplay.activeAgent(snapshots:store.snapshots,preferences:store.preferences,fallback:selected.id,now:context.date.timeIntervalSince1970)
-            let snapshot=store.snapshots[active]
-            let hasWaiting=snapshot?.sessions.contains{$0.state == .waiting && context.date.timeIntervalSince1970-$0.updatedAt<900 && $0.updatedAt<=context.date.timeIntervalSince1970+60} ?? false
-            let sessionState=store.preferences.enabled && store.preferences.visibleIDs.contains(active) ? (hasWaiting ? .waiting : snapshot?.state(now:context.date.timeIntervalSince1970) ?? .unknown) : .unknown
-            let localWorking=workspace.disk.items.contains{$0.service==active && ["running","queued","dot_waiting","dot_running"].contains($0.state)}
-            let state:AgentState=localWorking && sessionState != .waiting ? .working:sessionState
-            let summary=AgentQuotaCompactSummary(quotas:snapshot?.quotas ?? [],refreshing:store.refreshing,now:context.date.timeIntervalSince1970,agentID:active,state:state,attentionReason:snapshot?.sessions.first{$0.state == .waiting}?.attentionReason,displayName:active==selected.id ? selected.name:nil)
+            let summary=AgentActivityDisplay.codexQuotaSummary(snapshots:store.snapshots,preferences:store.preferences,refreshing:store.refreshing,now:context.date.timeIntervalSince1970)
             AgentQuotaCompactBadge(summary:summary,leading:leading)
         }
     }
@@ -89,17 +80,22 @@ struct AgentPersistentCompactSlot:View,Sendable {
 struct AgentPersistentExpanded:View,Sendable {
     @ObservedObject var store:AgentStore
     var body:some View {
-        if store.preferences.quotaDisplayEnabled { AgentWorkHomeSurface() }
-        else { AgentPanel(store:store) }
+        UnifiedAgentIslandView(store:store)
     }
 }
 
 /// Waiting work wins over running work, then return to the selected Agent without mixing quotas.
 enum AgentActivityDisplay {
+    static func codexQuotaSummary(snapshots:[String:AgentSnapshot],preferences:AgentPreferences,refreshing:Bool,now:Double)->AgentQuotaCompactSummary {
+        let snapshot=snapshots["codex"]
+        let waiting=snapshot?.sessions.first { $0.state == .waiting && now-$0.updatedAt<900 && $0.updatedAt<=now+60 }
+        let state:AgentState=preferences.isMonitoring("codex") ? (waiting == nil ? snapshot?.state(now:now) ?? .unknown:.waiting):.unknown
+        return AgentQuotaCompactSummary(quotas:snapshot?.quotas ?? [],refreshing:refreshing,now:now,agentID:"codex",state:state,attentionReason:waiting?.attentionReason,displayName:"Codex")
+    }
     static func activeAgent(snapshots:[String:AgentSnapshot],preferences:AgentPreferences,fallback:String,now:Double)->String {
         guard preferences.enabled else { return fallback }
         for state in [AgentState.waiting,.working] {
-            if let id=([fallback]+preferences.visibleIDs.filter{$0 != fallback}).filter({preferences.visibleIDs.contains($0)}).first(where:{ snapshots[$0]?.sessions.contains(where:{$0.state==state && now-$0.updatedAt<900 && $0.updatedAt<=now+60}) == true }) { return id }
+            if let id=([fallback]+preferences.visibleIDs.filter{$0 != fallback}).filter({preferences.visibleIDs.contains($0) && preferences.isMonitoring($0)}).first(where:{ snapshots[$0]?.sessions.contains(where:{$0.state==state && now-$0.updatedAt<900 && $0.updatedAt<=now+60}) == true }) { return id }
         }
         return fallback
     }

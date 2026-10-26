@@ -94,7 +94,7 @@ func runChecks() async throws {
     expect(archives.completed.isEmpty && archives.pending.isEmpty && archives.archived.count == 1,
            "archive hides item from both normal lists")
     expect(archives.selectedID == nil && archives.savedID == nil, "archive clears detail and capture undo")
-    expect(archives.archiveDaysRemaining(archives.item(completedID)!) == 30, "new archive retains 30 days")
+    expect(archives.item(completedID)?.archiveExpiresAt == nil, "archives have no automatic expiration")
     let reopenArchive = TodoStore(directory: archiveRoot, now: { archiveClock })
     expect(reopenArchive.archived.count == 1 && reopenArchive.item(completedID)?.completedAt == completedAt,
            "archive and completion survive restart")
@@ -124,27 +124,27 @@ func runChecks() async throws {
     archives.checkDue()
     expect(archives.item(archivedFileID) != nil && fm.fileExists(atPath: archivedCopy.path),
            "one second before expiry keeps record and attachment")
-    expect(archives.archiveDaysRemaining(archives.item(archivedFileID)!) == 1, "remaining days rounds up before expiry")
+    expect(archives.item(archivedFileID)?.archiveExpiresAt == nil, "archive retention stays indefinite")
     let at29Days = TodoStore(directory: archiveRoot, now: { archiveClock })
     expect(at29Days.archived.count == 2, "restart before expiry preserves all archives")
     archiveClock = archiveClock.addingTimeInterval(1)
     archives.checkDue()
-    expect(archives.item(archivedFileID) == nil && archives.item(pendingID) == nil && archives.archived.isEmpty,
-           "timer permanently removes archives at exact 30-day boundary")
-    expect(!fm.fileExists(atPath: archivedCopy.path) && fm.fileExists(atPath: original.path),
-           "purge deletes only island copies and leaves original files intact")
-    expect(!archives.unarchive(archivedFileID), "expired item cannot be restored")
+    expect(archives.item(archivedFileID) != nil && archives.item(pendingID) != nil && archives.archived.count == 2,
+           "timer retains archives across the former 30-day boundary")
+    expect(fm.fileExists(atPath: archivedCopy.path) && fm.fileExists(atPath: original.path),
+           "long-term history retains both original and copied attachments")
+    expect(archives.unarchive(archivedFileID), "old history can still be restored")
     expect(archives.item(retainedID)?.completedAt != nil && archives.item(completedID) != nil,
            "age alone never purges unarchived tasks")
     expect(TodoStore(directory: archiveRoot, now: { archiveClock }).document == archives.document,
-           "permanent deletion persists after restart")
+           "long-term retention persists after restart")
     let startupID = await archives.capture(.files([original]))!
     let startupCopy = archives.attachmentURL(archives.item(startupID)!.attachments[0])!
     expect(archives.archive(startupID), "prepare archive expiring while app is closed")
     archiveClock = archiveClock.addingTimeInterval(30 * 86400)
     let afterExpiry = TodoStore(directory: archiveRoot, now: { archiveClock })
-    expect(afterExpiry.item(startupID) == nil && !fm.fileExists(atPath: startupCopy.path),
-           "launch clears expired archives and their copies without waiting for a timer")
+    expect(afterExpiry.item(startupID) != nil && fm.fileExists(atPath: startupCopy.path),
+           "launch preserves old archives and their attachments")
 
     // Missing optional fields in the original schema remain readable without a migration write.
     var legacyJSON = try JSONSerialization.jsonObject(with: JSONEncoder().encode(archives.document)) as! [String: Any]
@@ -181,8 +181,8 @@ func runChecks() async throws {
     expect(!afterExpiry.unarchive(failedID), "expired archive cannot bypass expiry after a purge write failure")
     try fm.removeItem(at: liveFile); try fm.moveItem(at: heldFile, to: liveFile)
     afterExpiry.purgeExpiredArchives()
-    expect(afterExpiry.item(failedID) == nil && !fm.fileExists(atPath: failedCopy.path),
-           "failed purge retries safely once storage is available")
+    expect(afterExpiry.item(failedID) != nil && fm.fileExists(atPath: failedCopy.path),
+           "retention never resumes destructive cleanup when storage recovers")
 
     let failureRoot = root.appendingPathComponent("unwritable")
     let failure = TodoStore(directory: failureRoot)

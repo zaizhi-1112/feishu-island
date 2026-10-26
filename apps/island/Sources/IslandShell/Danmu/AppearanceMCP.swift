@@ -3,7 +3,7 @@ import CoreFoundation
 
 // The Agent gets this appearance-only capability, never the browser bridge nonce.
 final class AppearanceMCP {
-    static let defaults: [String:Any] = ["version":1,"name":"中台默认","background":NSNull(),"foreground":NSNull(),"border":NSNull(),"fontSize":28,"corner":12,"motion":"scroll"]
+    static let defaults: [String:Any] = ["version":1,"name":"中台默认","background":NSNull(),"foreground":NSNull(),"border":NSNull(),"fontSize":28,"corner":12,"motion":"scroll","speed":100,"bubble":"none"]
     var appearance = defaults
     var revision = 0, savedRevision = 0
     var token: String?
@@ -20,7 +20,8 @@ final class AppearanceMCP {
             guard let n = a[key] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() else { return false }
             return n.doubleValue == Double(n.intValue) && range.contains(n.intValue)
         }
-        guard integer("version",1...1), integer("fontSize",22...44), integer("corner",0...24),
+        guard integer("version",1...1), integer("fontSize",22...44), integer("corner",0...24), integer("speed",40...240),
+              let bubble = a["bubble"] as? String, ["none","dark","light","custom"].contains(bubble),
               let name = a["name"] as? String, !name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty, name.utf16.count <= 40,
               let motion = a["motion"] as? String, ["scroll","static"].contains(motion) else { return nil }
         for key in ["background","foreground","border"] {
@@ -49,7 +50,7 @@ final class AppearanceMCP {
         case "ping": return result([:])
         case "tools/list": return result(["tools":[
             ["name":"read_appearance","description":"Read current personal appearance and local-save status. Keep the signed-in webpage open.","inputSchema":["type":"object","properties":[:],"additionalProperties":false]],
-            ["name":"update_appearance","description":"Patch personal appearance only. fontSize integer 22-44, corner 0-24, colors #RRGGBB or null (foreground/background together, contrast >=4.5); motion scroll/static, name 1-40 chars. Core settings are forbidden.","inputSchema":["type":"object","properties":["patch":["type":"object","properties":["name":["type":"string","minLength":1,"maxLength":40],"version":["const":1],"fontSize":["type":"integer","minimum":22,"maximum":44],"corner":["type":"integer","minimum":0,"maximum":24],"background":["type":["string","null"]],"foreground":["type":["string","null"]],"border":["type":["string","null"]],"motion":["enum":["scroll","static"]]],"additionalProperties":false]],"required":["patch"],"additionalProperties":false]]
+            ["name":"update_appearance","description":"Patch personal appearance only. fontSize integer 22-44, speed integer 40-240 pixels/second, bubble none/dark/light/custom, corner 0-24, colors #RRGGBB or null (foreground/background together, contrast >=4.5); motion scroll/static, name 1-40 chars. Core settings are forbidden.","inputSchema":["type":"object","properties":["patch":["type":"object","properties":["name":["type":"string","minLength":1,"maxLength":40],"version":["const":1],"fontSize":["type":"integer","minimum":22,"maximum":44],"corner":["type":"integer","minimum":0,"maximum":24],"speed":["type":"integer","minimum":40,"maximum":240],"bubble":["enum":["none","dark","light","custom"]],"background":["type":["string","null"]],"foreground":["type":["string","null"]],"border":["type":["string","null"]],"motion":["enum":["scroll","static"]]],"additionalProperties":false]],"required":["patch"],"additionalProperties":false]]
         ]])
         case "tools/call":
             let params = request["params"] as? [String:Any] ?? [:]

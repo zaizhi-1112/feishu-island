@@ -21,17 +21,17 @@ final class FeishuModule: NookModule {
         let preview = IslandRuntime.isSkinPreview
         store = FeishuStore(defaults: preview ? UserDefaults(suiteName:"local.zaizhi.feishu-island.skin-preview."+UUID().uuidString)! : demo ? UserDefaults(suiteName: "local.zaizhi.feishu-island.preview.demo." + UUID().uuidString)! : context.defaults,
                             live: Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview" && !args.contains("--self-test") && !demo && !preview, receivingDefault: demo, headlessRenderer: false)
+        FeishuStore.active = store
         if demo { store.loadDemo() }
-        if Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview", !args.contains("--self-test"), !preview { SettingsServer.shared.start(store: store) }
+        if Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview", !args.contains("--self-test"), !preview { SettingsServer.shared.start(store: store, nativeOnly: true) }
     }
     func makeConfiguration() -> NookConfiguration {
         var config = IslandHost.baseConfiguration(title: "飞书消息", symbol: "paperplane.fill")
         config.expandedWidth = 400
-        config.onFileDrop = { WorkspaceDrop.acceptFiles($0,store:.shared) }
         let store = store
-        config.setCompactLeading { WorkspaceDropMark(store:.shared) }
+        config.setCompactLeading { IslandCompactGlyph(symbol: "paperplane.fill") }
         config.setCompactTrailing { FeishuCompactView(store: store) }
-        config.setHome { WorkspaceDropSurface(store:.shared) { FeishuView(store:store) } }
+        config.setHome { FeishuView(store:store) }
         config.onReady = { [weak self] coordinator in
             guard let self else { return }
             IslandModuleNavigation.shared.bind(coordinator: coordinator)
@@ -46,6 +46,7 @@ final class FeishuModule: NookModule {
             }
             store.onCloseReader = { [weak coordinator] in coordinator?.hideNook() }
             store.start(activities: self.context.services.resolve(NookLiveActivitiesKey.self))
+            store.beginAutomaticConnectionIfNeeded()
             if ProcessInfo.processInfo.arguments.contains("--feishu-demo"), store.readingID != nil { store.onOpenReader() }
             RuntimeVerification.startIfRequested(coordinator: coordinator)
             SkinVerification.startIfRequested(coordinator: coordinator)

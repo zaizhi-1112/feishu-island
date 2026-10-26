@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import NookApp
 import SwiftUI
 
@@ -8,17 +9,28 @@ final class IslandModuleNavigation: ObservableObject {
     static let shared = IslandModuleNavigation()
     private weak var coordinator: AppCoordinator?
     @Published private(set) var appState: AppState?
+    private var subscriptions = Set<AnyCancellable>()
 
     func bind(coordinator: AppCoordinator) {
+        guard self.coordinator !== coordinator else { return }
         self.coordinator = coordinator
-        if appState !== coordinator.appState { appState = coordinator.appState }
+        appState = coordinator.appState
+        UnifiedSettingsWindow.shared.bind(appState: coordinator.appState)
+        IslandModuleAttention.shared.attach(coordinator)
+        UnifiedPlatformStore.shared.objectWillChange.sink { [weak self] _ in
+            Task { @MainActor in self?.refreshNavigation() }
+        }.store(in: &subscriptions)
+        refreshNavigation()
     }
     var surfaceWindowNumber:Int? { coordinator?.nookWindow?.windowNumber }
     func openFeishu() { coordinator?.switchModule(to: IslandHost.feishuID) }
     func openAgent() { coordinator?.switchModule(to: IslandHost.agentID) }
-    func openWorkspace() {
-        if WorkspaceStore.shared.boardTab == 0 { WorkspaceStore.shared.boardTab = 1 }
-        coordinator?.switchModule(to: IslandHost.workspaceID)
+    func openWorkspace() { coordinator?.switchModule(to: IslandHost.todoID) }
+    func refreshNavigation() {
+        guard let coordinator else { return }
+        let ids = [IslandHost.feishuID,IslandHost.agentID,IslandHost.todoID] + (UnifiedPlatformStore.shared.showInMainBar ? [IslandHost.platformID] : [])
+        if !ids.contains(coordinator.activeModuleID) { coordinator.switchModule(to: ids[0]) }
+        coordinator.moduleHost.setNavigationOrder(ids)
     }
     func toggleKeepOpen() { coordinator?.toggleKeepNookOpen() }
 }

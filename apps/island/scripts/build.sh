@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-$ROOT/.build/ModuleCache}"
+export SWIFT_MODULECACHE_PATH="$CLANG_MODULE_CACHE_PATH"
 cd "$ROOT"
 # SDK 27's SwiftUI macros require an Xcode plugin not shipped with this Mac's CLT.
 SDK="${ISLAND_SDK:-$(xcrun --sdk macosx --show-sdk-path)}"
@@ -10,8 +12,8 @@ if [[ ! -d "$SDK" ]]; then
 fi
 CONFIG="${ISLAND_CONFIGURATION:-release}"
 SCRATCH="${ISLAND_SCRATCH_PATH:-$ROOT/.build}"
-swift build --scratch-path "$SCRATCH" -j 2 --sdk "$SDK" -c "$CONFIG" --product YuIsland
-BIN_DIR="$(swift build --scratch-path "$SCRATCH" --sdk "$SDK" -c "$CONFIG" --show-bin-path)"
+swift build --disable-sandbox --scratch-path "$SCRATCH" -j 2 --sdk "$SDK" -c "$CONFIG" --product YuIsland
+BIN_DIR="$(swift build --disable-sandbox --scratch-path "$SCRATCH" --sdk "$SDK" -c "$CONFIG" --show-bin-path)"
 APP="${ISLAND_APP_OUTPUT:-$ROOT/dist/你的飞包.app}"
 [[ "$APP" = /* && "$APP" = *.app ]] || { echo 'ISLAND_APP_OUTPUT 必须是绝对 .app 路径' >&2; exit 1; }
 if [[ -n "${ISLAND_APP_OUTPUT:-}" && ( -e "$APP" || -L "$APP" ) ]]; then
@@ -33,16 +35,11 @@ cp "$ROOT/.build/hub-helper/feishu-hub-helper" "$APP/Contents/Helpers/feishu-hub
 cp "$BIN_DIR/YuIsland" "$APP/Contents/MacOS/YuIsland"
 swiftc -O -sdk "$SDK" "$ROOT/Sources/IslandShell/Agents/AgentHookProtocol.swift" "$ROOT/Sources/IslandShell/Agents/AgentModel.swift" "$ROOT/Sources/IslandShell/Agents/AgentBridge.swift" "$ROOT/Sources/IslandShell/Agents/WorkBuddyPendingTool.swift" "$ROOT/scripts/agent-status-helper.swift" -o "$APP/Contents/Helpers/agent-status-helper"
 codesign --force --sign - "$APP/Contents/Helpers/agent-status-helper"
-ISLAND_SDK="$SDK" bash "$ROOT/scripts/build-workbuddy-checkin-helper.sh"
-ditto "$ROOT/.build/workbuddy-checkin-helper/WorkBuddyCheckin.app" "$APP/Contents/Helpers/WorkBuddyCheckin.app"
 mkdir -p "$APP/Contents/Resources/SettingsWeb"
 cp "$ROOT/SettingsWeb/dist/"* "$APP/Contents/Resources/SettingsWeb/"
-mkdir -p "$APP/Contents/Resources/BrowserBridge"
-cp "$ROOT/BrowserBridge/doubao-work.js" "$APP/Contents/Resources/BrowserBridge/"
-mkdir -p "$APP/Contents/Resources/BrowserBridge/chrome-reader"
-for asset in manifest.json popup.html popup.css popup.js extract.js; do
-    cp "$ROOT/BrowserBridge/chrome-reader/$asset" "$APP/Contents/Resources/BrowserBridge/chrome-reader/"
-done
+mkdir -p "$APP/Contents/Resources/LOLPing"
+cp "$ROOT/Resources/LOLPing/"* "$APP/Contents/Resources/LOLPing/"
+cp "$ROOT/Distribution/开始使用.html" "$APP/Contents/Resources/开始使用.html"
 mkdir -p "$APP/Contents/Resources/ScreenReminder"
 for asset in rick-portal.mov SOURCE.txt; do
     cp "$ROOT/Resources/ScreenReminder/$asset" "$APP/Contents/Resources/ScreenReminder/"
@@ -54,17 +51,6 @@ cp "$ROOT/Vendor/OpenNook/NOTICE.md" "$APP/Contents/Resources/OpenNook-NOTICE.md
 cp -R "$ROOT/Vendor/OpenNook/ThirdPartyLicenses" "$APP/Contents/Resources/"
 if [[ -f "$ROOT/Resources/AppIcon.icns" ]]; then
     cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/"
-fi
-ISLAND_SDK="$SDK" bash "$ROOT/scripts/build-dot-auth-helper.sh"
-cp "$ROOT/.build/dot-auth-helper/feishu-dot-auth" "$APP/Contents/Helpers/feishu-dot-auth"
-if [[ -x "$ROOT/.build/tunnel-client/unpacked/tunnel-client" ]]; then
-    # Optional private Dot transport. Never packages an API key, project grant or runtime config.
-    [[ "$(shasum -a 256 "$ROOT/.build/tunnel-client/unpacked/tunnel-client" | cut -d ' ' -f 1)" == 'd8f165d8175fa9f813a113b6ef434aed25a384f765a69b3709228704e5347474' ]] || { echo 'Tunnel client checksum mismatch' >&2; exit 1; }
-    ISLAND_SDK="$SDK" bash "$ROOT/scripts/build-tunnel-helper.sh"
-    cp "$ROOT/.build/tunnel-auth-helper/feishu-tunnel-auth" "$APP/Contents/Helpers/feishu-tunnel-auth"
-    cp "$ROOT/.build/tunnel-client/unpacked/tunnel-client" "$APP/Contents/Helpers/tunnel-client"
-    mkdir -p "$APP/Contents/Resources/TunnelClientLicenses"
-    cp "$ROOT/.build/tunnel-client/unpacked/LICENSE" "$ROOT/.build/tunnel-client/unpacked/NOTICE" "$ROOT/.build/tunnel-client/unpacked/"*-licenses.txt "$APP/Contents/Resources/TunnelClientLicenses/"
 fi
 codesign --force --sign - "$APP"
 codesign --verify --strict "$APP"

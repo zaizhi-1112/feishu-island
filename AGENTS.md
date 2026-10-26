@@ -1,4 +1,13 @@
-# 飞书工作岛协作仓库
+# 2026-10-27 当前融合产品约定（覆盖下方旧功能入口）
+- 当前候选为你的飞包 0.9.0 build51，继续维护 apps/island。输入基准为宰治 build50、佑哥 0.9.2、桌面 LOLPingYourAI。来源和使用说明见 docs/fusion-20261027/。
+- 岛内四模块：飞书消息、Agent 状态、待办、中台。原生设置再加外观与交互。旧材料处理、AI 派任务和云端归档入口不注册、不调度，旧数据保留。
+- 待办唯一数据源仍 WorkspaceStore.workspace.json；完成历史长期保留，不按30天清理，重复导入幂等。提醒先保存消费再展示；锁屏不显示；轻提示与冲屏二选一。
+- Agent 仅监控；自定义只读取本人选择的状态 JSON。监测与展示独立，岛内最多3个，可排序；未知值不补零。
+- SettingsServer 生产使用 nativeOnly，仅保留中台 OAuth 回调，不启动旧 Dot、隧道或网页材料 API。设置为原生窗口，无浏览器配置依赖。
+- 构建 scripts/build.sh，显式 ISLAND_APP_OUTPUT 指向新目录。分发仅 lark-cli、feishu-hub-helper、agent-status-helper 三个组件，包含 LOLPing 许可与离线说明，不打包个人数据或凭据。
+- 合成检查包括 UnifiedProductChecks、UnifiedFeishuChecks、PlatformChecks、FusionChecks --unified-todo-check 及相关回归。真实登录、新消息、物理交互、多日运行单独记录。打包不自动替换日用版或部署公司服务。
+
+# 飞书工作岛协作仓库 · 历史记录
 - 目标：整合柚子岛外壳与飞书弹幕；当前本机工作版 0.7.0，增加材料、后台任务、待办与中台卡片。安装和真实接入仅限本人明确授权的这台设备；其他设备仍先合成验证。
 - apps/island：飞书工作岛 0.7.0（原生外壳、消息、材料/AI队列、待办、中台卡片和本机设置）；apps/danmu：飞书弹幕 0.7.1 网页及本机桥接，附原生 0.3.5、Electron 0.4.0；docs：融合与协作说明。
 - 先读 README.md、docs/融合与协作说明.html；按子目录 AGENTS.md 的适用范围开发。

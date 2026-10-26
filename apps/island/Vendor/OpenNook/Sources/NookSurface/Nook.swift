@@ -673,7 +673,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         // Honor a host's explicit expand intent at the screen edge as well.
         // Leaving still cancels the pending intent before this branch.
         if edgeDocked, state == .compact {
-            if hovering, hoverIntent.action == .expand { hoverEntered() }
+            if hovering { hoverEntered() }
+            else if peekStartedByHover { runEndPeek() }
             return
         }
 

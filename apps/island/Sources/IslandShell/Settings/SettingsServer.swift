@@ -28,8 +28,10 @@ final class SettingsServer {
     private var openSection = ""
     private var connections: [UUID: SettingsConnection] = [:]
 
-    func start(store: FeishuStore, listen: Bool = true, preferredPort: UInt16 = 18766) {
+    private var nativeOnly = false
+    func start(store: FeishuStore, listen: Bool = true, preferredPort: UInt16 = 18766, nativeOnly: Bool = false) {
         self.store = store
+        self.nativeOnly = nativeOnly
         agent.appearance = store.appearance
         agent.onChange = { [weak self, weak store] value in
             if store?.updateAppearance(value) == true { self?.agent.savedRevision = self?.agent.revision ?? 0 }
@@ -41,6 +43,7 @@ final class SettingsServer {
             unlockObserver = NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.sessionDidBecomeActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.sessionLocked = false } }
         }
         guard listen else { return }
+        if !nativeOnly {
         AgentStore.shared.statusNotice = { [weak store] id,source,text in store?.receiveAgentNotice(id:id,source:source,text:text) }
         (workspaceOverride ?? WorkspaceStore.shared).agentNotice = { [weak store] id,source,text in store?.receiveAgentNotice(id:id,source:source,text:text) }
         if dotEventTimer == nil {
@@ -53,6 +56,7 @@ final class SettingsServer {
                 await self.dotEvents.pump()
             } }
             if let dotEventTimer { RunLoop.main.add(dotEventTimer,forMode:.common) }
+        }
         }
         guard listener == nil else { return }
         self.listen(port: preferredPort)
@@ -96,16 +100,7 @@ final class SettingsServer {
         }
     }
     func open(section: String = "") {
-        if !section.isEmpty { openSection = section }
-        guard ready else {
-            openWhenReady = true
-            if listener == nil, let store { start(store: store) }
-            return
-        }
-        if openSection == "agents" { WorkspaceWindow.shared.openAgentStatus(store:.shared) }
-        else if openSection == "skins" { WorkspaceWindow.shared.openAgents(store:.shared) }
-        else { WorkspaceWindow.shared.openSettings(store:.shared) }
-        openSection = ""
+        UnifiedSettingsWindow.shared.open(section: section)
     }
     func copyWorkspaceConnection(store: WorkspaceStore) {
         guard !sessionLocked, let address else { store.error = "工作台未就绪，请解锁后重试。"; return }
@@ -145,6 +140,7 @@ final class SettingsServer {
         let host = "127.0.0.1:\(port)"
         guard headers["host"] == host else { return .error(403, "仅接受本机地址") }
         guard let url = URLComponents(string: path) else { return .error(400, "地址不正确") }
+        if nativeOnly && url.path != "/oauth/virxact/callback" { return .error(404, "请使用原生设置窗口。") }
         if url.path == "/api/chrome-import" {
             guard headers["origin"] == WorkChromeImport.origin, !sessionLocked else { return .error(403,"请解锁并使用你的飞包Chrome收录扩展。") }
             if method == "OPTIONS" { return SettingsResponse(status:200,contentType:"text/plain",body:Data(),chromeCORS:true) }

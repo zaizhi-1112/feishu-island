@@ -14,12 +14,20 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-HELPERS = { 'agent-status-helper', 'lark-cli', 'feishu-hub-helper', 'feishu-dot-auth', 'feishu-tunnel-auth', 'tunnel-client'}
-CHECKIN_FILES = {'Contents/Helpers/WorkBuddyCheckin.app/Contents/Info.plist', 'Contents/Helpers/WorkBuddyCheckin.app/Contents/MacOS/workbuddy-checkin-helper', 'Contents/Helpers/WorkBuddyCheckin.app/Contents/_CodeSignature/CodeResources'}
-RESOURCE_FILES = {'AppIcon.icns', 'LarkCLI-LICENSE', 'OpenNook-LICENSE', 'NookSurface-LICENSE', 'OpenNook-NOTICE.md'}
-RESOURCE_DIRS = {'ThirdPartyLicenses', 'TunnelClientLicenses'}
+HELPERS = {'agent-status-helper', 'lark-cli', 'feishu-hub-helper'}
+CHECKIN_FILES = set()
+RESOURCE_FILES = {'AppIcon.icns', 'LarkCLI-LICENSE', 'OpenNook-LICENSE', 'NookSurface-LICENSE', 'OpenNook-NOTICE.md', '开始使用.html'}
+RESOURCE_DIRS = {'ThirdPartyLicenses'}
 WEB_FILES = {'avatar-virxact.png', 'pet-codex.png', 'style.css', 'codex-atlas.webp', 'virxact-logo.svg', 'agent-codex.png', 'pet-workbuddy.svg', 'avatar-workbuddy.png', 'agent-workbuddy.png', 'avatar-codex.png', 'pet-workbuddy.png', 'avatar-claude.png', 'todos.js', 'skin-v2.css', 'agent-claude.png', 'app.js', 'brand-flow.json', 'index.html', 'skin-effects.js', 'virxact-logo.png', 'brand-geometry.json', 'pet-codex.svg', 'pet-claude.png', 'skins.json', 'pet-claude.svg'}
-EXTENSION_FILES = {'manifest.json', 'popup.html', 'popup.css', 'popup.js', 'extract.js'}
+# Native SkinManifest / SkinResources consume these assets directly. The three
+# JSON files are required at startup; the images keep all four native themes
+# complete. Legacy browser scripts are allowed source assets, not dependencies.
+REQUIRED_SKIN_FILES = {'skins.json', 'brand-geometry.json', 'brand-flow.json',
+                       'pet-codex.png', 'pet-claude.png', 'pet-workbuddy.png',
+                       'avatar-codex.png', 'avatar-claude.png', 'avatar-workbuddy.png',
+                       'avatar-virxact.png', 'virxact-logo.png', 'agent-codex.png'}
+EXTENSION_FILES = set()
+LOL_FILES = {'THIRD_PARTY_NOTICES.md', 'push.png', 'pingwheel_enemyvisionrender.png', 'LICENSE.txt', 'omw.png', 'all_in.png', 'need_vision.png', 'enemy_missing.png', 'pingwheel_retreatrender.png', 'generic_ping.png', 'Base.wav', 'assist_me.png'}
 REMINDER_FILES = {'rick-portal.mov', 'SOURCE.txt'}
 VOLUME_NAME = '你的飞包'
 VOLUME_METADATA = {'.DS_Store', '.fseventsd', '.Trashes', '.TemporaryItems', '.VolumeIcon.icns'}
@@ -63,10 +71,10 @@ def allowed(path):
         return parts[2] in RESOURCE_FILES
     if len(parts) == 4 and parts[2] == 'SettingsWeb':
         return parts[3] in WEB_FILES
+    if len(parts) == 4 and parts[2] == 'LOLPing':
+        return parts[3] in LOL_FILES
     if len(parts) == 4 and parts[2] == 'ScreenReminder':
         return parts[3] in REMINDER_FILES
-    if name == 'Contents/Resources/BrowserBridge/doubao-work.js':
-        return True
     if len(parts) == 5 and parts[2:4] == ('BrowserBridge', 'chrome-reader'):
         return parts[4] in EXTENSION_FILES
     if parts[2] in RESOURCE_DIRS:
@@ -91,8 +99,11 @@ def inspect(app):
     required |= CHECKIN_FILES
     required |= {'Contents/Resources/BrowserBridge/chrome-reader/' + x for x in EXTENSION_FILES}
     required |= {'Contents/Resources/ScreenReminder/' + x for x in REMINDER_FILES}
+    required |= {'Contents/Resources/LOLPing/' + x for x in LOL_FILES}
+    required |= {'Contents/Resources/SettingsWeb/' + x for x in REQUIRED_SKIN_FILES}
+    required.add('Contents/Resources/开始使用.html')
     if not required.issubset({e['path'] for e in entries}):
-        raise ValueError('Required runtime helpers or browser extension are missing')
+        raise ValueError('Required runtime helpers or resources are missing')
     with (app / 'Contents/Info.plist').open('rb') as f:
         info = plistlib.load(f)
     if info.get('CFBundleIdentifier') != 'local.zaizhi.feishu-island.preview':
@@ -103,9 +114,9 @@ def inspect(app):
 def verify_runtime(app):
     """Read-only verification; preserve the app and every helper's signing bytes."""
     subprocess.run(['codesign', '--verify', '--strict', str(app)], check=True, capture_output=True)
-    subprocess.run(['codesign', '--verify', '--strict', str(app/'Contents/Helpers/WorkBuddyCheckin.app')], check=True, capture_output=True)
     architectures = set(subprocess.check_output(['lipo', '-archs', str(app/'Contents/MacOS/YuIsland')], text=True).split())
-    for name in list(HELPERS) + ['WorkBuddyCheckin.app/Contents/MacOS/workbuddy-checkin-helper']:
+    for name in sorted(HELPERS):
+        subprocess.run(['codesign', '--verify', '--strict', str(app/'Contents/Helpers'/name)], check=True, capture_output=True)
         helper_archs = set(subprocess.check_output(['lipo', '-archs', str(app/'Contents/Helpers'/name)], text=True).split())
         if not architectures.issubset(helper_archs):
             raise ValueError('Helper architecture mismatch: ' + name)
@@ -184,7 +195,7 @@ def package(app, output):
                 'status': 'pilot-preparation', 'colleagueAccountVerified': False,
                 'notarized': False, 'includesPersonalCredentials': False,
                 'format': 'dmg', 'archive': archive.name, 'sha256': digest,
-                'installation': 'drag-to-applications', 'browserExtensionEmbedded': True,
+                'installation': 'drag-to-applications', 'browserExtensionEmbedded': False,
                 'finderLayout': layout,
                 'verification': {'imageIntegrity': True, 'readOnlyMounted': True,
                                  'bundleHashesMatch': True, 'signatureValid': True, 'detached': True},

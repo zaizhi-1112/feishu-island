@@ -105,7 +105,7 @@ Task { @MainActor in
     agents.previewQuotas([quota(10)], profileID: "workbuddy")
     check(hints()[modules[1]] != nil, "nonprimary visible Agent also warns")
     var prefs = agents.preferences; prefs.setVisibleIDs(["codex"]); try! agents.update(prefs)
-    check(hints()[modules[1]] == nil, "hidden Agent no longer warns")
+    check(hints()[modules[1]]?.contains("WorkBuddy") == true, "hidden Agent remains monitored and may warn")
     agents.previewQuotas([quota(9)])
     prefs = agents.preferences; prefs.quotaAlerts = false; try! agents.update(prefs)
     check(hints()[modules[1]] == nil, "warning preference respected")

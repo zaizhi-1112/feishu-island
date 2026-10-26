@@ -18,3 +18,13 @@ public struct FeishuConnection: Codable, Equatable, Sendable {
 func legacyDanmuConflict(_ executablePaths:[String]) -> Bool {
     executablePaths.contains { $0.hasSuffix("/FeishuDanmuWeb/launcher") || $0.hasSuffix("/Contents/MacOS/FeishuDanmu") || $0.hasSuffix("/飞书弹幕.app/Contents/MacOS/飞书弹幕") }
 }
+
+/// Kept pure so installing the product never tests a real account by accident.
+enum FeishuConnectionBootPolicy {
+    static func needsAuthorization(_ status: String) -> Bool {
+        ["公司登录或飞书授权已失效", "公司登录未就绪", "公司登录已过期"].contains { status.contains($0) }
+    }
+    static func shouldOffer(savedEnabled: Bool?, hasConnection: Bool) -> Bool {
+        savedEnabled == nil && !hasConnection
+    }
+}

@@ -54,7 +54,7 @@ final class IslandModuleAttention: ObservableObject {
         var result=Self.events(feishu:feishu,agents:agents,todos:todos)
         for item in workspace.disk.items where item.archivedAt == nil && item.state != "done" {
             if item.state == "succeeded" || (item.due.map{$0 <= Date()} ?? false) {
-                result[IslandHost.workspaceID,default:[:]][item.id.uuidString+":"+item.state]="任务待查看"
+                result[IslandHost.todoID,default:[:]][item.id.uuidString+":"+item.state]="任务待查看"
             }
         }
         return result

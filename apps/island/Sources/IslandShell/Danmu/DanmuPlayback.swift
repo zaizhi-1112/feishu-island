@@ -46,11 +46,18 @@ public final class DanmuPlayback {
         }
         overlay.skinForeground = color("foreground"); overlay.skinBackground = color("background"); overlay.skinBorder = color("border")
         overlay.skinCorner = CGFloat((appearance["corner"] as? NSNumber)?.doubleValue ?? 12)
+        overlay.movementSpeed = CGFloat((appearance["speed"] as? NSNumber)?.doubleValue ?? 100)
+        let bubble = appearance["bubble"] as? String ?? "none"
+        switch bubble {
+        case "dark": overlay.skinBackground = color("background") ?? NSColor(srgbRed: 0.08, green: 0.09, blue: 0.11, alpha: 0.90); overlay.skinForeground = color("foreground") ?? .white
+        case "light": overlay.skinBackground = color("background") ?? NSColor.white.withAlphaComponent(0.94); overlay.skinForeground = color("foreground") ?? NSColor(srgbRed: 0.1, green: 0.12, blue: 0.15, alpha: 1)
+        default: break
+        }
         // Desktop output is always a small moving line. Static/long reading stays
         // inside the island, even if an older appearance requested a desktop card.
         overlay.preferStatic = false
         overlay.allowsCards = false
-        overlay.backdrop = false
+        overlay.backdrop = bubble != "none"
     }
     static func isShortMessage(_ message: FeishuMessage) -> Bool {
         let body = message.text.trimmingCharacters(in: .whitespacesAndNewlines)

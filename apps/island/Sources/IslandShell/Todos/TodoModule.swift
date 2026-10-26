@@ -11,13 +11,31 @@ final class TodoModule: NookModule {
         return descriptor
     }()
     var descriptor: NookModuleDescriptor { Self.info }
-    init(context: NookModuleContext) {}
+    private let context:NookModuleContext
+    init(context: NookModuleContext) { self.context=context }
     func makeConfiguration() -> NookConfiguration {
         var config = IslandHost.baseConfiguration(title: "待办", symbol: "checklist")
-        config.setCompactTrailing { TodoCompactView(store: .shared) }
-        config.setHome { TodoPanel(store: .shared) }
+        config.setCompactTrailing { UnifiedTodoCompact(store:.shared) }
+        config.setHome { UnifiedTodoPanel(store:.shared) }
+        config.onReady = { [context] coordinator in
+            let store=WorkspaceStore.shared
+            IslandModuleNavigation.shared.bind(coordinator:coordinator)
+            store.openBoard = { [weak coordinator] in coordinator?.switchModule(to:IslandHost.todoID); coordinator?.showNook() }
+            store.notify = { title in
+                var activity=NookLiveActivity(id:"unified-todo-reminder",priority:.high,lifetime:.transient(.seconds(12)),alert:.compact(.seconds(5)),accessibilityLabel:title) {
+                    Image(systemName:"checklist").foregroundStyle(.orange)
+                } compactTrailing: { Text(title).font(.system(size:10)).lineLimit(1) } minimal: { Image(systemName:"checklist") }
+                activity.setExpanded { UnifiedTodoPanel(store:store) }
+                context.services.resolve(NookLiveActivitiesKey.self).start(activity)
+            }
+        }
         return config
     }
+}
+
+private struct UnifiedTodoCompact:View {
+    @ObservedObject var store:WorkspaceStore
+    var body:some View { Text("\(store.pendingTodos.count)项待办").font(.system(size:10,weight:.medium)) }
 }
 
 /// Starts once after the window is ready; it does not depend on the active module.

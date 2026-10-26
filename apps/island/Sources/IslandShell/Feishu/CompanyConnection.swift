@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import CryptoKit
 import WebKit
 
 /// The company gateway owns login; this private WebKit store never imports another
@@ -99,6 +100,22 @@ final class CompanyConnection: NSObject, @unchecked Sendable {
         }
         return result
     }
+    static func conversationStorageKey(userID: String, openID: String) -> String {
+        SHA256.hash(data: Data((userID + "\u{0}" + openID).utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+    func boundConversationStorageKey() -> String? {
+        guard let user = defaults.string(forKey: "island.company.user"),
+              let open = defaults.string(forKey: "island.company.receive.openID") else { return nil }
+        return Self.conversationStorageKey(userID: user, openID: open)
+    }
+    /// Invoked only after the native account-switch confirmation. The old archive
+    /// consumer no longer runs in this product; its local switch must not trap the
+    /// person behind a removed settings page. Server grants are not revoked here.
+    @MainActor func resetForNativeAccountSwitch() throws {
+        setEnabled(.receive, false)
+        setEnabled(.archive, false)
+        try reset()
+    }
     /// Explicit account reset is permitted only after both consumers are disabled.
     @MainActor func reset() throws {
         precondition(Thread.isMainThread)
@@ -122,6 +139,14 @@ final class CompanyConnection: NSObject, @unchecked Sendable {
         }
         if let web, !Self.allowed(web.url) || web.url?.path != "/connect.html" { web.load(URLRequest(url:Self.connectURL,cachePolicy:.reloadIgnoringLocalCacheData)); loading=true }
         window?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps:true)
+    }
+    @MainActor var isConnectionWindowVisible: Bool { window?.isVisible == true }
+    /// The first-run UI waits for the user's own login without changing any server
+    /// grants or importing cookies from another browser.
+    @MainActor func prepareReceive() async throws -> Credential {
+        try await withCheckedThrowingContinuation { continuation in
+            enqueue(.receive, preparing: true) { continuation.resume(with: $0) }
+        }
     }
     /// Explicit activation first prepares without changing the running mode,
     /// persisted identity or cache. The caller rechecks jobs/settings, then activates.

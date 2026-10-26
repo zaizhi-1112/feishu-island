@@ -2,10 +2,11 @@ import NookApp
 import SwiftUI
 
 public enum IslandHost {
-    public static let todoID = "local.zaizhi.feishu-island.preview.todos-legacy"
+    public static let todoID = "local.zaizhi.feishu-island.preview.todos"
+    public static let platformID = "local.zaizhi.feishu-island.preview.platform"
     public static let agentID = "local.zaizhi.feishu-island.preview.agents"
     static let panelWidth: CGFloat = 400
-    static let panelHeight: CGFloat = 326
+    static let panelHeight: CGFloat = 400
     public static let workspaceID = "local.zaizhi.feishu-island.preview.workspace"
     public static let homeID = "local.zaizhi.feishu-island.preview.home"
     public static let feishuID = "local.zaizhi.feishu-island.preview.feishu"
@@ -34,16 +35,18 @@ public enum IslandHost {
         }
         host.chromeBehavior.showsLaunchShimmer = false
         host.chromeBehavior.edgeDocked = true
-        host.chromeBehavior.hoverIntent = NookHoverIntent(action: .expand, delay: .milliseconds(150), externalDisplayDelay: .milliseconds(200))
+        // User preferences own both hover modes and persist through AppState.
+        host.chromeBehavior.hoverIntent = nil
         host.moduleSwitcherPlacement = .leadingCluster
         host.register(FeishuModule.info) { FeishuModule(context: $0) }
         host.register(AgentModule.info) { AgentModule(context: $0) }
-        host.register(WorkspaceModule.info) { WorkspaceModule(context: $0) }
+        host.register(TodoModule.info) { TodoModule(context: $0) }
+        host.register(UnifiedPlatformModule.info) { UnifiedPlatformModule(context: $0) }
         if ProcessInfo.processInfo.arguments.contains("--self-test") || Bundle.main.bundleIdentifier != "local.zaizhi.feishu-island.preview" {
             host.register(HomeModule.info) { HomeModule(context: $0) }
             host.register(SampleModule.info) { SampleModule(context: $0) }
         }
-        host.defaultModule = agentID
+        host.defaultModule = feishuID
         return host
     }
 
@@ -53,14 +56,14 @@ public enum IslandHost {
         config.expandedWidth = panelWidth
         config.allowsHorizontalModuleSwipe = true
         config.labels = IslandLabels.chinese
-        config.settingsGroups = [.appearance, .display, .shortcut, .about]
+        config.settingsGroups = [.appearance, .display, .about]
         config.setSettings { IslandSettingsView() }
         config.topBar.leadingTitle = { _ in title }
         config.topBar.leadingIcon = symbol
         // The island is a quick surface; the ordinary workbench owns all settings.
         config.topBar.showsSettings = false
         config.setTopBar { IntegrationTopBar(bar: $0) }
-        config.onDrop = { WorkspaceDrop.acceptPayload($0, store: .shared) }
+        config.setPeek { UnifiedIslandPeek(title: title, symbol: symbol) }
         config.setCompactLeading {
             AgentCompanionGlyph(store: .shared)
         }

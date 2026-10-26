@@ -91,7 +91,7 @@ struct TodoPanel: View {
                     .buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(theme.secondaryLabel)
                     .accessibilityIdentifier("island.todo.archive.back")
                 Text("归档（\(store.archived.count)）").font(.system(size: 19, weight: .semibold))
-                Text("归档后保留30天，期间可以恢复；到期后任务和岛内附件副本将彻底删除。应用退出期间到期的内容，会在下次启动时清理。")
+                Text("归档与附件长期保留，可随时恢复，不会按日期自动删除。")
                     .font(.system(size: 11)).foregroundStyle(theme.secondaryLabel)
                 if store.archived.isEmpty {
                     VStack(spacing: 8) {
@@ -104,7 +104,7 @@ struct TodoPanel: View {
                             Button { store.selectedID = item.id } label: {
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text(item.title).font(.system(size: 12, weight: .medium)).lineLimit(2)
-                                    Text("\(item.completedAt == nil ? "未完成" : "已完成") · \(store.archiveDaysRemaining(item))天后彻底删除")
+                                    Text("\(item.completedAt == nil ? "未完成" : "已完成") · 长期保留")
                                         .font(.system(size: 10)).foregroundStyle(theme.secondaryLabel)
                                 }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
                             }.buttonStyle(.plain)
@@ -157,7 +157,7 @@ struct TodoPanel: View {
             Button { store.archive(item.id) } label: {
                 Image(systemName: "archivebox").font(.system(size: 13)).foregroundStyle(theme.secondaryLabel)
                     .frame(width: 24, height: 28)
-            }.buttonStyle(.plain).help("归档，30天内可恢复，之后彻底删除")
+            }.buttonStyle(.plain).help("归档到长期历史，可恢复")
                 .accessibilityLabel("归档：\(item.title)")
                 .accessibilityIdentifier("island.todo.archive.\(item.id)")
         }.padding(11).modifier(IslandCard(radius: 12))
@@ -240,7 +240,7 @@ private struct TodoDetail: View {
                         Label("归档", systemImage: "archivebox").frame(maxWidth: .infinity)
                     }.buttonStyle(IslandButtonStyle())
                         .accessibilityIdentifier("island.todo.detail.archive")
-                    Text("归档后从列表隐藏，30天内可恢复，之后任务和岛内附件副本将彻底删除。")
+                    Text("归档后从当前列表隐藏，历史与附件长期保留。")
                         .font(.system(size: 10)).foregroundStyle(theme.secondaryLabel)
                 }
             }.padding(14)

@@ -4,6 +4,18 @@ import SwiftUI
 
 @MainActor
 public final class FeishuStore: ObservableObject {
+    static weak var active: FeishuStore?
+    @Published private(set) var connecting = false
+    @Published private(set) var connectionHint: String?
+    private var connectionTask: Task<Void, Never>?
+    private var connectionAttempt: UUID?
+    private var offeredAuthorizationRecovery = false
+    private(set) var rulesConfigurationReadable = true
+    var hasSavedConnection: Bool { defaults.data(forKey: "connection") != nil || CompanyConnection.shared.isEnabled(.receive) }
+    var canResumeSavedConnection: Bool {
+        hasSavedConnection && (connection.profile != CompanyConnection.profile || CompanyConnection.shared.isEnabled(.receive))
+    }
+
     @Published public private(set) var messages: [FeishuMessage] = []
     @Published private(set) var readingID: String?
     private(set) var readingQueue: [String] = []
@@ -25,7 +37,7 @@ public final class FeishuStore: ObservableObject {
     public let playback: DanmuPlayback
     @Published public private(set) var danmu: DanmuOptions
     @Published public private(set) var connection: FeishuConnection
-    var appearance: [String:Any]
+    @Published var appearance: [String:Any]
     var allowsDirectoryLookup: Bool { live }
 
     private var activities: NookLiveActivities?
@@ -39,8 +51,14 @@ public final class FeishuStore: ObservableObject {
 
     public init(defaults: UserDefaults, live: Bool = false, receivingDefault: Bool = true, headlessRenderer: Bool? = nil) {
         self.defaults = defaults; self.live = live
-        rules = defaults.data(forKey: "reminderRules").flatMap { try? JSONDecoder().decode(FeishuReminderRules.self, from: $0) } ?? .init()
-        customRules = defaults.data(forKey: "customRules").flatMap { try? JSONDecoder().decode(FeishuCustomRules.self, from: $0) } ?? .init()
+        let savedRules = defaults.data(forKey: "reminderRules")
+        let savedCustom = defaults.data(forKey: "customRules")
+        let decodedRules = savedRules.flatMap { try? JSONDecoder().decode(FeishuReminderRules.self, from: $0) }
+        let decodedCustom = savedCustom.flatMap { try? JSONDecoder().decode(FeishuCustomRules.self, from: $0) }
+        rules = decodedRules ?? .init()
+        customRules = decodedCustom ?? .init()
+        rulesConfigurationReadable = (defaults.object(forKey: "reminderRules") == nil || decodedRules != nil)
+            && (defaults.object(forKey: "customRules") == nil || decodedCustom != nil && decodedCustom?.validationError == nil)
         settingsRevision = defaults.integer(forKey: "settingsRevision")
         enabled = defaults.object(forKey: "enabled") as? Bool ?? receivingDefault
         danmu = defaults.data(forKey: "danmu").flatMap { try? JSONDecoder().decode(DanmuOptions.self, from: $0) } ?? .init()
@@ -54,8 +72,23 @@ public final class FeishuStore: ObservableObject {
         reader = AccountReader(cli:URL(fileURLWithPath:initialConnection.cliPath),profile:initialConnection.profile)
         wireReader()
         playback.configure(danmu,appearance:appearance)
+        if rulesConfigurationReadable, !defaults.bool(forKey: "unifiedConversationsV1") {
+            var next = customRules; next.consolidate(followed: rules.followedChats ? followed : [])
+            if next.validationError == nil {
+                customRules = next; followed.removeAll(); rules.followedChats = false
+                defaults.set(try? JSONEncoder().encode(next), forKey: "customRules")
+                defaults.set(try? JSONEncoder().encode(rules), forKey: "reminderRules")
+                defaults.removeObject(forKey: "followed")
+                defaults.set(true, forKey: "unifiedConversationsV1")
+            }
+        }
         if !enabled { status = "接收已停止" }
         if !live && IslandRuntime.isSkinPreview { status = "皮肤预览 · 未连接飞书"; account = "独立预览" }
+        if !rulesConfigurationReadable {
+            enabled = false // Do not replace the saved preference or original rule bytes.
+            status = "消息规则读取失败，接收已暂停。原设置已保留，请恢复设置后再接收。"
+            actionError = status
+        }
     }
 
     #if DEBUG
@@ -66,7 +99,17 @@ public final class FeishuStore: ObservableObject {
     #endif
     private func wireReader() {
         reader.onMessage = { [weak self] in self?.receive($0) }
-        reader.onStatus = { [weak self] in self?.status = $0 }
+        reader.onStatus = { [weak self] status in
+            guard let self else { return }
+            self.status = status
+            if status.hasPrefix("账号接收中") { self.offeredAuthorizationRecovery = false }
+            guard self.live, self.enabled, !self.connecting, !self.playback.suspended,
+                  self.connection.profile == CompanyConnection.profile,
+                  !self.offeredAuthorizationRecovery, FeishuConnectionBootPolicy.needsAuthorization(status) else { return }
+            self.offeredAuthorizationRecovery = true
+            self.connectionHint = "登录已过期，请在连接窗口重新授权；完成后会自动恢复接收。"
+            CompanyConnection.shared.open()
+        }
         reader.onAccount = { [weak self] in self?.account = $0 }
         playback.checkUnread = { [weak self] id, completion in
             guard let self, self.enabled else { completion(false); return }
@@ -76,7 +119,7 @@ public final class FeishuStore: ObservableObject {
     }
     @discardableResult
     public func updateConnection(_ value: FeishuConnection) -> Bool {
-        guard value.valid else { return false }
+        guard value.valid, rulesConfigurationReadable else { return false }
         if value == connection { return true }
         reader.stop(); enabled = false; defaults.set(false,forKey:"enabled")
         playback.resetAccount(); messages.removeAll(); pendingAlert?.cancel(); pendingAlert = nil; pendingCount = 0; activities?.end("messages")
@@ -109,6 +152,128 @@ public final class FeishuStore: ObservableObject {
         let message = FeishuMessage(raw:["message_id":"demo_" + UUID().uuidString,"sender":["id":"ou_demo","sender_name":"合成示例"],"msg_type":"text","body":["content":"{\"text\":\"透明试播\"}"]],chatID:"oc_demo",chatName:"演示",chatKind:"p2p",ownID:"")
         receive(message)
     }
+    /// Fresh installs open the existing native authorization window once. Existing
+    /// paused receivers remain paused; an enabled receiver restores in start().
+    func beginAutomaticConnectionIfNeeded() {
+        guard live, rulesConfigurationReadable, !defaults.bool(forKey: "firstConnectionOfferedV1") else { return }
+        defaults.set(true, forKey: "firstConnectionOfferedV1")
+        guard FeishuConnectionBootPolicy.shouldOffer(savedEnabled: defaults.object(forKey: "enabled") as? Bool,
+                                                      hasConnection: hasSavedConnection) else { return }
+        beginCompanyConnection()
+    }
+    func beginCompanyConnection() {
+        guard rulesConfigurationReadable else { connectionHint = "消息规则无法读取，原设置已保留，请先恢复。"; return }
+        guard live else { connectionHint = "合成预览不连接真实账号。"; return }
+        guard !connecting else { CompanyConnection.shared.open(); return }
+        guard !enabled else { CompanyConnection.shared.open(); connectionHint = "接收正在运行。如需更换账号，请先停止接收。"; return }
+        let company = CompanyConnection.shared
+        company.open()
+        let attempt = UUID(), revision = settingsRevision
+        connectionAttempt = attempt; connecting = true; connectionHint = "请在连接窗口登录并授权飞书，只读取你的新消息。"
+        connectionTask = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                if self.connectionAttempt == attempt { self.connecting = false; self.connectionTask = nil; self.connectionAttempt = nil }
+            }
+            let deadline = Date().addingTimeInterval(600)
+            while !Task.isCancelled, self.connectionAttempt == attempt, Date() < deadline {
+                do {
+                    let credential = try await company.prepareReceive()
+                    guard !Task.isCancelled, self.connectionAttempt == attempt else { return }
+                    guard !self.enabled, self.settingsRevision == revision, !self.playback.suspended else {
+                        self.connectionHint = "设置或登录状态已变化，未切换账号；可重新连接。"; return
+                    }
+                    if let conflict = self.receiveConflict { self.connectionHint = conflict; return }
+                    try company.activate(credential, purpose: .receive)
+                    guard self.updateConnection(FeishuConnection(profile: CompanyConnection.profile)) else {
+                        self.connectionHint = "本机连接配置无效，请重新打开连接。"; return
+                    }
+                    if self.defaults.bool(forKey: "restoreConversationAfterAccountSwitch") {
+                        self.restoreConversationSnapshot(key: CompanyConnection.conversationStorageKey(userID: credential.userID, openID: credential.openID))
+                        self.defaults.removeObject(forKey: "restoreConversationAfterAccountSwitch")
+                    }
+                    self.account = credential.userName
+                    self.updateSettings(enabled: true, rules: self.rules)
+                    self.connectionHint = "已连接，后续启动自动恢复接收。"
+                    return
+                } catch {
+                    guard !Task.isCancelled, self.connectionAttempt == attempt else { return }
+                    if !company.isConnectionWindowVisible {
+                        self.connectionHint = "授权窗口已关闭。点击连接即可继续。"; return
+                    }
+                    self.connectionHint = (error as? AccountFailure)?.detail ?? "等待你完成登录和飞书授权…"
+                    try? await Task.sleep(for: .seconds(3))
+                }
+            }
+            if self.connectionAttempt == attempt { self.connectionHint = "这次连接已暂停，可点击连接继续。" }
+        }
+    }
+    func cancelConnection() {
+        connectionTask?.cancel(); connectionTask = nil; connectionAttempt = nil; connecting = false
+        connectionHint = "连接已暂停。"
+    }
+    private struct ConversationSnapshot: Codable {
+        let rules: FeishuReminderRules
+        let custom: FeishuCustomRules
+        let followed: [String]
+    }
+    func saveConversationSnapshot(key: String) {
+        guard rulesConfigurationReadable,
+              let data = try? JSONEncoder().encode(ConversationSnapshot(rules: rules, custom: customRules, followed: followed.sorted())) else { return }
+        defaults.set(data, forKey: "accountConversationRules." + key)
+    }
+    func restoreConversationSnapshot(key: String) {
+        guard rulesConfigurationReadable,
+              let data = defaults.data(forKey: "accountConversationRules." + key),
+              let saved = try? JSONDecoder().decode(ConversationSnapshot.self, from: data),
+              saved.custom.validationError == nil else { return }
+        var restored = saved.custom
+        restored.consolidate(followed: saved.rules.followedChats ? Set(saved.followed) : [])
+        guard restored.validationError == nil else { return }
+        var restoredRules = saved.rules; restoredRules.followedChats = false
+        updateSettings(enabled: enabled, rules: restoredRules, custom: restored)
+    }
+    func requestCompanyAccountSwitch() {
+        guard live, rulesConfigurationReadable else { connectionHint = live ? "请先恢复原消息规则。" : "合成预览不切换真实账号。"; return }
+        let alert = NSAlert()
+        alert.messageText = "更换本应用连接的飞书账号？"
+        alert.informativeText = "这会停止本应用接收，并清除本应用保存的登录绑定；旧版材料归档连接也会停用。不会退出飞书客户端，也不会删除待办、历史、素材或聊天。当前会话提醒规则按账号保留，登录另一账号后不会沿用。"
+        alert.addButton(withTitle: "更换账号"); alert.addButton(withTitle: "取消")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let company = CompanyConnection.shared
+        let previousKey = company.boundConversationStorageKey()
+            ?? CompanyConnection.conversationStorageKey(userID: "legacy-profile", openID: connection.profile + "@" + connection.cliPath)
+        saveConversationSnapshot(key: previousKey)
+        cancelConnection()
+        if enabled { toggleReceiving() }
+        do {
+            try company.resetForNativeAccountSwitch()
+            defaults.set(true, forKey: "restoreConversationAfterAccountSwitch")
+            guard updateConnection(FeishuConnection(profile: CompanyConnection.profile)) else {
+                throw AccountFailure(detail: "本机连接配置无效，未开始新账号接收。")
+            }
+            // Stable IDs from the previous identity must not follow another user.
+            updateSettings(enabled: false, rules: rules, custom: .init())
+            followed.removeAll(); defaults.removeObject(forKey: "followed")
+            playback.resetAccount(); messages.removeAll(); closeReader(); readingPages.removeAll()
+            offeredAuthorizationRecovery = false; account = "尚未连接"; status = "请连接新的飞书账号。"
+            beginCompanyConnection()
+        } catch { connectionHint = (error as? AccountFailure)?.detail ?? "本应用登录未能重置，请重试。" }
+    }
+    func setConversation(_ target: FeishuRuleTarget, mode: FeishuReminderMode?) {
+        var next = customRules
+        if target.id.hasPrefix("ou_") {
+            next.people.removeAll { $0.id == target.id }
+            if let mode { next.people.append(.init(target: target, mode: mode)) }
+        } else {
+            next.conversations.removeAll { $0.id == target.id }
+            next.groups.removeAll { $0.id == target.id }
+            if let mode { next.conversations.append(.init(target: target, mode: mode)) }
+        }
+        guard next.validationError == nil else { actionError = next.validationError; return }
+        updateSettings(enabled: enabled, rules: rules, custom: next)
+    }
+    var conversationRules: [FeishuTargetRule] { customRules.conversations + customRules.people + customRules.groups }
     func start(activities: NookLiveActivities) {
         self.activities = activities
         guard !started else { return }; started = true
@@ -171,7 +336,7 @@ public final class FeishuStore: ObservableObject {
         } compactTrailing: {
             Text("\(self.readingQueue.count)条").font(.system(size: 10))
         } minimal: { IslandCompactGlyph(symbol: "paperplane.fill") }
-        activity.setExpanded { WorkspaceDropSurface(store:.shared) { FeishuView(store:self) } }
+        activity.setExpanded { FeishuView(store:self) }
         activities?.start(activity)
     }
     var deliveryDiagnostics: [String: Any] {
@@ -205,12 +370,13 @@ public final class FeishuStore: ObservableObject {
         return nil
     }
     private func startReaderIfAllowed() {
-        guard live, enabled else { return }
+        guard live, enabled, rulesConfigurationReadable else { return }
         if let conflict = receiveConflict {
             reader.stop(); enabled = false; defaults.set(false,forKey:"enabled"); playback.clear(); status = conflict; actionError = conflict
         } else { reader.start() }
     }
     public func toggleReceiving() {
+        guard rulesConfigurationReadable else { actionError = "原消息规则无法读取，已保留设置并暂停接收。"; return }
         if !enabled, let conflict = receiveConflict { actionError = conflict; status = conflict; return }
         enabled.toggle(); defaults.set(enabled, forKey: "enabled")
         bumpSettingsRevision()
@@ -226,6 +392,7 @@ public final class FeishuStore: ObservableObject {
         settingsRevision += 1; defaults.set(settingsRevision, forKey: "settingsRevision")
     }
     public func updateSettings(enabled: Bool, rules: FeishuReminderRules, custom: FeishuCustomRules? = nil) {
+        guard rulesConfigurationReadable else { actionError = "原消息规则无法读取，未覆盖设置。"; return }
         let nextCustom = custom ?? customRules
         guard nextCustom.validationError == nil else { return }
         if self.enabled != enabled { toggleReceiving() }

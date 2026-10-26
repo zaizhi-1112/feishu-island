@@ -580,6 +580,13 @@ final class FusionTests {
             } catch { print("FAIL: "+error.localizedDescription);exit(1) }; return
         }
         let tests = FusionTests()
+        if CommandLine.arguments.contains("--unified-todo-check") {
+            do { try await tests.testUnifiedTodoPersistenceAndReminders() }
+            catch { failures.append("Unified todo check failed: " + error.localizedDescription) }
+            if failures.isEmpty { print("PASS: \(checks) unified todo assertions; synthetic storage only; native window remained hidden") }
+            else { print("FAIL: " + failures.joined(separator:", ")); exit(1) }
+            return
+        }
         if CommandLine.arguments.contains("--show-workbench-fixture") {
             do { try await tests.showWorkspaceDeskFixture() }
             catch { print("FAIL: synthetic workbench fixture: " + error.localizedDescription); exit(1) }
@@ -619,35 +626,67 @@ final class FusionTests {
             do { try await tests.testArchiveLive() } catch { print("FAIL: "+error.localizedDescription); exit(1) }; return
         }
         do {
+            print("CHECK: testUnifiedTodoPersistenceAndReminders")
+            try await tests.testUnifiedTodoPersistenceAndReminders()
+            print("CHECK: testScreenReminderSchedulingAndTransparency")
             try await tests.testScreenReminderSchedulingAndTransparency()
+            print("CHECK: testWorkspaceIslandHeightContract")
             try await tests.testWorkspaceIslandHeightContract()
+            print("CHECK: testAgentWorkspaceComposition")
             try await tests.testAgentWorkspaceComposition()
+            print("CHECK: testWorkBuddyDispatchContract")
             try tests.testWorkBuddyDispatchContract()
+            print("CHECK: testDailyWorkBuddySchedulingAndRecovery")
             try tests.testDailyWorkBuddySchedulingAndRecovery()
+            print("CHECK: testQuotaCompactLayout")
             try await tests.testQuotaCompactLayout()
+            print("CHECK: testCompanyConnectionBoundary")
             try tests.testCompanyConnectionBoundary()
+            print("CHECK: testCompanyActivationIsolation")
             try await tests.testCompanyActivationIsolation()
+            print("CHECK: testDotPairingAndDelegation")
             try await tests.testDotPairingAndDelegation()
+            print("CHECK: testDotEvents")
             try await tests.testDotEvents()
+            print("CHECK: testArchiveAutomation")
             try tests.testArchiveAutomation()
+            print("CHECK: testWebMaterial")
             try await tests.testWebMaterial()
+            print("CHECK: testAgentNoticeRoutingAndTiming")
             try tests.testAgentNoticeRoutingAndTiming()
+            print("CHECK: testIntegratedArchiveAndPrivacyDefaults")
             try tests.testIntegratedArchiveAndPrivacyDefaults()
+            print("CHECK: testTaskEditingTrashAndRestore")
             try tests.testTaskEditingTrashAndRestore()
+            print("CHECK: testWorkspacePersistenceRemindersAndOAuthBoundary")
             try await tests.testWorkspacePersistenceRemindersAndOAuthBoundary()
+            print("CHECK: testFreshInstallIsStoppedAndRendererIsLazy")
             await tests.testFreshInstallIsStoppedAndRendererIsLazy()
+            print("CHECK: testOneEventFeedsListAndOptionalRendererWithoutDuplicates")
             await tests.testOneEventFeedsListAndOptionalRendererWithoutDuplicates()
+            print("CHECK: testMutePauseStopAndRulesAreSeparate")
             await tests.testMutePauseStopAndRulesAreSeparate()
+            print("CHECK: testExpandedIslandStillReceivesAndPresentsDesktopDanmu")
             await tests.testExpandedIslandStillReceivesAndPresentsDesktopDanmu()
+            print("CHECK: testDesktopSkipsReadAndLongMessagesWithoutLosingIslandContent")
             await tests.testDesktopSkipsReadAndLongMessagesWithoutLosingIslandContent()
+            print("CHECK: testIslandHorizontalSwipeIntentAndLifetime")
             tests.testIslandHorizontalSwipeIntentAndLifetime()
+            print("CHECK: testOrdinaryAndBlockedMessagesDoNotBecomeDanmu")
             await tests.testOrdinaryAndBlockedMessagesDoNotBecomeDanmu()
+            print("CHECK: testConnectionSwitchStopsAndClearsOldAccount")
             await tests.testConnectionSwitchStopsAndClearsOldAccount()
+            print("CHECK: testHiddenRealRendererMovesAndPreservesCompleteLongText")
             await tests.testHiddenRealRendererMovesAndPreservesCompleteLongText()
+            print("CHECK: testUnreadIsRecheckedAndQueueIsBounded")
             await tests.testUnreadIsRecheckedAndQueueIsBounded()
+            print("CHECK: testManualCardPagingAndSenderLabels")
             try await tests.testManualCardPagingAndSenderLabels()
+            print("CHECK: testLongMessagesUseIslandAndKeepReaderUntilFinished")
             try await tests.testLongMessagesUseIslandAndKeepReaderUntilFinished()
+            print("CHECK: testSettingsConflictValidationAndAppearanceCapability")
             try await tests.testSettingsConflictValidationAndAppearanceCapability()
+            print("CHECK: testSyntheticCLIThroughStoreToBothOutputs")
             try await tests.testSyntheticCLIThroughStoreToBothOutputs()
         } catch { failures.append("Synthetic integration check failed: "+error.localizedDescription) }
         if failures.isEmpty { print("PASS: \(checks) fusion assertions; all renderer windows remained hidden; no real account calls") }

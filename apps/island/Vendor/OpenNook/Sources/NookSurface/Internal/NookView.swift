@@ -244,7 +244,11 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                         .frame(height: layout.isRetracted ? 0 : layout.contentOffset)
                 }
                 .mask(alignment: .top) {
-                    Rectangle().frame(height: layout.visibleHeight).offset(y: layout.visibleTop)
+                    GeometryReader { geometry in
+                        RoundedRectangle(cornerRadius: layout.isRetracted ? 2 : 0)
+                            .frame(width: layout.isRetracted ? min(160, geometry.size.width * 0.65) : geometry.size.width, height: layout.visibleHeight)
+                            .position(x: geometry.size.width / 2, y: layout.visibleTop + layout.visibleHeight / 2)
+                    }
                 }
                 .contentShape(EdgeDockHitShape(top: layout.visibleTop, height: layout.visibleHeight))
                 .onHover(perform: nook.updateChromeHoverState)

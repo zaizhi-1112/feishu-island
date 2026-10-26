@@ -19,7 +19,7 @@ extension FusionTests {
         let evidence=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent(".build/agent-workspace-layout")
         try FileManager.default.createDirectory(at:evidence,withIntermediateDirectories:true)
         XCTAssertEqual(AgentWorkProvider.allCases.map(\.rawValue),["codex","dot","doubao","workbuddy"])
-        XCTAssertEqual(IslandHost.configuration().defaultModule,IslandHost.agentID)
+        XCTAssertEqual(IslandHost.configuration().defaultModule,IslandHost.feishuID)
         func descendants(_ view:NSView)->[NSView] { view.subviews.flatMap{[$0]+descendants($0)} }
         XCTAssertEqual(catalog.entries.map(\.id),["codex","claude","workbuddy","dot","doubao"])
         XCTAssertNil(catalog.add(name:"合成助手",url:"https://example.com/assistant"))

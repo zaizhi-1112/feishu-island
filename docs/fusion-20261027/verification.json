@@ -1,0 +1,59 @@
+{
+  "version": "0.9.0",
+  "build": 51,
+  "synthetic_suites": {
+    "fusion": 1149,
+    "agent": 703,
+    "feishu": 49,
+    "island": 104,
+    "navigation": 49,
+    "legacy_todo": 85,
+    "platform": 57,
+    "product_with_peek_cancellation": 30,
+    "packaging_unittest": 12
+  },
+  "runtime_smoke": {
+    "test_identity": true,
+    "changed_test_identity_and_signature_only": true,
+    "checks": {
+      "expandCollapse": true,
+      "expanded": true,
+      "finalCollapse": true,
+      "firstMouseAccepted": true,
+      "hotkeyRegistered": true,
+      "noIslandSettingsPage": true,
+      "onlyUsefulModules": true,
+      "screenRebuild": true,
+      "settings": true,
+      "settings.agents": true,
+      "settings.appearance": true,
+      "settings.messages": true,
+      "settings.platform": true,
+      "settings.todos": true,
+      "switchBackToFeishu": true,
+      "switchToAgents": true,
+      "switchToFeishu": true,
+      "switchToPlatform": true,
+      "switchToTodos": true,
+      "wakeRebuild": true
+    },
+    "passed": true,
+    "physicalHotPlugTested": false
+  },
+  "dmg": {
+    "sha256": "897700646ff0ae9ab4ed4d659f915c3425e6e31ec3e62ffb269864d0df3b986d",
+    "architectures": [
+      "arm64"
+    ],
+    "imageVerified": true,
+    "mountedReadOnly": true,
+    "bundleHashesMatched": true,
+    "signatureVerified": true,
+    "unmounted": true,
+    "notarized": false
+  },
+  "realAccountCalls": false,
+  "dailyAppReplaced": false,
+  "productionDeployed": false,
+  "mainMerged": false
+}

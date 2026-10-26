@@ -16,7 +16,9 @@ class DistributionChecks(unittest.TestCase):
         # Retain generated fixtures; do not irreversibly remove filesystem content.
         directory = Path(tempfile.mkdtemp(prefix='island-package-synthetic-'))
         app = directory/'你的飞包.app'
-        files = {'Contents/MacOS/YuIsland', 'Contents/Resources/AppIcon.icns'}
+        files = {'Contents/MacOS/YuIsland', 'Contents/Resources/AppIcon.icns', 'Contents/Resources/开始使用.html'}
+        files |= {'Contents/Resources/LOLPing/'+name for name in m.LOL_FILES}
+        files |= {'Contents/Resources/SettingsWeb/'+name for name in m.REQUIRED_SKIN_FILES}
         files |= {'Contents/Helpers/'+name for name in m.HELPERS}
         files |= m.CHECKIN_FILES
         files |= {'Contents/Resources/BrowserBridge/chrome-reader/'+name for name in m.EXTENSION_FILES}
@@ -37,7 +39,7 @@ class DistributionChecks(unittest.TestCase):
             with self.subTest(name=name): self.assertFalse(m.allowed(Path(name)))
 
     def test_accepts_only_known_runtime_assets(self):
-        for name in ['Contents/Info.plist', 'Contents/Resources/AppIcon.icns', 'Contents/MacOS/YuIsland', 'Contents/Helpers/lark-cli', 'Contents/Resources/SettingsWeb/app.js', 'Contents/Resources/BrowserBridge/chrome-reader/manifest.json', 'Contents/Resources/ThirdPartyLicenses/LICENSE.txt']:
+        for name in ['Contents/Info.plist', 'Contents/Resources/AppIcon.icns', 'Contents/MacOS/YuIsland', 'Contents/Helpers/lark-cli', 'Contents/Resources/SettingsWeb/app.js', 'Contents/Resources/LOLPing/generic_ping.png', 'Contents/Resources/ThirdPartyLicenses/LICENSE.txt']:
             with self.subTest(name=name): self.assertTrue(m.allowed(Path(name)))
 
     def test_required_icon_and_unexpected_credentials(self):
@@ -63,6 +65,23 @@ class DistributionChecks(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Required runtime'): m.inspect(app)
         for value in ['Contents/Resources/ScreenReminder/personal.mov', 'Contents/Resources/ScreenReminder/neko1.mov', 'Contents/Resources/ScreenReminder/ScreenReminderMedia/config.json']:
             self.assertFalse(m.allowed(Path(value)))
+
+    def test_missing_native_skin_resource_stops_distribution(self):
+        directory, app = self.fixture()
+        m.inspect(app)
+        self.assertTrue({'skins.json', 'brand-geometry.json', 'brand-flow.json'}.issubset(m.REQUIRED_SKIN_FILES))
+        self.assertFalse(any(name.endswith(('.js', '.html', '.css')) for name in m.REQUIRED_SKIN_FILES))
+        for name in sorted(m.REQUIRED_SKIN_FILES):
+            with self.subTest(name=name):
+                resource = app/'Contents/Resources/SettingsWeb'/name
+                retained = directory/('retained-'+name)
+                resource.rename(retained)
+                try:
+                    with self.assertRaisesRegex(ValueError, 'Required runtime'):
+                        m.inspect(app)
+                finally:
+                    retained.rename(resource)
+        m.inspect(app)
 
     def test_dmg_has_exactly_two_visible_items_and_embedded_extension(self):
         directory, app = self.fixture()
@@ -91,8 +110,8 @@ class DistributionChecks(unittest.TestCase):
         _, app = self.fixture()
         with patch.object(m.subprocess, 'run') as run, patch.object(m.subprocess, 'check_output', return_value='arm64\n'):
             self.assertEqual(m.verify_runtime(app), ['arm64'])
-            self.assertEqual(run.call_count, 2)
-            self.assertEqual(run.call_args_list[1].args[0], ['codesign', '--verify', '--strict', str(app/'Contents/Helpers/WorkBuddyCheckin.app')])
+            self.assertEqual(run.call_count, 1 + len(m.HELPERS))
+            self.assertEqual(run.call_args_list[1].args[0], ['codesign', '--verify', '--strict', str(app/'Contents/Helpers'/sorted(m.HELPERS)[0])])
         outputs = iter(['arm64', 'x86_64'])
         with patch.object(m.subprocess, 'run'), patch.object(m.subprocess, 'check_output', side_effect=lambda *a, **k: next(outputs)):
             with self.assertRaisesRegex(ValueError, 'architecture mismatch'): m.verify_runtime(app)

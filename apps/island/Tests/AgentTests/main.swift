@@ -79,6 +79,93 @@ final class AgentTests {
         XCTAssertFalse(quota(.nan).isFresh(now: now))
         XCTAssertNotNil(AgentSnapshot(quotas: [quota(101)]).validationError)
         XCTAssertNotNil(AgentSnapshot(quotas: [quota(12),quota(13)]).validationError)
+        for reset in [1e100, Double.infinity, Double.nan, -1] {
+            XCTAssertFalse(quota(1,reset:reset).isFresh(now:now))
+            XCTAssertNotNil(AgentSnapshot(quotas:[quota(1,reset:reset)]).validationError)
+            XCTAssertTrue(tracker.lowQuotas([quota(1,reset:reset)],profile:"custom",now:now).isEmpty)
+        }
+    }
+    func testIndependentMetricOnlySnapshots() throws {
+        let raw = #"{"metrics":[{"id":"credits","label":"剩余积分","value":542.12,"unit":"积分","updatedAt":1000000}]}"#
+        let snapshot=try JSONDecoder().decode(AgentSnapshot.self,from:Data(raw.utf8))
+        XCTAssertTrue(snapshot.quotas.isEmpty); XCTAssertTrue(snapshot.sessions.isEmpty)
+        XCTAssertNil(snapshot.validationError); XCTAssertEqual(snapshot.metrics.first?.value,542.12)
+        XCTAssertTrue(snapshot.metrics[0].isFresh(now:now)); XCTAssertFalse(snapshot.metrics[0].isFresh(now:now+901))
+        XCTAssertEqual(snapshot.state(now:now),.unknown)
+        let roundTrip=try JSONDecoder().decode(AgentSnapshot.self,from:JSONEncoder().encode(snapshot))
+        XCTAssertEqual(roundTrip.metrics,snapshot.metrics)
+        XCTAssertTrue(try JSONDecoder().decode(AgentSnapshot.self,from:Data("{}".utf8)).metrics.isEmpty)
+        var metric=snapshot.metrics[0]
+        metric.value = .nan; XCTAssertNotNil(AgentSnapshot(metrics:[metric]).validationError)
+        metric.value = .infinity; XCTAssertNotNil(AgentSnapshot(metrics:[metric]).validationError)
+        metric.value=12;metric.updatedAt=1e100; XCTAssertNotNil(AgentSnapshot(metrics:[metric]).validationError)
+        metric.updatedAt=now;metric.unit=String(repeating:"分",count:25); XCTAssertNotNil(AgentSnapshot(metrics:[metric]).validationError)
+        metric.unit="积分";metric.label=String(repeating:"a",count:81); XCTAssertNotNil(AgentSnapshot(metrics:[metric]).validationError)
+        metric.label="剩余积分";metric.id=""; XCTAssertNotNil(AgentSnapshot(metrics:[metric]).validationError)
+        XCTAssertNotNil(AgentSnapshot(metrics:[snapshot.metrics[0],snapshot.metrics[0]]).validationError)
+    }
+    func testMonitoringAndIslandSelectionAreIndependent() {
+        var prefs=AgentPreferences();prefs.enabled=true
+        prefs.profiles.append(.init(id:"custom-credits",name:"积分助手",kind:"file",dataPath:"/tmp/status.json"))
+        prefs.monitoredIDs=["codex","claude","workbuddy","custom-credits"]
+        prefs.setVisibleIDs(["workbuddy","codex"])
+        XCTAssertNil(prefs.validationError);XCTAssertEqual(prefs.activeMonitorIDs.count,4)
+        XCTAssertTrue(prefs.isMonitoring("custom-credits"))
+        XCTAssertEqual(prefs.islandProfile(preferredID:"workbuddy")?.id,"workbuddy")
+        prefs.setVisibleIDs(["codex"])
+        XCTAssertEqual(prefs.islandProfile(preferredID:"workbuddy")?.id,"codex")
+        XCTAssertEqual(prefs.islandProfile(preferredID:"custom-credits")?.id,"codex")
+        prefs.monitoredIDs=["custom-credits"]
+        XCTAssertFalse(prefs.isMonitoring("codex"));XCTAssertTrue(prefs.isMonitoring("custom-credits"))
+        prefs.setVisibleIDs([]);XCTAssertNil(prefs.islandProfile(preferredID:"codex"))
+    }
+    func testCodexQuotaPreferenceNeverFollowsAnotherAgent() {
+        var prefs=AgentPreferences();prefs.enabled=true;prefs.quotaDisplayEnabled=true
+        prefs.setVisibleIDs(["workbuddy"]);prefs.monitoredIDs=["workbuddy"]
+        let codexQuota=AgentQuota(id:"codex/primary",label:"周额度",remainingPercent:81,resetsAt:nil,updatedAt:now)
+        let values=["codex":AgentSnapshot(sessions:[session("c",.working,now)],quotas:[codexQuota]),"workbuddy":AgentSnapshot(sessions:[session("w",.waiting,now)],quotas:[quota(5)])]
+        let summary=AgentActivityDisplay.codexQuotaSummary(snapshots:values,preferences:prefs,refreshing:false,now:now)
+        XCTAssertEqual(summary.agentID,"codex");XCTAssertEqual(summary.state,.unknown)
+        XCTAssertEqual(summary.text(leading:true),"Codex");XCTAssertEqual(summary.text(leading:false),"周 81%")
+        XCTAssertEqual(summary.windows.map(\.id),["codex/primary"])
+        let missing=AgentActivityDisplay.codexQuotaSummary(snapshots:["workbuddy":values["workbuddy"]!],preferences:prefs,refreshing:false,now:now)
+        XCTAssertEqual(missing.text(leading:false),"额度未知");XCTAssertTrue(missing.windows.isEmpty)
+        prefs.monitoredIDs=["codex"];prefs.setVisibleIDs(["codex","workbuddy"])
+        XCTAssertEqual(AgentActivityDisplay.activeAgent(snapshots:values,preferences:prefs,fallback:"codex",now:now),"codex")
+    }
+    @MainActor func testStoreLockAndStoppedMonitoringDoNotConsumeOrReplayEvents() throws {
+        let suite="local.island.agent-checks.\(UUID().uuidString)"
+        let defaults=UserDefaults(suiteName:suite)!
+        defer { defaults.removePersistentDomain(forName:suite) }
+        var locked=false
+        let store=AgentStore(defaults:defaults,allowsLiveReads:false,sessionIsLocked:{locked})
+        var prefs=store.preferences;prefs.enabled=true;prefs.monitoredIDs=["codex"];try store.update(prefs)
+        store.ingestSnapshots(["codex":.init(sessions:[session("task",.working,now)])],now:now)
+        XCTAssertEqual(store.state(for:"codex",now:now),.working)
+        locked=true;store.handleSessionLock()
+        let completed=AgentSnapshot(sessions:[session("task",.completed,now+2)],quotas:[quota(5)])
+        store.ingestSnapshots(["codex":completed],now:now+2)
+        XCTAssertNil(store.completionNotice)
+        XCTAssertTrue(defaults.stringArray(forKey:"notifiedQuotaCycles")?.isEmpty ?? true)
+        XCTAssertEqual(store.snapshots["codex"]?.sessions.first?.state,.working)
+        locked=false;store.ingestSnapshots(["codex":completed],now:now+3)
+        XCTAssertNotNil(store.completionNotice)
+        let noticeID=store.completionNotice?.id
+        XCTAssertEqual(defaults.stringArray(forKey:"notifiedQuotaCycles")?.count,1)
+        store.ingestSnapshots(["codex":completed],now:now+4)
+        XCTAssertEqual(store.completionNotice?.id,noticeID)
+        XCTAssertEqual(defaults.stringArray(forKey:"notifiedQuotaCycles")?.count,1)
+        prefs=store.preferences;prefs.monitoredIDs=[];try store.update(prefs)
+        XCTAssertNil(store.completionNotice);XCTAssertEqual(store.state(for:"codex",now:now+4),.unknown)
+        XCTAssertTrue(store.snapshots["codex"]?.sessions.isEmpty ?? true)
+        store.ingestSnapshots(["codex":.init(sessions:[session("task",.working,now+5)])],now:now+5)
+        XCTAssertTrue(store.snapshots["codex"]?.sessions.isEmpty ?? true)
+        prefs=store.preferences;prefs.monitoredIDs=["codex"];try store.update(prefs)
+        store.ingestSnapshots(["codex":completed],now:now+6)
+        XCTAssertNil(store.completionNotice) // Re-enabling sets a fresh baseline, not a historical completion.
+        store.ingestSnapshots(["codex":.init(sessions:[session("task",.working,now+7)])],now:now+7)
+        XCTAssertNotNil(store.completionNotice)
+        locked=true;store.handleSessionLock();XCTAssertNil(store.completionNotice)
     }
     func testCodexUsesActualDurationAndMultipleBuckets() {
         let raw: [String: Any] = ["rateLimitsByLimitId": ["codex": ["primary":["usedPercent":18.0,"windowDurationMins":10080.0,"resetsAt":1_010_000]], "spark":["primary":["usedPercent":90.0,"windowDurationMins":300.0]]]]
@@ -158,7 +245,7 @@ final class AgentTests {
         XCTAssertEqual(migrated.visibleProfiles.count,2)
         let restored = try JSONDecoder().decode(AgentPreferences.self,from:JSONEncoder().encode(migrated))
         XCTAssertEqual(restored.visibleIDs,["codex","workbuddy"])
-        migrated.setVisibleIDs([]); XCTAssertNotNil(migrated.validationError)
+        migrated.setVisibleIDs([]); XCTAssertNil(migrated.validationError) // 0.9 lets users hide every Agent while retaining monitoring.
         migrated.setVisibleIDs(["missing"]); XCTAssertNotNil(migrated.validationError)
         migrated.setVisibleIDs(["codex","codex"]); XCTAssertNotNil(migrated.validationError)
     }
@@ -479,6 +566,10 @@ tests.testFastCompletionsBetweenPolls()
 tests.testThresholdStrictlyBelowTwentyAndDeduplicated()
 tests.testNonResetCreditPoolRearmsAfterRecovery()
 tests.testExpiredAndInvalidQuotasNeverAlert()
+try tests.testIndependentMetricOnlySnapshots()
+tests.testMonitoringAndIslandSelectionAreIndependent()
+tests.testCodexQuotaPreferenceNeverFollowsAnotherAgent()
+try await tests.testStoreLockAndStoppedMonitoringDoNotConsumeOrReplayEvents()
 tests.testCodexUsesActualDurationAndMultipleBuckets()
 tests.testMissingCodexWindowsAreNotZero()
 try tests.testCompactQuotaWindowsAndFreshness()

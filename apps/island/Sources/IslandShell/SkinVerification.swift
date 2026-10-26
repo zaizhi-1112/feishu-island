@@ -8,7 +8,7 @@ enum SkinVerification {
     private static var started = false
     static func startIfRequested(coordinator: AppCoordinator) {
         let args = ProcessInfo.processInfo.arguments
-        guard IslandRuntime.isSkinPreview, !started else { return }
+        guard IslandRuntime.isSkinPreview, !args.contains("--self-test"), !started else { return }
         started = true
         coordinator.appState.keepNookOpen = true
         coordinator.showNook()

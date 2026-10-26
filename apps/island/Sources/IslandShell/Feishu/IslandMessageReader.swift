@@ -52,8 +52,7 @@ struct IslandMessageReader: View {
                 Button(action: onBack) { Label("消息列表", systemImage: "chevron.left") }
                     .buttonStyle(.plain).accessibilityIdentifier("feishu.reader.back")
                 Spacer()
-                Button(action: onFollow) { Image(systemName: followed ? "star.fill" : "star") }
-                    .buttonStyle(.plain).accessibilityLabel(followed ? "取消关注" : "关注会话")
+                // Conversation reminders are managed together in native settings.
             }.font(.system(size: 11)).foregroundStyle(theme.secondaryLabel)
             HStack(alignment: .firstTextBaseline) {
                 Text(message.source).font(.system(size: 14, weight: .semibold)).lineLimit(1)

@@ -44,13 +44,8 @@ enum WorkspaceDeskSection: Int, CaseIterable, Identifiable {
     func openAgentStatus(store:WorkspaceStore) { show(store:store,page:9) }
     func openAgentConnections(store:WorkspaceStore) { show(store:store,page:8) }
     private func show(store: WorkspaceStore,page:Int) {
-        navigation.page=page
-        if let window { window.makeKeyAndOrderFront(nil); NSApp.activate(); return }
-        let w = NSWindow(contentRect:NSRect(x:0,y:0,width:960,height:680),styleMask:[.titled,.closable,.miniaturizable,.resizable],backing:.buffered,defer:false)
-        w.title="你的飞包 · 工作台"; w.isReleasedWhenClosed=false
-        w.minSize=NSSize(width:760,height:540)
-        w.contentView=NSHostingView(rootView:WorkspaceDesk(store:store,navigation:navigation)); w.center(); window=w
-        w.makeKeyAndOrderFront(nil); NSApp.activate()
+        let section = [0:"agents",1:"todos",2:"platform",3:"todos",4:"messages",5:"appearance",6:"appearance",7:"appearance",8:"agents",9:"agents"][page] ?? "messages"
+        UnifiedSettingsWindow.shared.open(section: section)
     }
 }
 struct WorkspaceDesk: View {

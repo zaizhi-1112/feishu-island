@@ -30,6 +30,8 @@ struct WorkScreenSchedule: Codable, Identifiable, Equatable, Sendable {
     var style = ScreenReminderStyle()
     var enabled = true
     var lastFiredAt: Date?
+    /// nil preserves the pre-fusion screen reminder behavior.
+    var lightOnly: Bool?
 }
 
 struct ScreenReminderRequest: Equatable, Sendable {
