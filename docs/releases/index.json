@@ -152,11 +152,12 @@
       "productName": "你的飞包",
       "artifact": "feishu-island-0.8.0-build49-arm64.dmg",
       "sha256": "bde9894f0f5cbc014363e440a86dfceaf02d7a8857e24d6c4439d186caa29831",
-      "status": "本地候选，未安装，待本人体验",
+      "status": "本人本地已安装，等待体验反馈；公司未发布",
       "companyRelease": null,
       "websiteRelease": 333,
-      "githubRelease": "draft v0.8.0-build49",
-      "notarized": false
+      "githubRelease": "https://github.com/zaizhi-1112/feishu-island/releases/tag/untagged-80b7437d9bbc5049f4bf",
+      "notarized": false,
+      "localInstalled": true
     }
   ]
 }

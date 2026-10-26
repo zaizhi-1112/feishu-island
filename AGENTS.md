@@ -214,3 +214,5 @@
 - 网站演示纠正：ProductDemoAssets通过FusionChecks --product-demo-assets只用隔离合成Store及不上屏原生SwiftUI视图生成8张画面，导出脚本列出明确资源。摄像头留空179pt，消息阅读/Agent输入/结果取自真实组件；白字黑描边弹幕完整移出，悬停展开/离开收回，减少动态效果有静态替代。PUBLIC_ASSETS逐项加入8PNG，页面所有img/link/script经HTTP/MIME/字节检查。原始Resources/AppIcon.png为本人指定白色机器人，build-app-icon.sh同时更新App、下载页及AuthService覆盖层，防止服务器旧icon覆盖。当前网站修复与原生候选包分开；安装包仍build47，后续本人体验确认再推进48。
 
 - 2026-10-26 build49更名：产品显示名称统一为「你的飞包」，包括原生窗口/设置、提醒来源、Chrome收录扩展、DMG卷与App文件名、网页和中台卡片。bundle ID、URL、Keychain/helper、个人目录及归档幂等标记不改；启动脚本兼容新旧文件名，不安装登录项。公司网页release333已live，下载仍build47；本地候选49未替换日用程序，待本人体验。源码与候选包同步开发分支和草稿Release，不合main。
+
+- build49本机安装：2026-10-26本人明确要求替换后，已安装并启动~/Applications/你的飞包.app（0.8.0 build49）。旧应用移至忽略的.build/local-install-backups/feibao49-20261026-153018/previous.app，旧路径保留指向新版的兼容链接；未安装/修改登录项。更新前无活动AI/归档任务；6条任务全部字段、除正常推进提醒外的工作区及接收配置一致，7份授权helper/签名字节相同。更新后账号接收中140/142、中台connected、Dot有效订阅1/refreshCount5；未用真实新消息试播代验。只重启工作岛，未退出飞书。安装回执install49-location/after.json仅本机；公司下载仍47，等待本人体验反馈。
