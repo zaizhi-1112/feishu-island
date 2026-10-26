@@ -216,3 +216,5 @@
 - 2026-10-26 build49更名：产品显示名称统一为「你的飞包」，包括原生窗口/设置、提醒来源、Chrome收录扩展、DMG卷与App文件名、网页和中台卡片。bundle ID、URL、Keychain/helper、个人目录及归档幂等标记不改；启动脚本兼容新旧文件名，不安装登录项。公司网页release333已live，下载仍build47；本地候选49未替换日用程序，待本人体验。源码与候选包同步开发分支和草稿Release，不合main。
 
 - build49本机安装：2026-10-26本人明确要求替换后，已安装并启动~/Applications/你的飞包.app（0.8.0 build49）。旧应用移至忽略的.build/local-install-backups/feibao49-20261026-153018/previous.app，旧路径保留指向新版的兼容链接；未安装/修改登录项。更新前无活动AI/归档任务；6条任务全部字段、除正常推进提醒外的工作区及接收配置一致，7份授权helper/签名字节相同。更新后账号接收中140/142、中台connected、Dot有效订阅1/refreshCount5；未用真实新消息试播代验。只重启工作岛，未退出飞书。安装回执install49-location/after.json仅本机；公司下载仍47，等待本人体验反馈。
+
+- build50按本人截图移除WorkspaceView内部导航重复Agent按钮，只留待办/中台；顶部模块入口和滑动路由保留。80项原生布局离屏验证、Release与DMG审计通过。本机已替换~/Applications/你的飞包.app，3条任务完整字段/工作区/接收设置及7份helper签名保持，接收140/142、中台connected、Dot订阅1；仅重启本应用，不退出飞书。备份及install50回执仅在忽略的.build。公司下载仍47，开发分支和候选草稿归档，不合main。

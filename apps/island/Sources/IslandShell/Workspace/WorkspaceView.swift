@@ -202,7 +202,6 @@ struct WorkspaceView: View {
     }
     private var navigation: some View {
             HStack(spacing:4) {
-                Button("Agent") { IslandModuleNavigation.shared.openAgent() }.buttonStyle(.plain).padding(.horizontal,10).padding(.vertical,6)
                 ForEach([1,2],id:\.self) { i in
                     let title = i == 1 ? "待办" : "中台"
                     Button(title) { store.boardTab = i }.buttonStyle(.plain).padding(.horizontal,10).padding(.vertical,6).background(store.boardTab == i ? Color.white.opacity(0.16) : .clear,in:Capsule())
