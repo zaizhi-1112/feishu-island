@@ -11,3 +11,5 @@
 - 2026-10-27: User requested two-way todo/calendar sync. Calendar grant uses read/create/update scopes only, isolated from message tokens. No calendar delete or attendee invitation. Permission publishing and user consent must be verified separately.
 
 - Calendar tokens may inherit previously approved application scopes. Use the official OAuth v2 refresh scope parameter to downscope before desktop handoff; retain strict exact-scope validation. Reference: https://open.feishu.cn/document/authentication-management/access-token/refresh-user-access-token . Never relabel a broad token as narrow.
+
+- Published download links can remain in long-lived Feishu tabs. package-download-site.py generates private download-aliases.json from Distribution/released-packages.json. Missing known old files resolve to the current package, with its actual filename and a full 200 response even for Range; never append current bytes to an old partial file. Do not remove compatibility when publishing the next build.

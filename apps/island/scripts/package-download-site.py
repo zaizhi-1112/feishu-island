@@ -31,7 +31,11 @@ if name not in page or 'content="0.9.0/56/arm64"' not in page:
 help_source = ROOT/'Distribution/site/start-build56.html'  # Frozen with the hosted build56 package.
 if 'build' + manifest['build'] not in help_source.read_text():
     raise SystemExit('Installation guide and package build differ; update them together before publishing')
+# Keep cached Feishu pages working without shipping every historical DMG.
+# The server serves the current package in full for these known old URLs.
+previous=json.loads((ROOT/'Distribution/released-packages.json').read_text())
 a.output.mkdir(parents=True,exist_ok=False)
+(a.output/'download-aliases.json').write_text(json.dumps({old:name for old in previous if old!=name},indent=2)+'\n')
 public = {'index.html','install.js','install.css','landing.css','agent-guide.html',
           'icon.png','mascot.png','virxact-ui.css','virxact-story.css','vx.js'}
 for name_in_site in sorted(public):

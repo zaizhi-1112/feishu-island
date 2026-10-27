@@ -1,31 +1,8 @@
 'use strict';
 const download = document.querySelector('#download');
-const downloadHelp = document.querySelector('#download-help');
-const copyStatus = document.querySelector('#copy-download-status');
-const downloadPage = document.querySelector('#download-page-url');
-const inFeishu = /(?:Lark|Feishu)/i.test(navigator.userAgent);
-async function copyDownloadPage() {
-  downloadHelp.open = true;
-  try {
-    await navigator.clipboard.writeText(downloadPage.value);
-    copyStatus.textContent = '已复制。打开 Safari 或 Chrome，粘贴地址后下载。';
-  } catch {
-    downloadPage.focus(); downloadPage.select();
-    copyStatus.textContent = '请复制上面的地址，在 Safari 或 Chrome 中打开。';
-  }
-}
-document.querySelector('#copy-download-page').addEventListener('click', copyDownloadPage);
-if (inFeishu) {
-  downloadHelp.open = true;
-  download.removeAttribute('download');
-  download.textContent = '复制链接，到浏览器下载';
-}
-for (const link of document.querySelectorAll('#download, .download-link')) {
-  link.addEventListener('click', event => {
-    if (inFeishu) {event.preventDefault(); copyDownloadPage();}
-    else document.querySelector('#download-feedback').hidden = false;
-  });
-}
+download.addEventListener('click', () => {
+  document.querySelector('#download-feedback').hidden = false;
+});
 const tabs = [...document.querySelectorAll('[role=tab]')];
 const panels = [...document.querySelectorAll('[role=tabpanel]')];
 const showcase = document.querySelector('.showcase');

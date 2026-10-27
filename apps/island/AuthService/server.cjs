@@ -41,12 +41,24 @@ function createServer({broker,origin='https://feishu-island.virxact.net',root=pa
    // Match the raw path as well: URL normalization must not turn a traversal
    // request into a permitted asset. Only named release assets are downloadable.
    if(req.url.split('?')[0]!==url.pathname)throw new AuthError(404,'页面不存在');
-   const name=url.pathname==='/'?'index.html':url.pathname.slice(1);
+   let name=url.pathname==='/'?'index.html':url.pathname.slice(1);
    const download=PACKAGE_NAME.test(name);
    if(!PUBLIC_ASSETS.has(name)&&!download)throw new AuthError(404,'页面不存在');
-   let file,stat;
+   let file,stat,previousRelease=false;
    try{file=await fs.open(path.join(root,name),fsConstants.O_RDONLY|fsConstants.O_NOFOLLOW);stat=await file.stat();}
-   catch{if(file)await file.close();throw new AuthError(404,'页面不存在');}
+   catch(error){
+    if(file)await file.close();
+    // A long-lived Feishu tab may still request an earlier published filename.
+    // Only build-generated, same-origin aliases may resolve a missing package.
+    let target;
+    if(download&&error.code==='ENOENT'){
+     try{target=JSON.parse(await fs.readFile(path.join(root,'download-aliases.json'),'utf8'))[name];}catch{}
+    }
+    if(typeof target!=='string'||target===name||!PACKAGE_NAME.test(target))throw new AuthError(404,'页面不存在');
+    try{file=await fs.open(path.join(root,target),fsConstants.O_RDONLY|fsConstants.O_NOFOLLOW);stat=await file.stat();}
+    catch{if(file)await file.close();throw new AuthError(404,'页面不存在');}
+    name=target;previousRelease=true;
+   }
    if(!stat.isFile()||!Number.isSafeInteger(stat.size)){await file.close();throw new AuthError(404,'页面不存在');}
    const response={'Content-Type':STATIC_TYPES[path.extname(name)]||'text/plain; charset=utf-8','Content-Length':stat.size};
    let status=200,range;
@@ -54,9 +66,11 @@ function createServer({broker,origin='https://feishu-island.virxact.net',root=pa
     const modified=stat.mtime.toUTCString();
     response['Content-Disposition']='attachment; filename="'+name+'"; filename*=UTF-8\'\''+encodeURIComponent(name);
     response['Accept-Ranges']='bytes';response['Last-Modified']=modified;
+    // An obsolete URL always returns the complete current package (200), even
+    // for Range requests: never append new bytes to an older partial download.
     // HEAD describes the full object. A mismatching If-Range means send a new
     // full download, preventing a client from combining different release bytes.
-    if(req.method==='GET'&&req.headers.range&&(!req.headers['if-range']||req.headers['if-range']===modified)){
+    if(!previousRelease&&req.method==='GET'&&req.headers.range&&(!req.headers['if-range']||req.headers['if-range']===modified)){
      range=downloadRange(req.headers.range,stat.size);
      if(!range){await file.close();res.writeHead(416,{'Content-Range':'bytes */'+stat.size,'Content-Length':0});return res.end();}
      status=206;response['Content-Range']='bytes '+range.start+'-'+range.end+'/'+stat.size;response['Content-Length']=range.end-range.start+1;

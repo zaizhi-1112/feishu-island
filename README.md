@@ -1,4 +1,4 @@
-> **Mac 安装包：** [一切在岛 0.9.0 build56](https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.9.0-build56)。展开 Assets，下载 `feishu-island-0.9.0-build56-arm64.dmg`；Source code 是源码。适用 Apple M 系列、macOS 15+，需本私有仓库访问权限。也可在 Safari/Chrome 打开[中台下载页](https://feishu-island.virxact.net/)。
+> **Mac 安装包：** [一切在岛 0.9.0 build56](https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.9.0-build56)。展开 Assets，下载 `feishu-island-0.9.0-build56-arm64.dmg`；Source code 是源码。适用 Apple M 系列、macOS 15+，需本私有仓库访问权限。也可在飞书内直接打开[中台下载页](https://feishu-island.virxact.net/)。
 
 # 一切在岛
 

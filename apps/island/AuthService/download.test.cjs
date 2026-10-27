@@ -120,3 +120,26 @@ test('every asset referenced by the real landing page is served with its browser
   assert.deepEqual(Buffer.from(await response.arrayBuffer()),bytes,asset);
  }
 });
+
+
+test('cached Feishu release URLs download the current package with its correct filename',async t=>{
+ const {root,base}=await fixture(t);const old='feishu-island-0.7.0-build28-arm64.dmg';
+ await fs.writeFile(path.join(root,'download-aliases.json'),JSON.stringify({[old]:name}));
+ for(const headers of [owner,{...owner,Range:'bytes=10-'},{...owner,Range:'bytes=10-','If-Range':'Wed, 01 Jan 2020 00:00:00 GMT'}]){
+  const r=await fetch(base+'/'+old,{headers});assert.equal(r.status,200);assert.equal(r.headers.get('content-range'),null);
+  assert(r.headers.get('content-disposition').includes(name));assert.deepEqual(Buffer.from(await r.arrayBuffer()),bytes);
+ }
+ const head=await fetch(base+'/'+old,{method:'HEAD',headers:owner});assert.equal(head.status,200);assert.equal(head.headers.get('content-length'),String(bytes.length));
+ assert.equal((await fetch(base+'/'+old)).status,401);
+ assert.equal((await fetch(base+'/download-aliases.json',{headers:owner})).status,404);
+});
+
+test('release aliases cannot expose private files, symlinks or external URLs',async t=>{
+ const {root,base}=await fixture(t);const old='feishu-island-0.7.0-build28-arm64.dmg';
+ await fs.writeFile(path.join(root,'.env'),'private');
+ const symlink='feishu-island-0.7.0-build99-arm64.dmg';await fs.symlink(path.join(root,'.env'),path.join(root,symlink));
+ for(const target of ['../.env','https://example.com/file.dmg',symlink,old]){
+  await fs.writeFile(path.join(root,'download-aliases.json'),JSON.stringify({[old]:target}));
+  const r=await fetch(base+'/'+old,{headers:owner});assert.equal(r.status,404);assert(!(await r.text()).includes('private'));
+ }
+});
