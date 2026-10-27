@@ -1,12 +1,12 @@
 /* Virxact tool template: compact page header and one shared demonstration card. */
 .island-brand{color:var(--fg);text-decoration:none;gap:var(--space-2)}
-.product-header{display:flex;align-items:center;justify-content:space-between;gap:var(--space-6);padding:var(--space-6) 0 var(--space-8)}
+.product-header{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-6);padding:var(--space-6) 0 var(--space-8)}
 .product-heading{display:flex;align-items:center;gap:var(--space-4)}
 .product-heading img{object-fit:contain}
-.download-actions{display:flex;align-items:flex-end;flex-direction:column;gap:var(--space-2)}
-.download-actions .vx-btn{width:auto;flex:none}
+.download-actions{display:flex;align-items:center;flex-direction:column;gap:var(--space-2)}
+.download-actions .vx-btn{width:auto;min-width:200px;min-height:52px;padding:var(--space-4) var(--space-8);font-size:var(--text-base);flex:none}
 .compatibility,.download-actions [role=status]{font-size:var(--text-xs);color:var(--fg-2)}
-.download-actions [role=status]{max-width:32ch}
+.download-actions [role=status]{max-width:32ch;text-align:center}
 .showcase{overflow:hidden}
 .feature-tabs{display:flex;justify-content:center;gap:var(--space-2);padding:var(--space-4);border-bottom:1px solid var(--border)}
 .feature-tabs button{display:flex;align-items:center;gap:var(--space-2);border:0;background:transparent;color:var(--fg-2);padding:var(--space-3) var(--space-5);border-radius:var(--radius-md);font:inherit;cursor:pointer}
@@ -42,4 +42,4 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--fg);outline-offset:
 @keyframes arrive{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes progress{from{width:10%}to{width:72%}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;scroll-behavior:auto!important}}
-@media(max-width:640px){.product-header{align-items:flex-start;flex-direction:column;gap:var(--space-5)}.download-actions{align-items:flex-start}.feature-tabs{gap:0;padding:var(--space-2)}.feature-tabs button{flex:1;justify-content:center;padding:var(--space-3) var(--space-1);font-size:var(--text-xs)}.feature-tabs .vx-icon{display:none}.feature-line{font-size:var(--text-lg);min-height:100px;padding:var(--space-6) var(--space-4)}.desktop-demo{margin:0 var(--space-3) var(--space-4);height:310px}.desktop-bar{font-size:var(--text-xs)}.island-demo{padding:var(--space-3);max-width:calc(100% - 24px)}.hub-grid{gap:var(--space-2)}.site-footer>div{gap:var(--space-4)}}
+@media(max-width:640px){.product-header{align-items:center;flex-direction:column;gap:var(--space-5)}.download-actions{align-items:center}.feature-tabs{gap:0;padding:var(--space-2)}.feature-tabs button{flex:1;justify-content:center;padding:var(--space-3) var(--space-1);font-size:var(--text-xs)}.feature-tabs .vx-icon{display:none}.feature-line{font-size:var(--text-lg);min-height:100px;padding:var(--space-6) var(--space-4)}.desktop-demo{margin:0 var(--space-3) var(--space-4);height:310px}.desktop-bar{font-size:var(--text-xs)}.island-demo{padding:var(--space-3);max-width:calc(100% - 24px)}.hub-grid{gap:var(--space-2)}.site-footer>div{gap:var(--space-4)}}
