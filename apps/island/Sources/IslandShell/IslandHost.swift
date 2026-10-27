@@ -15,7 +15,7 @@ public enum IslandHost {
     public static func configuration() -> NookHostConfiguration {
         var host = NookHostConfiguration()
         host.branding = NookHostBranding(
-            hostName: "你的飞包", hostTagline: "常用功能，抬手即达。",
+            hostName: "一切在岛", hostTagline: "常用功能，抬手即达。",
             mark: NookHostBranding.symbol("capsule.fill"),
             menuBarIcon: NookHostBranding.symbol("capsule")
         )

@@ -15,7 +15,7 @@ import json
 from pathlib import Path
 from ds_store import DSStore
 
-APP_NAME = '你的飞包.app'
+APP_NAME = '一切在岛.app'
 BOUNDS = '{{160, 140}, {600, 360}}'
 POSITIONS = {APP_NAME: (150, 160), 'Applications': (450, 160)}
 

@@ -29,7 +29,7 @@ REQUIRED_SKIN_FILES = {'skins.json', 'brand-geometry.json', 'brand-flow.json',
 EXTENSION_FILES = set()
 LOL_FILES = {'THIRD_PARTY_NOTICES.md', 'push.png', 'pingwheel_enemyvisionrender.png', 'LICENSE.txt', 'omw.png', 'all_in.png', 'need_vision.png', 'enemy_missing.png', 'pingwheel_retreatrender.png', 'generic_ping.png', 'Base.wav', 'assist_me.png'}
 REMINDER_FILES = {'rick-portal.mov', 'SOURCE.txt'}
-VOLUME_NAME = '你的飞包'
+VOLUME_NAME = '一切在岛'
 VOLUME_METADATA = {'.DS_Store', '.fseventsd', '.Trashes', '.TemporaryItems', '.VolumeIcon.icns'}
 LAYOUT_DIR = ROOT/'scripts/dmg-layout'
 

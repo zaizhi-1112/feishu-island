@@ -27,6 +27,11 @@ if any(manifest.get('verification',{}).get(k) is not True for k in checks):
 page = (ROOT/'Distribution/site/index.html').read_text()
 if name not in page or 'content="0.9.0/52/arm64"' not in page:
     raise SystemExit('Page and release metadata differ')
+# This page still distributes build52; its help must stay paired with that
+# package even when the local app's bundled guide moves to a newer build.
+help_source = ROOT/'Distribution/site/start-build52.html'
+if 'build' + manifest['build'] not in help_source.read_text():
+    raise SystemExit('Installation guide and package build differ; update them together before publishing')
 a.output.mkdir(parents=True,exist_ok=False)
 public = {'index.html','install.js','install.css','landing.css','agent-guide.html',
           'icon.png','mascot.png','virxact-ui.css','virxact-story.css','vx.js'}
@@ -35,7 +40,7 @@ for name_in_site in sorted(public):
     if asset.is_symlink() or not asset.is_file() or asset.suffix not in {'.html','.css','.js','.png','.svg'}:
         raise SystemExit('Unexpected public asset')
     shutil.copyfile(asset,a.output/asset.name)
-shutil.copyfile(ROOT/'Distribution/开始使用.html',a.output/'start.html')
+shutil.copyfile(help_source,a.output/'start.html')
 shutil.copyfile(a.package,a.output/name)
 (a.output/'SHA256SUMS').write_text(digest+'  '+name+'\n')
 print(a.output)

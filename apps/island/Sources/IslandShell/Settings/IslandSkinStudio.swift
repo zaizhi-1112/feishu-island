@@ -212,7 +212,7 @@ private struct SkinStudioIslandPreview: View {
         VStack(alignment: .leading, spacing: 11) {
             if mode != .capsule {
                 HStack {
-                    Text("你的飞包")
+                    Text("一切在岛")
                     Spacer()
                     Image(systemName: "gearshape")
                 }.font(.system(size: 8)).foregroundStyle(theme.tertiaryLabel)

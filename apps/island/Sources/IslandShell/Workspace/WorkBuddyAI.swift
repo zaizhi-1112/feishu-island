@@ -27,7 +27,7 @@ final class WorkBuddyAI: WorkRunning, @unchecked Sendable {
         for image in images {
             let bytes = try Data(contentsOf:image)
             total += bytes.count
-            guard bytes.starts(with:[137,80,78,71,13,10,26,10]), bytes.count <= 10_000_000, total <= 20_000_000 else { throw WorkError.message("请使用你的飞包已规范化的PNG图片，单张最多10MB、合计20MB。") }
+            guard bytes.starts(with:[137,80,78,71,13,10,26,10]), bytes.count <= 10_000_000, total <= 20_000_000 else { throw WorkError.message("请使用一切在岛已规范化的PNG图片，单张最多10MB、合计20MB。") }
             content.append(["type":"image", "source":["type":"base64", "media_type":"image/png", "data":bytes.base64EncodedString()]])
         }
         var bytes = try JSONSerialization.data(withJSONObject:["type":"user", "message":["role":"user", "content":content]])

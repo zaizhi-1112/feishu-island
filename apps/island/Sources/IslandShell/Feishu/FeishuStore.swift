@@ -365,7 +365,7 @@ public final class FeishuStore: ObservableObject {
     var receiveConflict: String? {
         guard live else { return nil }
         if legacyDanmuConflict(NSWorkspace.shared.runningApplications.compactMap { $0.executableURL?.path }) {
-            return "检测到旧弹幕仍在运行。你的飞包暂不开启真实接收；可继续使用旧版或先看合成演示。"
+            return "检测到旧弹幕仍在运行。一切在岛暂不开启真实接收；可继续使用旧版或先看合成演示。"
         }
         return nil
     }

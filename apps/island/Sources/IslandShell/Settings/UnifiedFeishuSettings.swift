@@ -26,6 +26,7 @@ private struct UnifiedFeishuSettingsContent: View {
     @State private var directoryError: String?
     @State private var appearanceError: String?
     @State private var requestGeneration = UUID()
+    @State private var conversationsExpanded = false
     @State private var preview = false
     @State private var previewStarted = Date()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -85,9 +86,11 @@ private struct UnifiedFeishuSettingsContent: View {
                     Text(query.isEmpty ? "点击刷新会话，从你最近的私聊和群聊中选择。" : "当前已加载的会话中没有匹配项，可继续加载更早的会话。")
                         .font(.system(size: 13)).foregroundStyle(.secondary).padding(.vertical, 12)
                 } else {
-                    ForEach(items) { target in conversationRow(target) }
+                    UnifiedConversationList(items: items, isExpanded: $conversationsExpanded) { target in
+                        conversationRow(target)
+                    }
                 }
-                if more {
+                if more && (conversationsExpanded || items.isEmpty) {
                     Button(loading ? "正在加载…" : "加载更多会话") { loadConversations(reset: false) }.disabled(loading)
                 }
                 Text("“静音”仅停止本应用提醒；“跟随默认”会移除该会话的单独设置。飞书中的免打扰始终优先。")
@@ -134,7 +137,8 @@ private struct UnifiedFeishuSettingsContent: View {
         }
         .font(.system(size: 13)).frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("unified.feishu.settings")
-        .onChange(of: store.connection) { _, _ in requestGeneration = UUID(); conversations = []; pageToken = ""; more = false; loading = false }
+        .onChange(of: store.connection) { _, _ in requestGeneration = UUID(); conversations = []; pageToken = ""; more = false; loading = false; conversationsExpanded = false }
+        .onChange(of: query) { _, value in if !value.isEmpty { conversationsExpanded = true } }
         .onDisappear { preview = false; requestGeneration = UUID(); loading = false }
         .task(id: preview) {
             if preview { try? await Task.sleep(for: .seconds(12)); if !Task.isCancelled { preview = false } }
@@ -189,6 +193,7 @@ private struct UnifiedFeishuSettingsContent: View {
                 var ids = Set<String>()
                 conversations = Array(combined.filter { ids.insert($0.id).inserted }.prefix(5000))
                 pageToken = page.pageToken; more = page.hasMore && conversations.count < 5000
+                if reset { conversationsExpanded = true }
             } catch {
                 if requestGeneration == generation { directoryError = (error as? AccountFailure)?.detail ?? "会话加载失败，请检查连接后重试。" }
             }
@@ -240,5 +245,37 @@ private struct UnifiedFeishuSettingsContent: View {
             }
         }.frame(height: 96).background(Color(red: 0.15, green: 0.19, blue: 0.24), in: RoundedRectangle(cornerRadius: 12))
             .clipShape(RoundedRectangle(cornerRadius: 12)).accessibilityLabel("合成弹幕预览")
+    }
+}
+
+/// Keep even a large directory bounded inside the settings page; collapsing it
+/// only changes presentation and never touches the saved conversation rules.
+struct UnifiedConversationList<Row: View>: View {
+    let items: [FeishuRuleTarget]
+    @Binding var isExpanded: Bool
+    @ViewBuilder let row: (FeishuRuleTarget) -> Row
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button { isExpanded.toggle() } label: {
+                HStack {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text(isExpanded ? "收起会话列表" : "展开会话列表")
+                        .font(.system(size: 13, weight: .medium))
+                    Spacer()
+                    Text("\(items.count) 个会话").font(.system(size: 12)).foregroundStyle(.secondary)
+                }.contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityIdentifier("unified.feishu.conversations.toggle")
+            if isExpanded {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(items) { target in row(target) }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(height: min(CGFloat(items.count) * 64, 256))
+                .accessibilityIdentifier("unified.feishu.conversations.list")
+            }
+        }
     }
 }

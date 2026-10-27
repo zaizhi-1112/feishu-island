@@ -144,6 +144,24 @@ struct UnifiedFeishuChecks {
             invalid.conversations = [.init(target: .init(id: "file_bad", name: "错误目标"), mode: .all)]
             check(invalid.validationError != nil, "only stable chat IDs accepted")
 
+            // A long synthetic directory must not make the enclosing page grow
+            // without bound; collapsing it must leave the saved rules unchanged.
+            let targets = (0..<200).map { FeishuRuleTarget(id: "oc_synthetic_\($0)", name: "合成会话 \($0)", detail: "群聊") }
+            func listHeight(_ rows: [FeishuRuleTarget], expanded: Bool) -> CGFloat {
+                let content = UnifiedConversationList(items: rows, isExpanded: .constant(expanded)) { target in
+                    Text(target.name).frame(height: 54)
+                }.frame(width: 680)
+                let host = NSHostingView(rootView: content)
+                host.layoutSubtreeIfNeeded()
+                return host.fittingSize.height
+            }
+            let fiveHeight = listHeight(Array(targets.prefix(5)), expanded: true)
+            let manyHeight = listHeight(targets, expanded: true)
+            let foldedHeight = listHeight(targets, expanded: false)
+            check(manyHeight <= fiveHeight + 2 && manyHeight < 330, "hundreds of conversations stay inside the bounded list")
+            check(foldedHeight < 60 && manyHeight > foldedHeight + 200, "collapsing the directory recovers page space")
+            check(store.customRules == originalCustom, "directory presentation never changes saved rules")
+
             // Rendering is limited to an off-screen native settings window and synthetic stores.
             let view = ScrollView { UnifiedFeishuSettings(store: store).padding(24) }.frame(width: 760, height: 680)
             let host = NSHostingView(rootView: view)

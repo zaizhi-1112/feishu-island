@@ -202,8 +202,8 @@ final class WorkspaceStore: ObservableObject {
     private var webInput: String?
     @Published private(set) var chromeDraft = false
     func importChrome(_ data: Data) throws {
-        guard chromeImportEnabled else { throw WorkError.message("请先在你的飞包材料页开启接收Chrome网页。") }
-        guard draftText.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty, draftImages.isEmpty, draftFiles.isEmpty, !webBusy else { throw WorkError.message("你的飞包已有草稿，请先处理或清空；本次没有覆盖。") }
+        guard chromeImportEnabled else { throw WorkError.message("请先在一切在岛材料页开启接收Chrome网页。") }
+        guard draftText.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty, draftImages.isEmpty, draftFiles.isEmpty, !webBusy else { throw WorkError.message("一切在岛已有草稿，请先处理或清空；本次没有覆盖。") }
         draftText = try WorkChromeImport.material(data); chromeDraft=true; boardTab=0; error=""
     }
     @Published var draftProject = "日常工作"

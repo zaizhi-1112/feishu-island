@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "appName": "你的飞包.app",
+  "appName": "一切在岛.app",
   "defaultView": "icon",
   "alwaysOpenInIconView": true,
   "windowWidth": 600,
   "windowHeight": 360,
   "iconSize": 96,
   "positions": {
-    "你的飞包.app": [
+    "一切在岛.app": [
       150,
       160
     ],
@@ -16,6 +16,6 @@
       160
     ]
   },
-  "sha256": "29908d5cb3b46e3f9a5091bf26e30c83e0850171bb6498ded2eabb3e1d496e90",
+  "sha256": "b7dd50ddd2b04dffe7649d49282a31c79e197019e94d9f554f263dc53236d6c5",
   "generator": "ds_store==1.3.1"
 }

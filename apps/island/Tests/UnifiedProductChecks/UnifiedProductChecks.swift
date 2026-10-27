@@ -53,6 +53,13 @@ import SwiftUI
         check(Bundle.main.bundleIdentifier != "local.zaizhi.feishu-island.preview","fixture never has production identity")
         let fs=FeishuStore(defaults:UserDefaults(suiteName:"feibao-product-feishu-"+UUID().uuidString)!,live:false,receivingDefault:false,headlessRenderer:true)
         FeishuStore.active=fs;fs.loadDemo()
+        if CommandLine.arguments.contains("--conversation-review") {
+            var rules = fs.customRules
+            rules.conversations = (0..<200).map {
+                .init(target: .init(id: "oc_synthetic_\($0)", name: "合成会话 \($0)", detail: "群聊"), mode: .all)
+            }
+            fs.updateSettings(enabled: false, rules: fs.rules, custom: rules)
+        }
         let server=SettingsServer();server.start(store:fs,listen:false,nativeOnly:true)
         let response=await server.respond(method:"POST",path:"/mcp/dot",headers:["host":"127.0.0.1:18766"],body:Data())
         check(response.status==404 || response.status==403,"legacy task route not exposed")
