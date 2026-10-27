@@ -187,3 +187,10 @@ main {max-width:1120px;margin:0 auto;padding:0 var(--space-8)}
 .demo-desktop[data-detail="progress"] .agent-track span {width:85%}
 .demo-desktop[data-detail="done"] .agent-track span {transition-duration:.3s}
 .demo-controls button[hidden] {display:none}
+
+.download-help{max-width:520px;margin:16px auto 0;text-align:left;font-size:14px;line-height:1.7;color:#555}
+.download-help summary{cursor:pointer;text-align:center;text-decoration:underline;text-underline-offset:3px}
+.download-help p{margin:12px 0}.download-help a{text-decoration:underline}
+.download-copy{display:flex;gap:8px}.download-copy input{flex:1;min-width:0;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;background:#fff;color:#333}
+.download-copy button{white-space:nowrap;padding:10px 12px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#111}
+.download-help p:empty{display:none}

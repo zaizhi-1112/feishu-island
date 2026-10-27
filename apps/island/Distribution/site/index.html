@@ -24,6 +24,13 @@
     <div class="download-actions" id="install">
       <a class="download-button" id="download" href="feishu-island-0.9.0-build56-arm64.dmg" download><svg class="vx-icon" data-icon="download" aria-hidden="true"></svg>下载 Mac 版</a>
       <p class="compatibility">Apple M 系列 · macOS 15 或更高版本</p>
+      <details id="download-help" class="download-help">
+        <summary>下载失败？</summary>
+        <p>飞书内置窗口下载失败时，复制本页地址，在 Safari 或 Chrome 中打开并登录后下载。</p>
+        <div class="download-copy"><input id="download-page-url" aria-label="下载页地址" value="https://feishu-island.virxact.net/" readonly><button id="copy-download-page" type="button">复制链接</button></div>
+        <p id="copy-download-status" role="status" aria-live="polite"></p>
+        <a href="https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.9.0-build56" target="_blank" rel="noopener">GitHub 备用下载（需仓库访问权限）</a>
+      </details>
       <p id="download-feedback" class="download-feedback" role="status" hidden>打开 DMG，将“一切在岛”拖入应用程序。<a href="start.html">查看安装帮助</a></p>
     </div>
   </section>

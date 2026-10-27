@@ -1,3 +1,5 @@
+> **Mac 安装包：** [一切在岛 0.9.0 build56](https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.9.0-build56)。展开 Assets，下载 `feishu-island-0.9.0-build56-arm64.dmg`；Source code 是源码。适用 Apple M 系列、macOS 15+，需本私有仓库访问权限。也可在 Safari/Chrome 打开[中台下载页](https://feishu-island.virxact.net/)。
+
 # 一切在岛
 
 中台入口：[一切在岛](https://feishu-island.virxact.net/)；宰治和柚子共同发布，通用分类、全公司可见。2026-10-27 经本人授权发布新版网页与 0.9.0 build 53 安装包，release 406 为 live，包内应用名为“一切在岛”。线上网页与校验值已核对；最终安装包线上浏览器下载核验遇到超时。既有授权服务延续，源 main 未合并。
