@@ -34,6 +34,8 @@ public final class AppCoordinator: ObservableObject {
 
     public let hotkeyController: HotkeyController
     var cancellables = Set<AnyCancellable>()
+    /// Renew repeated compact completion cues instead of stacking competing claims.
+    var compactActivityTokens: [String: NookSurfaceToken] = [:]
 
     /// An opaque `NotificationCenter` observer token, wrapped so the non-isolated
     /// `deinit` can read it to unregister.
@@ -660,6 +662,7 @@ public final class AppCoordinator: ObservableObject {
     /// surface, and comes back after the last one ends (once the surface has collapsed, so it
     /// never flashes) if the module on screen still offers it.
     private func surfaceClaimChanged() {
+        surface.compactRevealActive = arbiter.topPresentation == .compact || liveActivities.activities.contains { $0.activity.keepsCompactVisible }
         if arbiter.isPresenting {
             appState.setSettingsAside(for: .claim)
         } else {
@@ -671,8 +674,12 @@ public final class AppCoordinator: ObservableObject {
     /// Puts the top surface claim's module on the surface: a background module's content
     /// while its claim holds the surface, the active module's otherwise. Called by the
     /// arbiter whenever the top claim changes hands, and after a module switch.
-    private func syncPresentedModule() {
-        let top = arbiter.topModuleID
+    func syncPresentedModule() {
+        // A person opening a background activity keeps its details after the cue expires.
+        let openedActivityModule = appState.presentedLiveActivity.flatMap { id in
+            liveActivities.activities.first(where: { $0.id == id })?.moduleID
+        }
+        let top = arbiter.topModuleID ?? openedActivityModule
         guard moduleHost.presentBackgroundModule(top) else { return }
         handOffBreadcrumbIfNeeded()
         applyModuleSurfaceDecorations(moduleHost.displayedConfiguration)
@@ -757,6 +764,7 @@ public final class AppCoordinator: ObservableObject {
         surface.onExpand = configuration.onExpand
         surface.onCompact = configuration.onCompact
         surface.onHide = configuration.onHide
+        surface.onDrop = configuration.onDrop
         surface.onFileDrop = configuration.onFileDrop ?? { _ in false }
     }
 

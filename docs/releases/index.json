@@ -1,0 +1,175 @@
+{
+  "updated": "2026-10-26",
+  "policy": "Local test and user acceptance before installer publication. Main requires both owners.",
+  "releases": [
+    {
+      "version": "0.7.0",
+      "build": "29",
+      "artifact": "feishu-island-0.7.0-build29-arm64.dmg",
+      "sha256": "b658d2e092f61b86ad43e1f25797211f9f789e5998480d455920364df5e5b141",
+      "status": "已发布历史",
+      "companyRelease": 251,
+      "githubRelease": "draft v0.7.0-build29",
+      "notarized": false
+    },
+    {
+      "version": "0.7.0",
+      "build": "30",
+      "artifact": "feishu-island-0.7.0-build30-arm64.dmg",
+      "sha256": "d14573108a53b8be16e4441b80a4274bf1e27789814d6a511417507db4806801",
+      "status": "已发布历史",
+      "companyRelease": 253,
+      "githubRelease": "draft v0.7.0-build30",
+      "notarized": false
+    },
+    {
+      "version": "0.7.0",
+      "build": "31",
+      "artifact": "feishu-island-0.7.0-build31-arm64.dmg",
+      "sha256": "3ef5f045da05be2cbd34c7d769781afe6a33525fefa82c82225871bcbb3781db",
+      "status": "本地候选，未发布",
+      "companyRelease": null,
+      "githubRelease": null,
+      "notarized": false
+    },
+    {
+      "version": "0.7.0",
+      "build": "32",
+      "artifact": "feishu-island-0.7.0-build32-arm64.dmg",
+      "sha256": "434d59f8509cf943aac34c8a2ce789452f448de0773f63332c60a25a7db5fac4",
+      "status": "本地候选，待本人体验确认",
+      "companyRelease": null,
+      "githubRelease": null,
+      "notarized": false
+    },
+    {
+      "version": "0.7.0",
+      "build": "33",
+      "artifact": "feishu-island-0.7.0-build33-arm64.dmg",
+      "sha256": "e6e8f8d98169324a3a5883277a662bcebb8003cb45d16fc4760e586504854d12",
+      "status": "本地候选，待本人体验确认",
+      "companyRelease": null,
+      "githubRelease": null,
+      "notarized": false
+    },
+    {
+      "version": "0.7.0",
+      "build": "34",
+      "artifact": "feishu-island-0.7.0-build34-arm64.dmg",
+      "sha256": "1d939e843250daae8ac5b84ab57c177f1d7e936418c2b80561f52e59a1e49bf2",
+      "status": "本地候选，待本人体验确认",
+      "companyRelease": null,
+      "githubRelease": null,
+      "notarized": false
+    },
+    {
+      "version": "0.8.0",
+      "build": "45",
+      "artifact": "feishu-island-0.8.0-build45-arm64.dmg",
+      "sha256": "d101c43917c6b2389cc89200f0da8d95d4675cf310f7839d35e5b64a4f40d376",
+      "status": "已发布历史，build46统一名称后接替",
+      "companyRelease": 317,
+      "githubRelease": "https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.8.0-build45",
+      "sourceCommit": "b09d760eca1942602da5ffcd8aa4515c5990ae16",
+      "notarized": false
+    },
+    {
+      "version": "0.8.0",
+      "build": "46",
+      "artifact": "feishu-island-0.8.0-build46-arm64.dmg",
+      "sha256": "c8cebb01b2657fd9d556a61c27674dc7918b2c87931e7f70b37579308d1a9323",
+      "status": "已发布历史，build47统一品牌后接替",
+      "companyRelease": 318,
+      "githubRelease": "https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.8.0-build46",
+      "sourceCommit": "f30a604",
+      "visibility": "company",
+      "notarized": false,
+      "colleagueDeviceVerified": false,
+      "feishuAvailability": {
+        "receive": "1.0.3 / 所有员工 / 已发布",
+        "archive": "1.0.3 / 所有员工 / 已发布"
+      }
+    },
+    {
+      "version": "0.8.0",
+      "build": "47",
+      "artifact": "feishu-island-0.8.0-build47-arm64.dmg",
+      "sha256": "a5d9f3ef4619e82a14e5dd185b3355fbc4908e6245a317695f1bfdec56c39efa",
+      "status": "公司当前版，已上线",
+      "companyRelease": 329,
+      "githubRelease": "https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.8.0-build47",
+      "visibility": "company",
+      "notarized": false,
+      "colleagueDeviceVerified": false,
+      "coPublishers": [
+        "宰治",
+        "柚子"
+      ],
+      "feishuAvailability": {
+        "receive": "1.0.3 / 所有员工 / 已发布",
+        "archive": "1.0.3 / 所有员工 / 已发布"
+      },
+      "sourceCommit": "0ca7db7",
+      "pageWidthsVerified": [
+        1440,
+        390
+      ],
+      "githubArtifactDigestVerified": true,
+      "browserDownloadVerified": true,
+      "finderOpened": true,
+      "onlineDigest": "a5d9f3ef4619e82a14e5dd185b3355fbc4908e6245a317695f1bfdec56c39efa",
+      "webStyleFix": "2026-10-26: landing.css and virxact-story.css served from explicit whitelist; 27 service tests passed; verified live CSS MIME and IAB rendering",
+      "webDemoFix": "原生SwiftUI合成画面；白字描边飘字全程移出；恢复白色机器人；仅网页更新，不切换build48候选DMG。"
+    },
+    {
+      "version": "0.8.0",
+      "build": "48",
+      "artifact": "feishu-island-0.8.0-build48-arm64.dmg",
+      "sha256": "a7b5c05db4620ed3fdc1dcf60f0e63ec860de555c9fc2b4b27e0a91572bfc401",
+      "status": "本机候选，GitHub Draft备份，等待本人体验；未替换日用程序，未更新公司下载",
+      "sourceBranch": "codex/integrate-youzi-075",
+      "notarized": false,
+      "colleagueDeviceVerified": false,
+      "verification": {
+        "workspaceLayoutAssertions": 245,
+        "fusionAssertions": 1040,
+        "serviceTests": 27,
+        "packageTests": 11,
+        "servicePackagingTests": 3,
+        "stableHelpersUnchanged": true
+      },
+      "changes": [
+        "工作台九个入口合并为五组，旧快捷入口跳到对应分栏",
+        "状态监测与皮肤分开归位；任务和草稿保持",
+        "恢复原始白色机器人图标",
+        "网页演示改用原生组件的合成画面"
+      ],
+      "githubDraft": "https://github.com/zaizhi-1112/feishu-island/releases/tag/untagged-3c4a8f8555f0b87719c7"
+    },
+    {
+      "version": "0.8.0",
+      "build": "49",
+      "productName": "你的飞包",
+      "artifact": "feishu-island-0.8.0-build49-arm64.dmg",
+      "sha256": "bde9894f0f5cbc014363e440a86dfceaf02d7a8857e24d6c4439d186caa29831",
+      "status": "本人本地已安装，等待体验反馈；公司未发布",
+      "companyRelease": null,
+      "websiteRelease": 333,
+      "githubRelease": "https://github.com/zaizhi-1112/feishu-island/releases/tag/untagged-80b7437d9bbc5049f4bf",
+      "notarized": false,
+      "localInstalled": true
+    },
+    {
+      "version": "0.8.0",
+      "build": "50",
+      "productName": "你的飞包",
+      "artifact": "feishu-island-0.8.0-build50-arm64.dmg",
+      "sha256": "b828c4ca691a7ace882824bc328e9d842a15a300338df22fc8f6e205b6e4bcf8",
+      "status": "本人本地已安装，等待体验；公司未发布",
+      "localInstalled": true,
+      "companyRelease": null,
+      "githubRelease": "draft v0.8.0-build50",
+      "notarized": false
+    }
+  ]
+}

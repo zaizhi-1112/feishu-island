@@ -1,0 +1,22 @@
+飞书工作岛 · 冲屏提醒素材来源
+
+猫咪伸懒腰：本项目原创 AppKit 矢量绘制与动效，源码
+Sources/IslandShell/Workspace/ScreenReminderCatView.swift。
+未使用、复制或描摹 Cat Gatekeeper 的猫视频、图标或品牌素材。
+上游 Cat Gatekeeper 的 MIT 许可仅覆盖其代码，ASSETS_LICENSE.md
+对视频等素材保留权利，因此其 neko1/neko2 视频不随本安装包分发。
+
+瑞克传送门：用户提供的 Gemini 生成动作视频，经本人授权本机去除黑底。
+采用 /冲屏提醒/desktop/materials/rick-morty/gemini-motion/
+瑞克传送门-透明冲屏.mov 对应的最新成品，不含旧版静帧或任何备份。
+1280×720，10秒，24fps，静音 HEVC Alpha。
+文件 SHA-256：c3e31785fd74960637587b811ab7bc4a692f6bdb39cbb7c181b464ed26c361ea
+本次由用户明确要求用于公司内部试用包。人物名称和形象归相应权利人；
+本说明不宣称取得其角色形象的独立商业许可，不扩大为公开素材授权。
+
+个人视频：只能由使用者本人主动选择导入，副本保存在其本机工作区。
+不会将开发者或其他同事的个人素材、设置、密钥与任务打进安装包。
+
+播放实现复用本机“冲屏提醒”项目 AppKit/AVPlayerLayer 的方式，
+删去原程序的不透明背景、应用激活和键盘焦点抢占。
+始终透明窗口、鼠标穿透、独立关闭按钮和自动超时退出。

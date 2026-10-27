@@ -1,0 +1,78 @@
+import NookApp
+import SwiftUI
+
+/// One navigation bar for both code lines; all settings stay in the ordinary window.
+struct IntegrationTopBar: View {
+    let bar: NookTopBarContext
+    @ObservedObject private var attention = IslandModuleAttention.shared
+    @Environment(\.nookNotchCutout) private var cutout
+    @Environment(\.nookResolvedTheme) private var theme
+    var body: some View {
+        VStack(spacing: 4) {
+            if !cutout.isEmpty { Color.clear.frame(height: cutout.height + 4) }
+            HStack(spacing: 3) {
+                if let switcher=bar.moduleSwitcher {
+                    ForEach(switcher.modules.filter { [IslandHost.feishuID,IslandHost.agentID,IslandHost.todoID,IslandHost.platformID].contains($0.id) }) { module in
+                        Button { switcher.switchTo(module.id) } label: {
+                            HStack(spacing:4) {
+                                Image(systemName:module.icon)
+                                Text(module.id == IslandHost.feishuID ? "消息" : module.id == IslandHost.agentID ? "Agent" : module.id == IslandHost.todoID ? "待办" : "中台")
+                            }.font(.system(size:12,weight:.medium)).padding(.horizontal,9).frame(height:30)
+                                .foregroundStyle(switcher.activeID==module.id ? theme.accent:theme.secondaryLabel)
+                                .background(switcher.activeID==module.id ? theme.accent.opacity(0.14):.clear,in:Capsule())
+                                .overlay(alignment:.topTrailing) { if attention.hints[module.id] != nil { Circle().fill(theme.accent).frame(width:4,height:4) } }
+                        }.help(module.displayName).accessibilityLabel(module.displayName).accessibilityIdentifier("unified.module."+module.id)
+                    }
+                }
+                Spacer(minLength:0)
+                Button { UnifiedSettingsWindow.shared.open() } label: { Image(systemName:"gearshape").frame(width:26,height:30) }.help("打开设置")
+            }
+        }.buttonStyle(.plain).foregroundStyle(theme.secondaryLabel)
+    }
+}
+struct UnifiedIslandPeek: View, Sendable {
+    let title:String
+    let symbol:String
+    var body:some View {
+        VStack(spacing:7) {
+            Capsule().fill(.white.opacity(0.65)).frame(width:74,height:2)
+            HStack(spacing:7) { Image(systemName:symbol); Text(title); Image(systemName:"chevron.down").font(.system(size:9)) }
+                .font(.system(size:12,weight:.medium)).foregroundStyle(.white.opacity(0.92))
+            Text("点击展开").font(.system(size:10)).foregroundStyle(.white.opacity(0.55))
+        }.frame(maxWidth:220).padding(.vertical,8)
+    }
+}
+
+/// Skins do not require monitoring. Reading other agents is an explicit local opt-in.
+struct IntegrationAgentSettings: View {
+    @ObservedObject private var store = AgentStore.shared
+    var showSkins=true
+    var showMonitoring=true
+    var body: some View {
+        VStack(alignment:.leading,spacing:22) {
+            if showSkins {
+            Text("选择你的岛").font(.system(size:20,weight:.semibold))
+            IslandSkinSettings(store:store)
+            }
+            if showMonitoring {
+            Toggle("在刘海显示 Codex 剩余额度",isOn:Binding(get:{store.preferences.quotaDisplayEnabled},set:{ value in var next=store.preferences; next.quotaDisplayEnabled=value; save(next) }))
+            Text("只查询 Codex 账号额度，每3分钟刷新；收起后在摄像头两侧显示，不读取对话或开启其他 Agent 监测。").font(.system(size:13)).foregroundStyle(.secondary)
+            Divider()
+            Text("本机 Agent 状态").font(.system(size:18,weight:.semibold))
+            Text("与“交给 AI”分开。开启后，仅读取你选中的本机客户端任务状态与额度；不把聊天材料交给其他 Agent。").foregroundStyle(.secondary)
+            Toggle("开启本机状态监测",isOn:Binding(get:{store.preferences.enabled},set:{ value in var next=store.preferences; next.enabled=value; save(next) }))
+            Toggle("完成、等待输入或确认时提醒",isOn:Binding(get:{store.preferences.completionAlerts},set:{ value in var next=store.preferences;next.completionAlerts=value;save(next) }))
+            ForEach(store.preferences.profiles) { profile in
+                Toggle(profile.name,isOn:Binding(get:{store.preferences.visibleIDs.contains(profile.id)},set:{ value in
+                    var next=store.preferences
+                    var ids=next.visibleIDs.filter{$0 != profile.id}; if value { ids.append(profile.id) }
+                    next.setVisibleIDs(ids); save(next)
+                })).disabled(profile.id == "claude")
+            }
+            Text("Claude 暂未接通。关闭的来源不会读取；额度未知时不会显示为零。").font(.system(size:13)).foregroundStyle(.secondary)
+            AgentPanel(store:store)
+            }
+        }.font(.system(size:15)).frame(maxWidth:680,alignment:.leading)
+    }
+    private func save(_ next:AgentPreferences) { do { try store.update(next) } catch { WorkspaceStore.shared.error=error.localizedDescription } }
+}

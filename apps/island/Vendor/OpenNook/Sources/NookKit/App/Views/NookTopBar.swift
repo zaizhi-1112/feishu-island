@@ -301,8 +301,30 @@ private struct ModuleSwitcherMenu: View {
     @Environment(\.nookChromeLabels) private var labels
     @Environment(\.nookChromeSymbols) private var symbols
     @Environment(\.nookNotchCutout) private var notchCutout
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hovering = false
 
     var body: some View {
+        if let target = switcher.directTarget {
+            Button { switcher.switchTo(target.id) } label: {
+                switcherLabel(direct: true)
+                    .frame(minHeight: metrics.headerIconSize)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .opacity(hovering ? 1 : 0.9)
+            .onHover { hovering = $0 }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
+            .accessibilityLabel("\(labels.topBar.switchModuleHelp) · \(target.displayName)")
+            .accessibilityValue(activeTitle)
+            .accessibilityIdentifier("opennook.moduleSwitch.direct")
+            .help("\(labels.topBar.switchModuleHelp) · \(target.displayName)")
+        } else {
+            popup
+        }
+    }
+
+    private var popup: some View {
         Menu {
             ForEach(switcher.modules) { descriptor in
                 Button {
@@ -318,24 +340,37 @@ private struct ModuleSwitcherMenu: View {
                 }
             }
         } label: {
-            HStack(spacing: metrics.leadingClusterSpacing) {
-                icon
-                if notchCutout.isEmpty {
-                    Text(activeTitle)
-                        .font(typography.topBarLabel)
-                        .foregroundStyle(theme.secondaryLabel)
-                        .lineLimit(1)
-                }
-                Image(systemName: symbols.moduleSwitcherIndicator)
-                    .font(typography.switcherChevron)
-                    .foregroundStyle(theme.tertiaryLabel)
-            }
+            switcherLabel(direct: false)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
         .accessibilityLabel(activeTitle)
         .help(labels.topBar.switchModuleHelp)
+    }
+
+    private func switcherLabel(direct: Bool) -> some View {
+        HStack(spacing: metrics.leadingClusterSpacing) {
+            icon
+            if notchCutout.isEmpty {
+                ZStack(alignment: .leading) {
+                    if direct {
+                        // Reserve the longer title's width so the click target stays still.
+                        ForEach(switcher.modules) { descriptor in
+                            Text(descriptor.displayName).hidden().accessibilityHidden(true)
+                        }
+                    }
+                    Text(activeTitle)
+                }
+                .font(typography.topBarLabel)
+                .foregroundStyle(theme.secondaryLabel)
+                .lineLimit(1)
+            }
+            Image(systemName: direct ? "arrow.left.arrow.right" : symbols.moduleSwitcherIndicator)
+                .font(typography.switcherChevron)
+                .foregroundStyle(hovering ? theme.secondaryLabel : theme.tertiaryLabel)
+        }
+        .fixedSize()
     }
 
     private var activeTitle: String {

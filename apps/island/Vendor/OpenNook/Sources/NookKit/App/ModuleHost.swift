@@ -63,7 +63,19 @@ public final class ModuleHost: ObservableObject {
     public nonisolated static let singleModuleID = "opennook.module.default"
 
     /// All registered modules' descriptors, in registration order.
-    public var descriptors: [NookModuleDescriptor] { registry.descriptors }
+    @Published private var navigationOrder: [String]?
+    public var descriptors: [NookModuleDescriptor] {
+        guard let navigationOrder else { return registry.descriptors }
+        return navigationOrder.compactMap { id in registry.descriptors.first { $0.id == id } }
+    }
+    /// Hide or reorder entries without destroying their persisted services.
+    public func setNavigationOrder(_ ids: [String]) {
+        let valid = ids.filter { id in registry.descriptors.contains { $0.id == id } }
+        guard !valid.isEmpty, Set(valid).count == valid.count, valid != navigationOrder else { return }
+        navigationOrder = valid
+        let current = configuration
+        configuration = current
+    }
 
     /// The live active module, constructed on first access.
     public var activeModule: NookModule? { registry.module(for: activeModuleID) }
@@ -134,7 +146,7 @@ public final class ModuleHost: ObservableObject {
     /// the active module.
     @discardableResult
     func switchModule(to id: String) -> Bool {
-        guard id != activeModuleID, registry.descriptor(for: id) != nil else { return false }
+        guard id != activeModuleID, descriptors.contains(where: { $0.id == id }), registry.descriptor(for: id) != nil else { return false }
         guard let incoming = registry.module(for: id) else { return false }
 
         incoming.onActivate()

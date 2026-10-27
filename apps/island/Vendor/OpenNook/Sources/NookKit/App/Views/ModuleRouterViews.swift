@@ -36,36 +36,57 @@ struct ModuleRouterExpandedView: View {
     /// inserts it each time it expands and keeps it across a module switch, so a switch does
     /// not replay the entrance's waits.
     @State private var entranceStart = Date()
+    @State private var swipeStep = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let configuration = moduleHost.displayedConfiguration
-        NookExpandedView(
-            appState: appState,
-            services: moduleHost.displayedServices,
-            toggleKeepOpen: toggleKeepOpen,
-            hide: hide,
-            resetAllSettings: resetAllSettings,
-            theme: configuration.theme,
-            home: presentedActivityHome ?? configuration.home,
-            settings: configuration.settings,
-            settingsSections: configuration.settingsSections,
-            settingsGroups: configuration.settingsGroups,
-            topBar: configuration.topBar,
-            labels: configuration.labels,
-            metrics: configuration.effectiveMetrics,
-            motion: configuration.effectiveMotion,
-            typography: configuration.effectiveTypography,
-            width: configuration.expandedWidth ?? NookLayout.width,
-            // Only fold a switcher into the chrome when the host opted in; otherwise the
-            // surface is untouched and switching lives in the menu bar / hotkeys.
-            moduleSwitcher: leadingClusterSwitcher,
-            chromeTheme: configuration.effectiveChromeTheme,
-            themeTokens: configuration.effectiveThemeTokens
-        )
-        // Identity tracks the displayed module so a switch tears down the old content and
-        // inserts the new - letting the transition cross-fade rather than diff in place.
-        .id(moduleHost.displayedModuleID)
-        .transition(.opacity)
+        ZStack {
+            NookExpandedView(
+                appState: appState,
+                services: moduleHost.displayedServices,
+                toggleKeepOpen: toggleKeepOpen,
+                hide: hide,
+                resetAllSettings: resetAllSettings,
+                theme: configuration.theme,
+                home: presentedActivityHome ?? configuration.home,
+                settings: configuration.settings,
+                settingsSections: configuration.settingsSections,
+                settingsGroups: configuration.settingsGroups,
+                topBar: configuration.topBar,
+                labels: configuration.labels,
+                metrics: configuration.effectiveMetrics,
+                motion: configuration.effectiveMotion,
+                typography: configuration.effectiveTypography,
+                width: configuration.expandedWidth ?? NookLayout.width,
+                // Only fold a switcher into the chrome when the host opted in; otherwise the
+                // surface is untouched and switching lives in the menu bar / hotkeys.
+                moduleSwitcher: leadingClusterSwitcher,
+                chromeTheme: configuration.effectiveChromeTheme,
+                themeTokens: configuration.effectiveThemeTokens
+            )
+            // Identity tracks the displayed module so a switch tears down the old content and
+            // inserts the new - letting the transition cross-fade rather than diff in place.
+            .id(moduleHost.displayedModuleID)
+            .transition(reduceMotion || swipeStep == 0 ? .opacity : .asymmetric(
+                insertion: .offset(x: CGFloat(swipeStep) * 28).combined(with: .opacity),
+                removal: .offset(x: CGFloat(-swipeStep) * 28).combined(with: .opacity)
+            ))
+        }
+        .background {
+            NookModuleSwipeRegion(
+                canNavigate: {
+                    moduleHost.displayedConfiguration.allowsHorizontalModuleSwipe && appState.isNookVisible
+                        && appState.viewMode == .home && !appState.isDragInFlight && appState.presentedLiveActivity == nil
+                }
+            ) { step in
+                guard let id = NookModuleSwipeTracker.destination(
+                    modules: moduleHost.descriptors.map(\.id), activeID: moduleHost.activeModuleID, step: step
+                ) else { return }
+                swipeStep = step
+                switchModule(id)
+            }
+        }
         // Host-product identity (brand mark, About card, show-hide hotkey label) lives on
         // `ModuleHost`; surface it so the chrome can read it without an init-time plumb.
         .environment(\.nookHostBranding, moduleHost.branding)

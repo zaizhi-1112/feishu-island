@@ -1,0 +1,37 @@
+{
+  "name": "feishu-island",
+  "title": "一切在岛",
+  "url": "https://feishu-island.virxact.net",
+  "release": 396,
+  "state": "live",
+  "category": "general",
+  "visibility": "company",
+  "authors": [
+    "宰治",
+    "柚子"
+  ],
+  "version": "0.9.0",
+  "build": 52,
+  "nativePackageUnchanged": true,
+  "nativeAppName": "你的飞包",
+  "dmgBytes": 31796728,
+  "sha256": "fea253722acf87bd23f474609ae59b13f501b6189c76bac823f3d966c766c161",
+  "checks": {
+    "serviceTests": 27,
+    "hostedHelpTests": 3,
+    "designErrors": 0,
+    "designWarnings": 0,
+    "desktopWidth": 1440,
+    "mobileWidth": 390,
+    "noHorizontalOverflow": true,
+    "liveBrowserDownload": true,
+    "liveHashMatched": true,
+    "imagesLoaded": true,
+    "helpFontSizes": [
+      "21px",
+      "23px"
+    ]
+  },
+  "authorizationServiceRetained": true,
+  "mainMerged": false
+}

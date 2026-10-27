@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "appName": "一切在岛.app",
+  "defaultView": "icon",
+  "alwaysOpenInIconView": true,
+  "windowWidth": 600,
+  "windowHeight": 360,
+  "iconSize": 96,
+  "positions": {
+    "一切在岛.app": [
+      150,
+      160
+    ],
+    "Applications": [
+      450,
+      160
+    ]
+  },
+  "sha256": "b7dd50ddd2b04dffe7649d49282a31c79e197019e94d9f554f263dc53236d6c5",
+  "generator": "ds_store==1.3.1"
+}
