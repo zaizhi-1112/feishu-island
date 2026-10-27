@@ -19,6 +19,19 @@ html=start.read_text()
 styles=re.findall(r'<style>(.*?)</style>',html,flags=re.I|re.S)
 if len(styles)!=1 or len(re.findall(r'<style\b',html,flags=re.I))!=1:
  raise SystemExit('Expected one plain inline style block in hosted start.html')
-(a.output/'public/start.css').write_text(styles[0]+'\n')
-start.write_text(re.sub(r'<style>.*?</style>','<link rel="stylesheet" href="start.css">',html,count=1,flags=re.I|re.S))
+hosted=re.sub(r'<style>.*?</style>','<link rel="stylesheet" href="start.css">',html,count=1,flags=re.I|re.S)
+hosted=hosted.replace('<title>你的飞包 · 融合安装与使用说明</title>','<title>一切在岛 · 安装与使用说明</title>')
+hosted=hosted.replace('<h1>你的飞包<br>','<h1>一切在岛<br>')
+css=styles[0]+'\n'
+font_controls = [('23px','reader-large'),('21px','reader-normal')]
+for size,control in font_controls:
+ hosted=hosted.replace('onclick="document.body.style.fontSize=\''+size+'\'"','id="'+control+'"')
+if 'id="reader-large"' in hosted and 'id="reader-normal"' in hosted:
+ css+='body.reader-large{font-size:23px}body.reader-normal{font-size:21px}\n'
+ (a.output/'public/start.js').write_text("'use strict';\nfor (const id of ['reader-large','reader-normal']) { document.getElementById(id).addEventListener('click',()=>{ document.body.classList.remove('reader-large','reader-normal'); document.body.classList.add(id); }); }\n")
+ hosted=hosted.replace('</head>','<script src="start.js" defer></script></head>')
+if re.search(r'\son\w+\s*=',hosted,flags=re.I):
+ raise SystemExit('Unsupported inline event handler in hosted help')
+(a.output/'public/start.css').write_text(css)
+start.write_text(hosted)
 print(a.output)

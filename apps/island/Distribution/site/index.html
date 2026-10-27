@@ -1,34 +1,29 @@
 <!doctype html>
 <html lang="zh-CN"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="island-release" content="0.8.0/50/arm64">
-<title>你的飞包 · 让消息与 Agent 留在视线里</title>
-<meta name="description" content="常驻在你的 MAC 灵动岛里的工具，将飞书、豆包工作、Codex等 Agent打通为一体，便于大家高效工作，同时飞书消息、Agent 的状态像看直播、电视一样有弹幕飘过你的电脑桌面">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="island-release" content="0.9.0/52/arm64">
+<title>一切在岛 · Mac 灵动岛</title><meta name="description" content="把飞书消息、Agent 状态、待办与中台快捷入口收进 Mac 灵动岛。宰治和柚子共同发布。">
 <link rel="icon" href="icon.png" type="image/png"><link rel="stylesheet" href="virxact-story.css"><link rel="stylesheet" href="landing.css"><script src="vx.js" defer></script><script src="install.js" defer></script>
 </head><body class="vn-page">
-<header class="vn-header"><a class="vn-logo island-brand" href="./"><img src="icon.png" width="38" height="38" alt="">你的飞包</a><nav class="vn-nav" aria-label="页面导航"><a href="#workflow">怎么用</a><a href="#install">安装与连接</a><a href="http://127.0.0.1:18766/" target="_blank" rel="noopener">打开工作台 ↗</a></nav></header>
-<main>
-<section class="vn-hero island-hero" aria-labelledby="hero-title"><div class="vn-wrap hero-grid">
-<div class="hero-copy"><p class="vn-marker">你的 Mac 顶部，多一个工作伙伴</p><h1 class="vn-display" id="hero-title">飞书、Agent，<br>都在灵动岛。</h1><p class="vn-lead hero-lead">材料交给 AI，手头工作继续。<br>消息、进度和结果，抬眼就能看见。</p>
-<div class="vn-actions"><a class="vn-btn" id="download" href="feishu-island-0.8.0-build50-arm64.dmg" download>安装到 Mac <span aria-hidden="true">↓</span></a><button class="vn-link" id="copy-agent" type="button"><span>复制交给 Agent</span> <span aria-hidden="true">↗</span></button></div><p class="vn-note compatibility">Apple M 系列 · macOS 15+ · 0.8.0 build 50</p>
-<p id="download-feedback" class="inline-feedback" role="status" aria-live="polite" hidden>下载已开始。打开 DMG，把工作岛拖进 Applications。</p><p id="agent-feedback" class="inline-feedback" role="status" aria-live="polite" hidden></p>
-<div id="copy-fallback" class="copy-fallback" hidden><label for="agent-text">复制下面的内容给你的 Agent</label><textarea id="agent-text" rows="4" readonly></textarea><button class="vn-link" id="close-copy" type="button">收起</button></div></div>
-<div class="product-exhibit"><div class="exhibit-heading"><span>在这里试一下</span><span>软件原生组件 · 合成内容</span></div>
-<div class="desktop-demo" id="desktop-demo" role="group" aria-label="软件原生组件合成演示">
-<div class="demo-menubar"><span>工作中的 Mac</span><span>09:41</span></div>
-<div class="demo-island" id="demo-island" tabindex="0" role="button" aria-label="悬停或点击展开灵动岛" aria-expanded="false"><img id="demo-compact" src="demo-feishu-compact.png" alt="飞书消息：1条，中间为摄像头留空"><span class="demo-camera" aria-hidden="true"></span><div class="demo-panel" id="demo-panel" hidden><img id="demo-expanded" src="demo-feishu-expanded.png" alt="软件内的飞书消息阅读界面"></div></div>
-<div class="demo-desktop-lines" aria-hidden="true"><span></span><span></span><span></span></div>
-<div class="demo-danmu-lane" aria-hidden="true"><div class="demo-danmu" id="demo-danmu">合成演示 · 讨论改到下午3点，方便时确认。</div></div>
-<div class="demo-caption" id="demo-caption" role="status">鼠标放到顶部展开，移开收回。消息以白字描边飘过桌面。</div></div>
-<div class="demo-controls" role="group" aria-label="切换演示内容"><button type="button" data-demo="feishu" aria-pressed="true">飞书消息</button><button type="button" data-demo="agent" aria-pressed="false">Agent 状态</button><button type="button" data-demo="result" aria-pressed="false">材料与结果</button><button type="button" id="replay-demo" aria-label="重新播放当前演示">重播 ↻</button></div></div>
-</div><div class="hero-bottom vn-wrap"><span>宰治 × 柚子 · 共同发布</span><a href="#workflow">看看怎么用 ↓</a></div></section>
-<section class="vn-section vn-light workflow-section" id="workflow"><div class="vn-wrap"><div class="vn-head vn-split"><div><p class="vn-marker">从随手一放，到拿到结果</p><h2 class="vn-title">少切几个窗口。<br>多做一点正事。</h2></div><p class="vn-body">飞书消息、材料处理、待办和 Agent 状态，放到同一个入口。需要时展开，鼠标移开就收回。</p></div>
-<ol class="vn-rows workflow-rows"><li><span class="vn-n">01</span><div><h3>放下材料</h3><p class="vn-en">文字 · 链接 · 图片 · 文件</p></div><p class="vn-desc">拖进灵动岛，或直接输入、粘贴截图。先存待办，也可以直接归档。</p></li><li><span class="vn-n">02</span><div><h3>交给常用的 AI</h3><p class="vn-en">Dot · Codex · 豆包工作 · WorkBuddy</p></div><p class="vn-desc">选择工具，再点“交给 AI”。继续做其他事，完成或需要你确认时再提醒。</p></li><li><span class="vn-n">03</span><div><h3>结果回到飞书</h3><p class="vn-en">云文档 · 追加收录 · 多维表格</p></div><p class="vn-desc">按你选择的位置归档，文档链接回到岛内。接入的是你自己的账号和权限。</p></li></ol></div></section>
-<section class="vn-section install-section" id="install"><div class="vn-wrap"><div class="vn-head vn-split"><div><p class="vn-marker">安装，只留三步</p><h2 class="vn-title">把工作岛，<br>放上你的 Mac。</h2></div><div class="install-side"><p class="vn-body">全公司同事可用。每人连接自己的飞书和 Agent，不共用其他人的账号。</p><a class="vn-link" href="#download">下载 Mac 安装包 ↑</a><a class="vn-more" href="SHA256SUMS">查看安装包校验值</a></div></div>
-<ol class="install-steps"><li><span>01</span><h3>打开 DMG</h3><p>下载后，在浏览器下载列表中打开。</p></li><li><span>02</span><h3>拖入 Applications</h3><p>一个应用，一个拖入目标。安装就这些。</p></li><li><span>03</span><h3>连接自己的账号</h3><p>按工作台提示授权，不用填写应用密钥。</p></li></ol><div class="install-bottom"><span>已经安装？</span><a class="vn-link" href="http://127.0.0.1:18766/" target="_blank" rel="noopener">打开本机工作台 ↗</a></div></div></section>
+<header class="vn-header"><a class="vn-logo island-brand" href="./"><img src="icon.png" width="42" height="42" alt="">一切在岛</a><nav class="vn-nav" aria-label="页面导航"><a href="#features">功能</a><a href="#install">安装</a><a href="start.html">使用说明 ↗</a></nav></header>
+<main><section class="vn-hero island-hero" aria-labelledby="hero-title"><div class="vn-wrap hero-grid">
+<div class="hero-copy"><p class="vn-marker">MAC 灵动岛 · 0.9.0 BUILD 52</p><h1 class="vn-display" id="hero-title">一切在岛。</h1><p class="vn-lead hero-lead">消息、进度、待办，<br>抬眼就能看见。</p><p class="hero-description">飞书消息、Agent 状态、待办与中台，收在同一个入口。设置在独立 Mac 窗口中完成。</p>
+<div class="vn-actions"><a class="vn-btn" id="download" href="feishu-island-0.9.0-build52-arm64.dmg" download>下载 Mac 版 <span aria-hidden="true">↓</span></a><a class="vn-link" href="#install">安装方法 ↗</a></div><p class="vn-note compatibility">Apple M 系列 · macOS 15 或更高版本 · 约 32 MB</p><p id="download-feedback" class="inline-feedback" role="status" aria-live="polite" hidden>下载已开始。打开 DMG，将包内“你的飞包”拖入应用程序。</p></div>
+<figure class="product-exhibit"><img class="mascot" src="mascot.png" width="640" height="640" alt="蓝绿尾翼、微笑面罩的白色云朵伙伴"><figcaption>宰治和柚子 · 共同发布</figcaption></figure>
+</div><div class="hero-bottom vn-wrap"><span>全公司同事可用 · 使用本人账号连接</span><a href="#features">看看有哪些功能 ↓</a></div></section>
+<section class="vn-section vn-light" id="features"><div class="vn-wrap"><div class="vn-head vn-split"><div><p class="vn-marker">四个入口，一个灵动岛</p><h2 class="vn-title">少切几个窗口。<br>事情就在眼前。</h2></div><p class="vn-body">鼠标移入即可展开，也可以先预览、点击再展开。移开后自动收起。</p></div>
+<ol class="vn-rows feature-rows">
+<li><span class="vn-n">01</span><div><h3>飞书消息</h3><p class="vn-en">私聊与群聊，一处管理</p></div><p class="vn-desc">首次引导本人授权，之后恢复有效连接。字号、速度、配色与气泡独立调整；长消息在岛内完整阅读。</p></li>
+<li><span class="vn-n">02</span><div><h3>Agent 状态</h3><p class="vn-en">进度、额度与完成提醒</p></div><p class="vn-desc">展示实际可获取的数据，支持自定义状态来源。岛内最多显示三个，点击上下箭头，设置整行与岛内顺序一起移动。</p></li>
+<li><span class="vn-n">03</span><div><h3>待办</h3><p class="vn-en">完成、折叠、归档与历史</p></div><p class="vn-desc">未完成优先，完成后划线。按次或按周期提醒，轻提示与冲屏可选；按日期保留完成记录，可主动导出给 Agent 总结。</p></li>
+<li><span class="vn-n">04</span><div><h3>中台</h3><p class="vn-en">常用卡片与快捷信号轮盘</p></div><p class="vn-desc">八个方向放八个常用入口，点击或拖动打开。主栏可隐藏，配置仍保留。</p></li>
+</ol><p class="appearance-note">主题、形态、两种悬浮模式与冲屏素材，都在“外观与交互”中统一设置。</p></div></section>
+<section class="vn-section install-section" id="install"><div class="vn-wrap"><div class="vn-head vn-split"><div><p class="vn-marker">安装三步</p><h2 class="vn-title">放上你的 Mac。</h2></div><div class="install-side"><p class="vn-body">中台发布名为“一切在岛”，当前安装包内的应用名为“你的飞包”。沿用原应用身份与个人数据。</p><a class="vn-link" href="#download">下载当前版本 ↑</a><a class="vn-more" href="SHA256SUMS">查看 SHA-256 校验值</a></div></div>
+<ol class="install-steps"><li><span>01</span><h3>下载并打开 DMG</h3><p>适用 Apple M 系列 Mac，macOS 15 或更高版本。</p></li><li><span>02</span><h3>拖入应用程序</h3><p>首次安装拖入 Applications。更新前先退出旧版，将新版放回原安装位置替换。</p></li><li><span>03</span><h3>连接本人飞书</h3><p>从灵动岛打开原生设置，按提示完成本人授权；已有有效连接自动恢复。</p></li></ol>
+<p class="install-limit">当前包为本地签名，尚未完成 Apple 公证。遇到来源提示时，使用 macOS“隐私与安全性”中的确认入口。Intel Mac 和 Windows 暂不提供安装包。</p></div></section>
 <section class="vn-section vn-light help-section" id="help"><div class="vn-wrap"><div class="help-grid"><h2 class="vn-subtitle">需要时，再看。</h2><div>
-<details><summary>第一次怎么连接？<span aria-hidden="true">+</span></summary><div class="help-content"><p>在工作台“中台与飞书 → 账号与消息”连接自己的飞书，消息接收与材料归档分别授权。Dot 需连接自己的项目；不会复制开发者的账号。需要协助，点首屏“复制交给 Agent”。</p><a class="vn-link" href="start.html#connect">查看连接说明</a></div></details>
-<details><summary>网页收录、提醒和外观在哪里？<span aria-hidden="true">+</span></summary><div class="help-content"><p>打开完整工作台，可设置网页收录、中台卡片、提醒和外观。WorkBuddy 自动签到在“Agent → 接入与签到”开启，使用自己的账号，首次需本人允许签到组件的系统权限。</p><a class="vn-link" href="start.html#browser">查看使用说明</a></div></details>
-<details><summary>旧版更新，或首次打不开？<span aria-hidden="true">+</span></summary><div class="help-content"><p>先退出旧工作岛，再替换应用，不用退出飞书。旧版本可能仍叫“飞书工作岛预览版”。当前包尚未完成 Apple 公证；如遇系统来源提示，使用 macOS 提供的确认入口，不关闭安全保护。Windows 和 Intel Mac 暂不提供安装包。</p><a class="vn-link" href="start.html#install">查看安装帮助</a></div></details>
-</div></div></div></section>
-</main><footer class="vn-footer island-footer"><div class="vn-wrap"><div class="footer-top"><a class="island-brand" href="./"><img src="icon.png" width="38" height="38" alt="">你的飞包</a><span>宰治 × 柚子 · 共同发布</span></div><p class="product-description">常驻在你的 MAC 灵动岛里的工具，将飞书、豆包工作、Codex等 Agent打通为一体，便于大家高效工作，同时飞书消息、Agent 的状态像看直播、电视一样有弹幕飘过你的电脑桌面</p><div class="footer-bottom"><span>虚实传媒 · 全公司可用</span><a href="start.html#status">版本与使用范围 ↗</a></div></div></footer>
+<details><summary>怎么打开设置？<span aria-hidden="true">+</span></summary><div class="help-content"><p>将鼠标移到 Mac 顶部灵动岛，展开后点击齿轮。五个设置模块在独立原生窗口中配置，不用打开浏览器工作台。</p><a class="vn-link" href="start.html#features">查看功能说明</a></div></details>
+<details><summary>Agent 能做什么？<span aria-hidden="true">+</span></summary><div class="help-content"><p>展示实际可获取的状态、额度或积分，并在完成时提醒。自定义 Agent 可接本机 JSON 状态文件；当前版本在岛内不下发任务或传文档。</p><a class="vn-link" href="agent-guide.html">查看接入与协助说明</a></div></details>
+<details><summary>数据和使用范围？<span aria-hidden="true">+</span></summary><div class="help-content"><p>待办与历史保存在本人 Mac，飞书消息正文只在内存中使用。每位同事连接自己的账号。真实授权、新消息类别、Agent 来源和多日运行，按各人的设备实际核对。</p><a class="vn-link" href="start.html#data">查看保存与接入说明</a></div></details>
+</div></div></div></section></main>
+<footer class="vn-footer island-footer"><div class="vn-wrap"><div class="footer-top"><a class="island-brand" href="./"><img src="icon.png" width="38" height="38" alt="">一切在岛</a><span>宰治和柚子 · 共同发布</span></div><div class="footer-bottom"><span>虚实传媒 · 全公司可用</span><a href="start.html#checks">版本与使用范围 ↗</a></div></div></footer>
 </body></html>

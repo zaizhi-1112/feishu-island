@@ -29,7 +29,10 @@ class HostedHelpTests(unittest.TestCase):
         self.assertIn('<link rel="stylesheet" href="start.css">',hosted)
         self.assertNotIn('<style',hosted.lower())
         css=re.findall(r'<style>(.*?)</style>',html,flags=re.I|re.S)
-        self.assertEqual((output/'public/start.css').read_text(),css[0]+'\n')
+        self.assertEqual((output/'public/start.css').read_text(),css[0]+'\nbody.reader-large{font-size:23px}body.reader-normal{font-size:21px}\n')
+        self.assertNotIn('onclick=',hosted)
+        self.assertIn('<script src="start.js" defer></script>',hosted)
+        self.assertIn("classList.add(id)",(output/'public/start.js').read_text())
         self.assertEqual(SOURCE.read_bytes(),before)
         self.assertIn('<style>',SOURCE.read_text())
 

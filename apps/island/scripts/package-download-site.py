@@ -12,27 +12,26 @@ manifest_path = a.manifest or a.package.parent/'package-manifest.json'
 if a.package.is_symlink() or not a.package.is_file() or a.package.suffix != '.dmg':
     raise SystemExit('Expected an audited DMG file')
 manifest = json.loads(manifest_path.read_text())
-expected = ('0.8.0','50',['arm64'],'pilot-preparation','dmg')
+expected = ('0.9.0','52',['arm64'],'pilot-preparation','dmg')
 if tuple(manifest.get(k) for k in ['version','build','architectures','status','format']) != expected:
     raise SystemExit('Update page version and package rules before publishing a different release')
-name = 'feishu-island-0.8.0-build50-arm64.dmg'
+name = 'feishu-island-0.9.0-build52-arm64.dmg'
 digest = hashlib.sha256(a.package.read_bytes()).hexdigest()
 if manifest.get('archive') != name or a.package.name != name or manifest.get('sha256') != digest:
     raise SystemExit('DMG does not match its audit manifest')
-if manifest.get('includesPersonalCredentials') is not False or not manifest.get('browserExtensionEmbedded'):
+if manifest.get('includesPersonalCredentials') is not False or manifest.get('browserExtensionEmbedded') is not False:
     raise SystemExit('Unexpected distribution boundary')
 checks = ['imageIntegrity','readOnlyMounted','bundleHashesMatch','signatureValid','detached']
 if any(manifest.get('verification',{}).get(k) is not True for k in checks):
     raise SystemExit('Incomplete DMG verification')
 page = (ROOT/'Distribution/site/index.html').read_text()
-if name not in page or 'content="0.8.0/50/arm64"' not in page:
+if name not in page or 'content="0.9.0/52/arm64"' not in page:
     raise SystemExit('Page and release metadata differ')
 a.output.mkdir(parents=True,exist_ok=False)
-for asset in (ROOT/'Distribution/site').iterdir():
-    # The inherited design-kit favicon directory is unused; the user's icon is
-    # the only icon linked by this page. Do not ship unreachable nested assets.
-    if asset.name == 'brand' and asset.is_dir() and not asset.is_symlink():
-        continue
+public = {'index.html','install.js','install.css','landing.css','agent-guide.html',
+          'icon.png','mascot.png','virxact-ui.css','virxact-story.css','vx.js'}
+for name_in_site in sorted(public):
+    asset = ROOT/'Distribution/site'/name_in_site
     if asset.is_symlink() or not asset.is_file() or asset.suffix not in {'.html','.css','.js','.png','.svg'}:
         raise SystemExit('Unexpected public asset')
     shutil.copyfile(asset,a.output/asset.name)
