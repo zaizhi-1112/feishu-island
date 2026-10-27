@@ -38,6 +38,10 @@ struct WorkItem: Codable, Identifiable, Equatable {
     var dotDeliveries: [String:DotDelivery]?
     var state = "todo"
     var created = Date()
+    var calendarSync: Bool?
+    var calendarLink: TodoCalendarLink?
+    var calendarError: String?
+    var deadline: Date?
     var due: Date?
     var screenReminder: ScreenReminderStyle?
     var reminded = false
@@ -80,6 +84,8 @@ struct WorkDisk: Codable {
     var screenSchedules: [WorkScreenSchedule]?
     var screenMaterials: [ScreenReminderMaterial]?
     var todoHistory: [WorkTodoCompletion]?
+    var deletedTodoHistoryTasks: [UUID]?
+    var calendarSyncEnabled: Bool?
     var importedTodoSources: [String]?
 }
 enum WorkError: LocalizedError {
@@ -246,6 +252,10 @@ final class WorkspaceStore: ObservableObject {
     private var cancelledJobs: Set<UUID> = []
     private var timer: Timer?
     private var screenTimer: Timer?
+    var calendarTimer: Timer?
+    var calendarCursor = 0
+    @Published var calendarStatus = "未连接飞书日历"
+    @Published var calendarSyncing = false
     private var integrationEnabled = false
     private var activity: NSObjectProtocol?
     private var writable = true
@@ -281,6 +291,7 @@ final class WorkspaceStore: ObservableObject {
         } catch { self.writable = false; self.error = "本机工作区未能载入或保存；原文件保留，已停止写入。" }
         integrationEnabled = startTimers && !IslandRuntime.isSkinPreview && !ProcessInfo.processInfo.arguments.contains("--self-test") && Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview"
         if integrationEnabled {
+            startTodoCalendarSync()
             importLegacyTodosIfNeeded()
             remindersAreLocked = { ScreenReminderSession.isLocked }
             presentScreenReminder = { [weak self] request in
@@ -700,7 +711,7 @@ final class WorkspaceStore: ObservableObject {
             state.items[index].completedCollapsed=false
             state.items[index].due=nil; state.items[index].reminded=true; state.items[index].todoReminder=nil
             var history=state.todoHistory ?? []
-            history.append(WorkTodoCompletion(taskID:id,title:item.title,content:item.input,completedAt:now,project:item.project))
+            history.append(WorkTodoCompletion(taskID:id,title:item.title,content:item.input,completedAt:now,deadline:item.deadline,project:item.project))
             state.todoHistory=history
         }
         if saved, !remindersAreLocked(), let style=item.completionReminder {

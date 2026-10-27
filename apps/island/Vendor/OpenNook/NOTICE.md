@@ -68,3 +68,7 @@ removes the forced click between edge reveal and the host's expanded content.
 - `NookSurface/Nook+Peek.swift`：悬浮排队开始与 compact 转换返回后检查 transition generation、任务取消及鼠标仍在区域；收回悬浮也检查当前 generation，避免快速移入移出或新操作被旧任务覆盖。程序主动触发的 peek 不要求鼠标悬停。`Tests/UnifiedProductChecks/PeekTransitionChecks.swift` 提供不创建窗口的排队取消回归检查。
 
 - 2026-10-27: Edge-docked presentations share expanded screen geometry and notch clearance. Floating compact chrome retracts into the hardware notch without a visible lip; only pointer hover reveals it. Non-notched display edge fallback remains.
+
+2026-10-27 build55: Docked expanded forms use floating capsule geometry. Compact vertical padding fits running Agent content within a 32pt notch.
+
+HotkeyController now forwards foreign Carbon signatures instead of consuming the launcher hotkey.

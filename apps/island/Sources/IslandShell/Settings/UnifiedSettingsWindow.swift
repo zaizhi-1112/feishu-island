@@ -66,7 +66,6 @@ private struct UnifiedSettingsLayout:View {
         HStack(spacing:0) {
             VStack(alignment:.leading,spacing:6) {
                 Label("一切在岛",systemImage:"capsule.fill").font(.system(size:22,weight:.semibold)).padding(.horizontal,12).padding(.top,22)
-                Text("宰治 × 柚子").font(.system(size:12)).foregroundStyle(theme.tertiaryLabel).padding(.horizontal,13).padding(.bottom,24)
                 ForEach(UnifiedSettingsSection.allCases) { section in
                     Button { model.section=section } label: {
                         Label(section.title,systemImage:section.symbol).font(.system(size:14,weight:model.section==section ? .semibold:.regular))
@@ -76,8 +75,6 @@ private struct UnifiedSettingsLayout:View {
                         .accessibilityIdentifier("unified.settings.\(section.rawValue)").accessibilityAddTraits(model.section==section ? .isSelected:[])
                 }
                 Spacer()
-                Button("使用说明") { if let url=Bundle.main.url(forResource:"开始使用",withExtension:"html") {NSWorkspace.shared.open(url)} }.buttonStyle(.plain).font(.system(size:12)).padding(.horizontal,12)
-                Text("本机保存 · 原生 Mac 应用\n0.9.0 · 融合版 53").font(.system(size:11)).foregroundStyle(theme.tertiaryLabel).lineSpacing(5).padding(12)
             }.padding(.horizontal,14).padding(.bottom,12).frame(width:208).frame(maxHeight:.infinity)
                 .background(Color(skinHex:agents.selectedSkin.palette(dark:dark).sidebar))
             Rectangle().fill(theme.subtleStroke).frame(width:1)

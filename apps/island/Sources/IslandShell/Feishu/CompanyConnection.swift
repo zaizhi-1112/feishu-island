@@ -6,9 +6,10 @@ import WebKit
 /// The company gateway owns login; this private WebKit store never imports another
 /// browser's cookies. Refresh credentials and app secrets stay on the server.
 final class CompanyConnection: NSObject, @unchecked Sendable {
-    enum Purpose: String, CaseIterable { case receive, archive
-        var appID: String { self == .receive ? "cli_aa217b534af89cdc" : "cli_aa534c191338dd29" }
+    enum Purpose: String, CaseIterable { case receive, archive, calendar
+        var appID: String { self == .archive ? "cli_aa534c191338dd29" : "cli_aa217b534af89cdc" }
         var scopes:Set<String> {
+            if self == .calendar { return Set("auth:user.id:read calendar:calendar:read calendar:calendar.event:read calendar:calendar.event:create calendar:calendar.event:update offline_access".split(separator:" ").map(String.init)) }
             let value = self == .receive
                 ? "auth:user.id:read im:chat:read im:chat.user_setting:read im:message.group_msg:get_as_user im:message.p2p_msg:get_as_user im:message:readonly offline_access"
                 : "auth:user.id:read docx:document:create docx:document:write_only docx:document:readonly docs:document.media:upload drive:file:upload base:record:create base:field:read base:record:read wiki:node:read offline_access"
@@ -114,12 +115,13 @@ final class CompanyConnection: NSObject, @unchecked Sendable {
     @MainActor func resetForNativeAccountSwitch() throws {
         setEnabled(.receive, false)
         setEnabled(.archive, false)
+        setEnabled(.calendar, false)
         try reset()
     }
     /// Explicit account reset is permitted only after both consumers are disabled.
     @MainActor func reset() throws {
         precondition(Thread.isMainThread)
-        guard !Purpose.allCases.contains(where:{isEnabled($0)}) else { throw Self.failure("请先停用两项公司连接，再更换账号。") }
+        guard !Purpose.allCases.contains(where:{isEnabled($0)}) else { throw Self.failure("请先停用所有公司连接，再更换账号。") }
         invalidate("公司连接已重置。")
         defaults.removeObject(forKey:"island.company.user")
         for p in Purpose.allCases { defaults.removeObject(forKey:"island.company."+p.rawValue+".openID") }

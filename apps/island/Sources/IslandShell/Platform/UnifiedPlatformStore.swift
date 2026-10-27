@@ -84,6 +84,8 @@ final class UnifiedPlatformStore: ObservableObject {
         }
     }
 
+    func reportShortcutError() { error="Control + Option + 空格已被占用，快捷轮盘未能注册。" }
+
     @discardableResult func setMainBar(_ shown: Bool) -> Bool {
         var next = preferences; next.showInMainBar = shown; return persist(next)
     }

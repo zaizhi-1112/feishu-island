@@ -8,8 +8,9 @@ struct AgentCompletionNotice: Identifiable, Sendable {
     let count: Int
     let stillWorking: Bool
     var attention:String? = nil
-    var status: String { if let attention { return attention == "running" ? "正在运行" : attention == "input" ? "等你输入" : "等你确认" }; return stillWorking ? "完成\(count)项 · 仍在工作" : count > 1 ? "\(count)项已完成" : "已完成" }
-    var message: String { if attention != nil { return name+" · "+status }; return "\(name) · \(count)个任务已完成" + (stillWorking ? "，还有任务正在工作" : "") }
+    var status: String { if let attention { return attention == "running" ? "正在运行" : attention == "input" ? "等你输入" : "等你确认" }; return stillWorking ? "仍在工作" : "本轮工作已结束" }
+    var message: String { name+" · "+status }
+
 }
 
 /// One soft ring, then a steady light. Never loops while the island is idle.
@@ -63,7 +64,8 @@ struct AgentCompletionStatus: View {
                 .stroke(.green, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
                 .frame(width: 10, height: 10).accessibilityHidden(true) }
         }
-        .font(.system(size: 10, weight: .medium)).lineLimit(1).fixedSize()
+        .font(.system(size: 10, weight: .medium)).lineLimit(1).truncationMode(.tail)
+        .frame(maxWidth: 240).fixedSize(horizontal: false, vertical: true)
         .id(notice.id)
         .task(id: notice.id) {
             checked = false

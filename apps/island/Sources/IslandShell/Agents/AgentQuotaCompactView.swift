@@ -57,7 +57,7 @@ struct AgentQuotaCompactBadge:View {
                 if leading { AgentIdentityIcon(id:summary.agentID,size:18) }
                 Text(summary.text(leading:leading)).font(.system(size:11,weight:.semibold,design:.rounded)).monospacedDigit()
                     .foregroundStyle(summary.state == .waiting || (fresh && (quota?.remainingPercent ?? 100)<20) ? Color.orange : Color.white.opacity(0.9))
-            }.fixedSize().frame(height:16).accessibilityElement(children:.ignore)
+            }.lineLimit(1).truncationMode(.tail).frame(maxWidth: 180).fixedSize(horizontal:false,vertical:true).frame(height:20).accessibilityElement(children:.ignore)
                 .accessibilityLabel(summary.accessibility(leading:leading))
                 .accessibilityIdentifier(leading ? "agent.quota.leading" : "agent.quota.trailing")
                 .help(summary.accessibility(leading:leading))

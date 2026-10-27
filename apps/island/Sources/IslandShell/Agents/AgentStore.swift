@@ -23,6 +23,7 @@ final class AgentStore: ObservableObject {
     private var lastQuotaAttempt = Date.distantPast
     private var trackers: [String: AgentAlertTracker] = [:]
     private var quotaTracker = AgentAlertTracker()
+    private var completionBatches: [String:AgentCompletionBatch] = [:]
     private var activityPrimary = ""
     private var lastAlertDate = Date.distantPast
     private var lastAlertProfile: String?
@@ -70,6 +71,7 @@ final class AgentStore: ObservableObject {
         unviewedCompletionProfiles.formIntersection(next.enabled && next.completionAlerts ? nextMonitored : [])
         for id in previousMonitored.symmetricDifference(nextMonitored) {
             trackers.removeValue(forKey:id)
+            completionBatches.removeValue(forKey:id)
             if !nextMonitored.contains(id) { snapshots[id]?.sessions=[] }
         }
         snapshots=snapshots.filter { id,_ in next.profiles.contains { $0.id==id } }
@@ -82,6 +84,7 @@ final class AgentStore: ObservableObject {
         if let notice = completionNotice, !preferences.enabled || !preferences.completionAlerts || !preferences.activeMonitorIDs.contains(notice.profileID) {
             completionTask?.cancel(); completionNotice = nil; activityPrimary = ""
         }
+        if !preferences.enabled || !preferences.completionAlerts { completionBatches=[:] }
         if !preferences.enabled {
             activities?.end("agent-alert"); activityPrimary = ""
             if !preferences.quotaDisplayEnabled { activities?.end("agent-status") }
@@ -177,9 +180,11 @@ final class AgentStore: ObservableObject {
             if started > 0, preferences.completionAlerts, preferences.activeMonitorIDs.contains(profile.id) {
                 presentCompletion(profileID: profile.id, count: started, stillWorking: true, attention: "running")
             }
-            if count > 0, preferences.completionAlerts, preferences.activeMonitorIDs.contains(profile.id) {
-                let stillWorking = snapshots[profile.id]?.state(now: now) == .working
-                presentCompletion(profileID: profile.id, count: count, stillWorking: stillWorking)
+            if preferences.completionAlerts, preferences.activeMonitorIDs.contains(profile.id) {
+                var batch=completionBatches[profile.id] ?? .init()
+                let settled=batch.ingest(count:count,sessions:sessions,now:now)
+                completionBatches[profile.id]=batch
+                if settled > 0 { presentCompletion(profileID:profile.id,count:settled,stillWorking:false) }
             }
             if let pending=attention.first,preferences.completionAlerts,preferences.activeMonitorIDs.contains(profile.id) {
                 presentCompletion(profileID:profile.id,count:attention.count,stillWorking:false,attention:pending.attentionReason ?? "approval")
@@ -255,7 +260,7 @@ final class AgentStore: ObservableObject {
         let notice=AgentCompletionNotice(profileID:profileID,name:profile.name,count:count,stillWorking:stillWorking,attention:attention)
         completionTask?.cancel()
         lastAlert=notice.message; lastAlertDate=Date(); lastAlertProfile=profileID
-        if attention == nil, let material=preferences.completionScreenMaterialID {
+        if attention == nil, !stillWorking, let material=preferences.completionScreenMaterialID {
             let workspace=WorkspaceStore.shared
             do {
                 workspace.presentScreenReminder(try workspace.screenReminderRequest(style:.init(materialID:material),title:notice.message))

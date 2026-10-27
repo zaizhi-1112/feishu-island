@@ -65,7 +65,7 @@ struct IslandMessageReader: View {
             Text(parts[min(page, parts.count - 1)]).font(.system(size: fontSize)).lineSpacing(4)
                 .foregroundStyle(color("foreground", fallback: theme.primaryLabel))
                 .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, minHeight: 176, alignment: .topLeading).padding(12)
+                .frame(maxWidth: .infinity, alignment: .topLeading).padding(12)
                 .background(color("background", fallback: theme.subtleFill), in: RoundedRectangle(cornerRadius: CGFloat((appearance["corner"] as? NSNumber)?.doubleValue ?? 12)))
                 .overlay(RoundedRectangle(cornerRadius: CGFloat((appearance["corner"] as? NSNumber)?.doubleValue ?? 12)).stroke(color("border", fallback: theme.subtleStroke), lineWidth: 0.8))
                 .accessibilityIdentifier("feishu.reader.body")

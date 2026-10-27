@@ -188,14 +188,23 @@ public struct AgentAlertTracker {
     private var previousAttention:[String:String]=[:]
     private var attentionInitialized=false
     private var previousSessions: [String: AgentSession] = [:]
+    private var seenCompletions: [String:Double] = [:]
     private var initialized = false
     private var previousCheckAt = 0.0
     private var monitoringStartedAt = 0.0
     public init() {}
     public mutating func completions(_ sessions: [AgentSession], now: Double) -> Int {
         defer { previousSessions = Dictionary(sessions.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new }); initialized = true; previousCheckAt = now }
-        guard initialized else { monitoringStartedAt = now; return 0 }
+        seenCompletions=seenCompletions.filter { now-$0.value < 900 }
+        func key(_ session:AgentSession)->String { session.id+"/"+(session.completionID ?? String(session.updatedAt)) }
+        guard initialized else {
+            monitoringStartedAt = now
+            for session in sessions where session.state == .completed { seenCompletions[key(session)]=now }
+            return 0
+        }
         return sessions.filter { session in
+            guard seenCompletions[key(session)] == nil else {return false}
+            defer { if session.state == .completed {seenCompletions[key(session)]=now} }
             guard session.state == .completed, now - session.updatedAt < 60, session.updatedAt <= now + 60 else { return false }
             // Fast tasks may both start and finish between polls. An explicit new completion is sufficient.
             guard let old = previousSessions[session.id] else { return session.updatedAt > monitoringStartedAt }
@@ -224,5 +233,27 @@ public struct AgentAlertTracker {
             }
             return notifiedQuotaCycles.insert(cycle).inserted
         }
+    }
+}
+
+/// Coalesce completion events until the monitored Agent is stably idle.
+struct AgentCompletionBatch {
+    private var pending=0
+    private var quietSince:Double?
+    private var unfinished=Set<String>()
+    mutating func ingest(count:Int,sessions:[AgentSession],now:Double)->Int {
+        for session in sessions {
+            if session.state == .working || session.state == .waiting {unfinished.insert(session.id)}
+            else if session.state == .completed || session.state == .failed {unfinished.remove(session.id)}
+        }
+        pending += count
+        if count > 0 {quietSince=nil}
+        guard pending > 0 else {return 0}
+        // Empty/missing reads and stale running sessions are not proof of completion.
+        guard !sessions.isEmpty,unfinished.isEmpty,
+              sessions.contains(where:{$0.state == .completed && now-$0.updatedAt<900}) else {quietSince=nil;return 0}
+        if quietSince == nil {quietSince=now}
+        guard now-(quietSince ?? now)>=20 else {return 0}
+        let result=pending;pending=0;quietSince=nil;return result
     }
 }

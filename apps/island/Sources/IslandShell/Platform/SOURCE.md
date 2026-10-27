@@ -14,7 +14,7 @@
 - 移植为 SwiftUI；点击或按住拖动后松手打开一次明确的 HTTPS 入口，返回中心、释放到轮盘外不执行。仅组件内交互，无全局输入 hook。
 - 随包资源：9 个 PNG、`Base.wav`、完整原 LICENSE 与 THIRD_PARTY_NOTICES，位于 `Resources/LOLPing`。
 
-没有移植 Agent、AI SDK、截图、录屏、Inbox 收集、房间、relay、后台网络或全局快捷键。没有读取或复制原项目用户 `settings.json`。
+没有移植 Agent、AI SDK、截图、录屏、Inbox 收集、房间、relay或后台网络。没有读取或复制原项目用户 `settings.json`。
 
 ## 许可
 
@@ -27,3 +27,5 @@ LOLPingYourAI 源码：Copyright © 2026 Danrui Meng / LOLPingYourAI contributor
 `swift run PlatformChecks` 验证八方向、取消区、边界、URL 校验、八槽保存恢复、隐藏保留配置、卡片失效保护、单次打开、权限及坏文件保留。
 
 `swift run PlatformChecks --render /绝对路径/轮盘.png` 额外用不上屏窗口渲染合成轮盘，不读取真实中台，不启动浏览器，不播放声音。
+
+2026-10-27 build55：本人要求轮盘仅由快捷键唤出。新增公开 Carbon 热键 Control+Option+Space 与原生小面板；不采用原 Electron 全局钩子，不读取键入内容，不接 Agent。

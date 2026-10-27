@@ -11,6 +11,55 @@ extension FusionTests {
         let start=Date()
         var notices=0, screens:[ScreenReminderRequest]=[]
         store.notify={_ in notices+=1}; store.presentScreenReminder={screens.append($0)}
+        let extra=WorkspaceStore(root:root.appendingPathComponent("deadline-delete"),startTimers:false)
+        let dated=try extra.addTodo(title:"截止独立于提醒",now:start)
+        let deadline=start.addingTimeInterval(86400)
+        XCTAssertTrue(try extra.configureTodoReminder(dated,dates:[],now:start,deadline:.some(deadline)))
+        XCTAssertEqual(extra.disk.items.first{$0.id==dated}?.deadline,deadline)
+        XCTAssertNil(extra.disk.items.first{$0.id==dated}?.due)
+        XCTAssertEqual(WorkspaceStore(root:root.appendingPathComponent("deadline-delete"),startTimers:false).disk.items.first{$0.id==dated}?.deadline,deadline)
+        extra.complete(dated)
+        let historyID=extra.todoHistory.first{$0.taskID==dated}!.id
+        XCTAssertTrue(extra.todoSummaryText(history:extra.todoHistory).contains("截止独立于提醒"))
+        XCTAssertTrue(extra.permanentlyDeleteTodoHistory(historyID))
+        XCTAssertFalse(WorkspaceStore(root:root.appendingPathComponent("deadline-delete"),startTimers:false).todoHistory.contains{$0.taskID==dated})
+        extra.archiveItem(dated)
+        let archivedIncomplete=try extra.addTodo(title:"合成旧归档")
+        _=extra.mutate {state in if let i=state.items.firstIndex(where:{$0.id==archivedIncomplete}) {state.items[i].archivedAt=start} } // Legacy-only archived unfinished fixture.
+        XCTAssertTrue(extra.permanentlyDeleteArchivedTodo(archivedIncomplete))
+        XCTAssertFalse(WorkspaceStore(root:root.appendingPathComponent("deadline-delete"),startTimers:false).disk.items.contains{$0.id==archivedIncomplete})
+        let base=TodoCalendarFields(title:"合成日程",content:"说明",deadline:deadline)
+        var local=base; local.title="本机修改"
+        var remote=base; remote.title="飞书修改"
+        XCTAssertEqual(TodoCalendarMerge.resolve(local:local,remote:base,baseline:base),.upload)
+        XCTAssertEqual(TodoCalendarMerge.resolve(local:base,remote:remote,baseline:base),.download)
+        XCTAssertEqual(TodoCalendarMerge.resolve(local:local,remote:remote,baseline:base),.conflict)
+        XCTAssertEqual(TodoCalendarMerge.resolve(local:local,remote:local,baseline:base),.unchanged)
+        let credential=CompanyConnection.Credential(appID:CompanyConnection.Purpose.calendar.appID,access:"synthetic",scope:CompanyConnection.Purpose.calendar.scopes,userID:"fixture",openID:"ou_fixture",userName:"合成",expires:Date().addingTimeInterval(3600))
+        var requests:[URLRequest]=[]
+        let stamp=String(Int(deadline.timeIntervalSince1970))
+        var event:[String:Any]=["event_id":"event_fixture","summary":"合成日程","description":"说明","start_time":["timestamp":stamp],"end_time":["timestamp":String(Int(deadline.timeIntervalSince1970)+60)]]
+        let client=TodoCalendarClient(credential:credential,transport:{ request in
+            requests.append(request)
+            let data:[String:Any]=request.url!.path.hasSuffix("primary") ? ["calendars":[["user_id":"ou_fixture","calendar":["calendar_id":"calendar_fixture","role":"owner","type":"primary"]]]]:["event":event]
+            return (try JSONSerialization.data(withJSONObject:["code":0,"data":data]),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        })
+        XCTAssertEqual(try await client.primary(),"calendar_fixture")
+        var link=TodoCalendarLink(openID:"ou_fixture",userID:"fixture",calendarID:"calendar_fixture")
+        let (eventID,written)=try await client.write(base,link:link)
+        XCTAssertEqual(eventID,"event_fixture")
+        XCTAssertEqual(written.deadline.timeIntervalSince1970,floor(deadline.timeIntervalSince1970))
+        XCTAssertEqual(requests.last?.httpMethod,"POST")
+        XCTAssertTrue(requests.last!.url!.query!.contains(link.creationKey))
+        let payload=try JSONSerialization.jsonObject(with:requests.last!.httpBody!) as! [String:Any]
+        XCTAssertEqual(payload["need_notification"] as? Bool,false)
+        XCTAssertNil(payload["attendees"])
+        link.eventID=eventID
+        _=try await client.write(base,link:link)
+        XCTAssertEqual(requests.last?.httpMethod,"PATCH")
+        event["status"]="cancelled"
+        do {_=try TodoCalendarClient.fields(event);XCTAssertTrue(false)}catch{}
+        XCTAssertTrue(requests.allSatisfy{$0.url?.host == "open.feishu.cn"})
         let first=try store.addTodo(title:"合成任务：整理反馈",details:"保留全部任务内容",now:start)
         let second=try store.addTodo(title:"合成任务：检查进度",now:start)
         XCTAssertEqual(store.pendingTodos.count,2)

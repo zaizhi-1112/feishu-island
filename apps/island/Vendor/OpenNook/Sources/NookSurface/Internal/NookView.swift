@@ -531,8 +531,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             if nook.state == .compact, !nook.disableCompactLeading {
                 nook.compactLeadingContent
                     .safeAreaInset(edge: .leading, spacing: 0) { Color.clear.frame(width: 8) }
-                    .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 4) }
-                    .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 8) }
+                    .padding(.vertical, 2)
+
                     .onGeometryChange(for: CGFloat.self, of: \.size.width) { compactLeadingWidth = $0 }
                     .transition(compactTransition.anyTransition(axis: .horizontal, anchor: .trailing))
             }
@@ -546,8 +546,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             if nook.state == .compact, !nook.disableCompactTrailing {
                 nook.compactTrailingContent
                     .safeAreaInset(edge: .trailing, spacing: 0) { Color.clear.frame(width: 8) }
-                    .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 4) }
-                    .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 8) }
+                    .padding(.vertical, 2)
+
                     .onGeometryChange(for: CGFloat.self, of: \.size.width) { compactTrailingWidth = $0 }
                     .transition(compactTransition.anyTransition(axis: .horizontal, anchor: .leading))
             }

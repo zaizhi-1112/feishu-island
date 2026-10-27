@@ -26,7 +26,7 @@ public enum NookPresentation: String, Codable, Sendable, CaseIterable, Equatable
 
     /// Edge-docked expanded content has one screen-relative geometry in every mode.
     public func resolvedForm(state: NookState, edgeDocked: Bool, screenHasNotch: Bool) -> NookChromeForm {
-        if edgeDocked && state == .expanded { return screenHasNotch ? .notch : .floating }
+        if edgeDocked && state == .expanded { return .floating }
         return isFloating(screenHasNotch: screenHasNotch) ? .floating : .notch
     }
 

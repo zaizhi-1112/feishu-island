@@ -16,18 +16,28 @@ struct UnifiedTodoPanel: View {
     @State private var historyLimit = 50
     @State private var incompleteArchiveLimit = 50
     @State private var notice = ""
+    @State private var deletingHistory: WorkTodoCompletion?
+    @State private var deletingArchived:WorkItem?
     @FocusState private var inputFocused: Bool
     @Environment(\.nookResolvedTheme) private var theme
 
     var body: some View {
         Group {
-            if compact { ScrollView { contents }.frame(maxHeight:IslandHost.panelHeight) }
+            if compact { IslandContentScroll { contents } }
             else { contents }
         }
         .frame(maxWidth:.infinity)
         .foregroundStyle(theme.primaryLabel)
         .nookKeepsExpanded(whileFocused:$inputFocused)
         .accessibilityIdentifier("unified.todo.panel")
+        .alert("永久删除这条历史记录？", isPresented: Binding(get:{deletingHistory != nil || deletingArchived != nil},set:{if !$0 {deletingHistory=nil;deletingArchived=nil}})) {
+            Button("取消",role:.cancel) { deletingHistory=nil;deletingArchived=nil }
+            Button("永久删除",role:.destructive) {
+                if let event=deletingHistory,store.permanentlyDeleteTodoHistory(event.id) { notice="历史记录已永久删除。" }
+                if let item=deletingArchived,store.permanentlyDeleteArchivedTodo(item.id) {notice="归档记录已永久删除。"}
+                deletingHistory=nil;deletingArchived=nil
+            }
+        } message: { Text("删除后无法在应用内恢复。当前未归档的待办会保留；最后一条完成记录删除后，对应的已完成归档也会移除。") }
     }
 
     private var contents:some View {
@@ -37,7 +47,7 @@ struct UnifiedTodoPanel: View {
                     Spacer()
                     Text("\(store.pendingTodos.count) 项待完成").font(.system(size:12)).foregroundStyle(theme.secondaryLabel)
                 }
-                HStack(spacing:8) {
+                if compact { HStack(spacing:8) {
                     TextField("接下来要做的事",text:$title).textFieldStyle(.plain)
                         .font(.system(size:14)).focused($inputFocused).onSubmit(add)
                         .accessibilityIdentifier("unified.todo.input")
@@ -45,7 +55,20 @@ struct UnifiedTodoPanel: View {
                         .buttonStyle(IslandButtonStyle(prominent:true))
                         .disabled(title.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)
                         .accessibilityLabel("添加待办")
-                }.padding(12).modifier(IslandCard(radius:12))
+                }.padding(12).modifier(IslandCard(radius:12)) }
+                HStack(spacing:8) {
+                    VStack(alignment:.leading,spacing:3) {
+                        Text("飞书日历").font(.system(size:13,weight:.medium))
+                        Text(store.calendarStatus).font(.system(size:11)).foregroundStyle(theme.secondaryLabel)
+                    }
+                    Spacer()
+                    if store.disk.calendarSyncEnabled == true {
+                        Button("同步") { Task { await store.syncTodoCalendar() } }.disabled(store.calendarSyncing)
+                        Button("暂停") { _=store.mutate{$0.calendarSyncEnabled=false}; store.calendarStatus="日历同步已暂停" }
+                    } else {
+                        Button("连接") { Task { await store.connectTodoCalendar() } }.disabled(store.calendarSyncing)
+                    }
+                }.buttonStyle(.plain)
                 if !store.error.isEmpty { Text(store.error).font(.system(size:12)).foregroundStyle(theme.warning).fixedSize(horizontal:false,vertical:true) }
                 if !notice.isEmpty { Text(notice).font(.system(size:12)).foregroundStyle(theme.secondaryLabel) }
                 if store.pendingTodos.isEmpty {
@@ -75,16 +98,7 @@ struct UnifiedTodoPanel: View {
                 UnifiedHabitReminders(store:store,compact:compact)
                 Divider().overlay(theme.subtleStroke)
                 history
-                if !compact {
-                    Divider().overlay(theme.subtleStroke)
-                    VStack(alignment:.leading,spacing:8) {
-                        Button("导入旧待办目录") { importLegacyDirectory() }
-                            .buttonStyle(IslandButtonStyle())
-                            .accessibilityIdentifier("unified.todo.importLegacy")
-                        Text("选择佑哥旧版包含 todos.json 的文件夹。任务与历史会合并到当前列表，原文件保留；重复导入不会重复创建任务。")
-                            .font(.system(size:12)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal:false,vertical:true)
-                    }
-                }
+
             }.padding(compact ? 14 : 6)
     }
 
@@ -100,6 +114,12 @@ struct UnifiedTodoPanel: View {
                     Text(item.title).font(.system(size:14,weight:.medium)).strikethrough(item.state == "done")
                         .foregroundStyle(item.state == "done" ? theme.secondaryLabel : theme.primaryLabel)
                         .fixedSize(horizontal:false,vertical:true)
+                    if let deadline=item.deadline {
+                        Text("截止 · "+deadline.formatted(date:.abbreviated,time:.shortened)).font(.system(size:11))
+                            .foregroundStyle(deadline<Date() && item.state != "done" ? theme.warning:theme.secondaryLabel)
+                    }
+                    if item.calendarSync == true { Text(item.calendarLink?.eventID == nil ? "等待同步到飞书日历":"双向同步飞书日历").font(.system(size:10)).foregroundStyle(theme.secondaryLabel) }
+                    if let issue=item.calendarError { Text(issue).font(.system(size:11)).foregroundStyle(theme.warning).fixedSize(horizontal:false,vertical:true) }
                     if let completed=item.completedAt, item.state == "done" {
                         Text("完成于 "+completed.formatted(date:.abbreviated,time:.shortened)).font(.system(size:11)).foregroundStyle(theme.secondaryLabel)
                     } else if item.state == "done" {
@@ -148,7 +168,10 @@ struct UnifiedTodoPanel: View {
                         Text("历史记录 · \(store.todoHistory.count+store.archivedIncompleteTodos.count)").fontWeight(.medium)
                     }.frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityIdentifier("unified.todo.history")
-                Button("导出") { export() }.buttonStyle(.plain).foregroundStyle(theme.accent)
+                Menu("导出") {
+                    Button("复制给 Agent") { copyForAgent() }
+                    Button("保存 JSON 文件") { export() }
+                }.menuStyle(.borderlessButton).fixedSize()
             }.font(.system(size:12))
             if showHistory {
                 Text("长期保留，不自动清理。重新打开任务不会抹掉之前的完成记录。").font(.system(size:11)).foregroundStyle(theme.secondaryLabel)
@@ -163,6 +186,8 @@ struct UnifiedTodoPanel: View {
                     VStack(alignment:.leading,spacing:6) {
                         HStack(alignment:.top) {
                             Image(systemName:"checkmark.circle.fill").foregroundStyle(theme.accent)
+                            Button(role:.destructive) { deletingHistory=event } label: { Image(systemName:"trash") }
+                                .buttonStyle(.plain).accessibilityLabel("永久删除历史："+event.title)
                             Text(event.title).font(.system(size:13,weight:.medium)).frame(maxWidth:.infinity,alignment:.leading)
                             if store.archivedTodos.contains(where:{$0.id==event.taskID}) {
                                 Button("移回列表") { store.unarchiveItem(event.taskID) }.buttonStyle(.plain).font(.system(size:11))
@@ -193,7 +218,8 @@ struct UnifiedTodoPanel: View {
             ForEach(Array(store.archivedIncompleteTodos.prefix(incompleteArchiveLimit))) { item in
                 VStack(alignment:.leading,spacing:7) {
                     HStack(alignment:.top) {
-                        Image(systemName:"archivebox").foregroundStyle(theme.secondaryLabel)
+                        Button(role:.destructive) {deletingArchived=item} label: {Image(systemName:"trash")}
+                            .buttonStyle(.plain).accessibilityLabel("永久删除旧归档："+item.title)
                         Text(item.title).font(.system(size:13,weight:.medium)).frame(maxWidth:.infinity,alignment:.leading)
                         Button("移回列表") { store.unarchiveItem(item.id) }.buttonStyle(.plain).font(.system(size:11))
                             .accessibilityLabel("恢复未完成归档："+item.title)
@@ -215,6 +241,12 @@ struct UnifiedTodoPanel: View {
     private func add() {
         do { let id=try store.addTodo(title:title); title=""; editingID=id; notice="" }
         catch { store.error=error.localizedDescription }
+    }
+    private func copyForAgent() {
+        NSPasteboard.general.clearContents()
+        if NSPasteboard.general.setString(store.todoSummaryText(history:visibleHistory),forType:.string) {
+            notice="已复制待办与完成记录，可直接粘贴给 Agent 总结。"
+        } else { store.error="复制失败，请重试。" }
     }
     private func export() {
         let panel=NSSavePanel(); panel.allowedContentTypes=[.json]
@@ -256,6 +288,9 @@ private struct UnifiedTodoEditor:View {
     let finished:()->Void
     @State private var title=""
     @State private var details=""
+    @State private var syncCalendar=false
+    @State private var hasDeadline=false
+    @State private var deadline=Date().addingTimeInterval(86400)
     @State private var mode="off"
     @State private var due=Date().addingTimeInterval(1800)
     @State private var offsets="60, 120, 180"
@@ -272,6 +307,12 @@ private struct UnifiedTodoEditor:View {
             Divider()
             TextField("任务名称",text:$title).textFieldStyle(.roundedBorder).focused($editorFocused)
             TextField("补充说明（可选）",text:$details,axis:.vertical).lineLimit(2...5).textFieldStyle(.roundedBorder).focused($editorFocused)
+            Toggle("截止日期",isOn:$hasDeadline).toggleStyle(.switch)
+            if hasDeadline { DatePicker("截止于",selection:$deadline,displayedComponents:[.date,.hourAndMinute]).datePickerStyle(.field) }
+            if hasDeadline {
+                Toggle("双向同步飞书日历",isOn:$syncCalendar).toggleStyle(.switch)
+                if syncCalendar { Text("首次在截止时间创建1分钟日程；同步标题、说明和截止时间。请先连接日历。").font(.system(size:11)).foregroundStyle(theme.secondaryLabel) }
+            }
             Picker("提醒节奏",selection:$mode) {
                 Text("不提醒").tag("off"); Text("单次").tag("once"); Text("多次提醒").tag("multiple"); Text("周期提醒").tag("repeat")
             }.pickerStyle(.menu)
@@ -295,6 +336,8 @@ private struct UnifiedTodoEditor:View {
             if !error.isEmpty { Text(error).foregroundStyle(theme.warning).font(.system(size:11)) }
             Button("保存任务与提醒") { save() }.buttonStyle(IslandButtonStyle(prominent:true))
         }.font(.system(size:12)).nookKeepsExpanded(whileFocused:$editorFocused).onAppear {
+            syncCalendar=item.calendarSync == true
+            hasDeadline=item.deadline != nil; deadline=item.deadline ?? Date().addingTimeInterval(86400)
             title=item.title; details=item.input == item.title ? "" : item.input
             reminder=item.screenReminder; completion=item.completionReminder
             if let value=item.due, !item.reminded {
@@ -320,8 +363,9 @@ private struct UnifiedTodoEditor:View {
             // One atomic save covers content and reminder; a failure leaves the old task intact.
             guard try store.configureTodoReminder(item.id,dates:dates,repeatMinutes:mode == "repeat" ? minutes : nil,
                 repeatUntil:mode == "repeat" && bounded ? end : nil,style:mode == "off" ? nil : reminder,
-                completionStyle:completion,now:now,title:title,details:details) else { throw WorkError.message(store.error) }
+                completionStyle:completion,now:now,title:title,details:details,deadline:.some(hasDeadline ? deadline : nil),calendarSync:hasDeadline && syncCalendar) else { throw WorkError.message(store.error) }
             finished()
+            Task { await store.syncTodoCalendar() }
         } catch { self.error=error.localizedDescription }
     }
 }

@@ -9,10 +9,10 @@ final class UnifiedPlatformModule: NookModule {
         return value
     }()
     var descriptor: NookModuleDescriptor { Self.info }
-    init(context: NookModuleContext) {}
+    init(context: NookModuleContext) { HubPingLauncher.shared.start() }
     func makeConfiguration() -> NookConfiguration {
         var config = IslandHost.baseConfiguration(title: "中台", symbol: "square.grid.2x2")
-        config.setCompactTrailing { Text("中台快捷入口").font(.system(size: 10, weight: .medium)) }
+        config.setCompactTrailing { Text("虚实中台").font(.system(size: 10, weight: .medium)) }
         config.setHome { UnifiedPlatformPanel(workspace: .shared) }
         return config
     }
@@ -23,21 +23,19 @@ struct UnifiedPlatformPanel: View {
     @ObservedObject var workspace: WorkspaceStore
     @ObservedObject var launcher: UnifiedPlatformStore = .shared
     @Environment(\.nookResolvedTheme) private var theme
-    @State private var openCards = Set<String>()
+    @State private var closedCards = Set<String>()
     var body: some View {
-        ScrollView {
+        IslandContentScroll {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("快捷入口").font(.system(size: 16, weight: .semibold))
+                    Text("虚实中台").font(.system(size: 21, weight: .semibold))
                     Spacer()
                     Button { WorkspaceWindow.shared.openHub(store: workspace) } label: { Image(systemName: "slider.horizontal.3").frame(width: 28, height: 28) }
                         .buttonStyle(.plain).accessibilityLabel("中台设置")
                 }
-                HubPingWheel(destinations: launcher.destinations(cards: workspace.hub.cards, selectedIDs: workspace.disk.selectedCards), diameter: 300, activate: launcher.activate)
-                    .frame(maxWidth: .infinity)
                 if !launcher.error.isEmpty { Text(launcher.error).font(.system(size: 12)).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true) }
                 if !workspace.hub.connected {
-                    Text("连接中台后，可把本人卡片放进快捷轮盘；自定义入口随时可用。")
+                    Text("连接后，在这里查看本人中台卡片。")
                         .font(.system(size: 12)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
                     Button("连接中台") { connect() }.buttonStyle(IslandButtonStyle())
                 }
@@ -46,24 +44,24 @@ struct UnifiedPlatformPanel: View {
                 }
                 if !workspace.visibleCards.isEmpty {
                     HStack {
-                        Text("我的卡片").font(.system(size: 15, weight: .semibold)); Spacer()
+                        Text("我的卡片").font(.system(size: 18, weight: .semibold)); Spacer()
                         Button { Task { await workspace.refreshHub() } } label: { Image(systemName: "arrow.clockwise") }.buttonStyle(.plain).accessibilityLabel("刷新中台")
                     }
                     ForEach(workspace.visibleCards) { card in
-                        DisclosureGroup(isExpanded: Binding(get: { openCards.contains(card.id) }, set: { if $0 { openCards.insert(card.id) } else { openCards.remove(card.id) } })) {
+                        DisclosureGroup(isExpanded: Binding(get: { !closedCards.contains(card.id) }, set: { if $0 { closedCards.remove(card.id) } else { closedCards.insert(card.id) } })) {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text(HubCardPresentation.displayText(card.text)).font(.system(size: 13)).lineSpacing(5).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                                Text(HubCardPresentation.displayText(card.text)).font(.system(size: 16)).lineSpacing(5).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                                 if let url = card.href.flatMap(HubPingGeometry.safeURL) {
                                     Button("打开中台原页") { _ = launcher.activate(.init(id: 0, title: card.title, url: url)) }.buttonStyle(IslandButtonStyle())
                                 }
                             }.padding(.top, 8)
-                        } label: { Text(card.title).font(.system(size: 13, weight: .medium)) }
+                        } label: { Text(card.title).font(.system(size: 17, weight: .semibold)) }
                         .padding(13).modifier(IslandCard(radius: 12))
                     }
                 }
             }.padding(12)
         }
-        .frame(maxWidth: .infinity, maxHeight: IslandHost.panelHeight)
+        .frame(maxWidth: .infinity)
         .foregroundStyle(theme.primaryLabel)
         .accessibilityIdentifier("island.platform")
     }
@@ -107,7 +105,7 @@ struct UnifiedPlatformSettings: View {
             Divider()
             VStack(alignment: .leading, spacing: 12) {
                 Text("快捷信号轮盘").font(.system(size: 18, weight: .semibold))
-                Text("八个方向对应八个入口。自动分配会跟随已选卡片；也可以固定某张卡片，或填写自己的 HTTPS 入口。")
+                Text("按 Control + Option + 空格唤出，Esc 或再次按快捷键关闭。八个方向对应八个入口。自动分配会跟随已选卡片；也可以固定某张卡片，或填写自己的 HTTPS 入口。")
                     .font(.system(size: 13)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
                 Toggle("打开入口时播放信号音效", isOn: Binding(get: { launcher.preferences.soundEnabled }, set: { _ = launcher.setSound($0) })).toggleStyle(.switch)
                 ForEach(0..<8, id: \.self) { index in

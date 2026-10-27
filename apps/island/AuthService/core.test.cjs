@@ -77,3 +77,20 @@ test('expired unsaved refresh blocks old-token replay until a new authorization 
  assert.equal(exchanges,2);assert.equal(b.pendingRefresh.size,0);
  assert.equal((await b.access('alice','archive')).access,'synthetic-new-access');assert.equal(exchanges,2);
 });
+
+test('calendar grant is separate and least privilege',()=>{
+ assert.equal(PURPOSES.calendar.id,PURPOSES.receive.id);
+ assert.deepEqual(PURPOSES.calendar.scope.split(' ').sort(),['auth:user.id:read','calendar:calendar:read','calendar:calendar.event:read','calendar:calendar.event:create','calendar:calendar.event:update','offline_access'].sort());
+ assert(!PURPOSES.receive.scope.includes('calendar:'));
+});
+
+test('calendar access downscopes an existing broad grant before releasing it',async()=>{
+ let saved={access:'synthetic-broad',refresh:'synthetic-r1',scope:PURPOSES.calendar.scope+' im:message',expires:3600000,refreshExpires:86400000},calls=0;
+ const b=new Broker({vault:{read:async()=>saved,save:async(u,p,v)=>{assert.equal(p,'calendar');saved=v;}},env:{FEISHU_RECEIVE_SECRET:'synthetic'},now:()=>0,fetcher:async(url,options)=>{
+  calls++;const body=JSON.parse(options.body);assert.equal(body.scope,PURPOSES.calendar.scope);assert.equal(body.grant_type,'refresh_token');
+  return mock({access_token:'synthetic-narrow',refresh_token:'synthetic-r2',scope:PURPOSES.calendar.scope,expires_in:3600,refresh_token_expires_in:86400});
+ }});
+ assert.equal((await b.access('alice','calendar')).access,'synthetic-narrow');
+ assert.equal(saved.scope,PURPOSES.calendar.scope);
+ assert.equal((await b.access('alice','calendar')).access,'synthetic-narrow');assert.equal(calls,1);
+});

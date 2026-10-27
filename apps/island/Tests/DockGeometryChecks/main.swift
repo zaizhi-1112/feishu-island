@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 @testable import NookSurface
+@testable import IslandShell
 
 // Isolated native fixture: synthetic content, no account stores or preferences.
 MainActor.assumeIsolated {
@@ -15,8 +16,8 @@ MainActor.assumeIsolated {
             Text("展开布局验收 · 合成内容").font(.title2)
             Text("两种形态共用同一个展开区域")
         }.foregroundStyle(.white).frame(width: 520, height: 240)
-    } compactLeading: { Text("Agent").foregroundStyle(.white) }
-      compactTrailing: { Text("就绪").foregroundStyle(.white) }
+    } compactLeading: { AgentIdentityIcon(id:"codex",size:25) }
+      compactTrailing: { AgentCompletionStatus(notice:.init(profileID:"codex",name:"Codex",count:1,stillWorking:true,attention:"running"),motion:false) }
     nook.edgeDocked = true
     nook.hoverIntent = NookHoverIntent(action: .none)
     nook.staysExpandedOnHoverExit = true

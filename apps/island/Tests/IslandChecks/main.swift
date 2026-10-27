@@ -33,7 +33,7 @@ expect(NookPresentation.auto.isFloating(screenHasNotch: false), "non-notch float
 expect(!NookPresentation.auto.isFloating(screenHasNotch: true), "notched built-in layout")
 for hasNotch in [true, false] {
     let forms = NookPresentation.allCases.map { $0.resolvedForm(state: .expanded, edgeDocked: true, screenHasNotch: hasNotch) }
-    expect(forms.allSatisfy { $0 == forms[0] }, "all expanded modes share screen geometry")
+    expect(forms.allSatisfy { $0 == .floating }, "all expanded modes use the floating capsule geometry")
 }
 expect(NookPresentation.floating.resolvedForm(state: .compact, edgeDocked: true, screenHasNotch: true) == .floating,
        "hovered capsule retains floating compact form")

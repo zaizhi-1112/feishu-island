@@ -27,7 +27,10 @@ public enum IslandHost {
             display: .automatic
         )
         host.chromeTheme = IslandDesign.chrome
-        host.chromeThemeSource = MainActor.assumeIsolated { AgentStore.shared.themeSource }
+        host.chromeThemeSource = MainActor.assumeIsolated {
+            DispatchQueue.main.async { HubPingLauncher.shared.start() }
+            return AgentStore.shared.themeSource
+        }
         host.chromeBehavior.backdrop = { context in
             .custom(.init(id: "island.skin.\(context.colorScheme).\(context.state).\(context.form)") { _ in
                 IslandSkinBackdrop(store: .shared, dark: context.colorScheme == .dark, compact: context.isCompact, notched: context.form == .notch)

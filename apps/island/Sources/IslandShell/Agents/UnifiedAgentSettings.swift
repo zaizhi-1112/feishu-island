@@ -97,7 +97,7 @@ struct UnifiedAgentIslandView:View {
     @ObservedObject var store:AgentStore
     var body:some View {
         if store.preferences.visibleProfiles.isEmpty {
-            ContentUnavailableView { Label("这里还没有 Agent",systemImage:"sparkles") } description: { Text("在设置里选择最多三个显示在岛上。") } actions: { Button("打开 Agent 设置") {UnifiedSettingsWindow.shared.open(section:"agents")} }.frame(height:IslandHost.panelHeight)
+            ContentUnavailableView { Label("这里还没有 Agent",systemImage:"sparkles") } description: { Text("在设置里选择最多三个显示在岛上。") } actions: { Button("打开 Agent 设置") {UnifiedSettingsWindow.shared.open(section:"agents")} }.fixedSize(horizontal:false,vertical:true).padding(.vertical,18)
         } else { AgentPanel(store:store) }
     }
 }

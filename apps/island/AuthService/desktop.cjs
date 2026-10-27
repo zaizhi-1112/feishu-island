@@ -10,7 +10,7 @@ class DesktopAccess {
   const token=await this.broker.access(user,purpose);
   const allowed=new Set(PURPOSES[purpose].scope.split(' '));
   const granted=String(token.scope||'').split(/\s+/).filter(Boolean);
-  if(granted.some(s=>!allowed.has(s))||[...allowed].some(s=>!granted.includes(s)))throw new AuthError(403,'飞书返回权限与本次用途不一致，请重新进行独立授权');
+  if(granted.some(s=>!allowed.has(s))||[...allowed].some(s=>!granted.includes(s)))throw new AuthError(403,'飞书返回权限与本次用途不一致；额外：'+granted.filter(s=>!allowed.has(s)).map(s=>/^[a-zA-Z0-9_.:-]{1,160}$/.test(s)?s:'unknown').join(',')+'；缺少：'+[...allowed].filter(s=>!granted.includes(s)).join(','));
   const key=crypto.createHash('sha256').update(JSON.stringify([user,purpose,token.access])).digest('hex');
   for(const [id,entry] of this.identities)if(entry.expires<=this.broker.now())this.identities.delete(id);
   let identity=this.identities.get(key);

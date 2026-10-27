@@ -40,7 +40,7 @@ struct AgentCompactView: View {
     @Environment(\.nookResolvedTheme) private var theme
     var body: some View {
         Text(store.preferences.isMonitoring(store.primary.id) ? "\(store.primary.name) · \(store.state == .working ? "工作中" : store.state == .completed ? "已完成" : store.state == .waiting ? "等你确认" : store.state == .failed ? "任务中断" : "等待数据")" : "监测已暂停")
-            .font(.system(size: 10, weight: .medium)).foregroundStyle(theme.secondaryLabel).lineLimit(1)
+            .font(.system(size: 10, weight: .medium)).foregroundStyle(theme.secondaryLabel).lineLimit(1).truncationMode(.tail).frame(maxWidth: 200)
     }
 }
 struct AgentPanel: View {
@@ -57,7 +57,7 @@ struct AgentPanel: View {
     private var state: AgentState { store.state(for:profile.id) }
     private var skin: AgentSkin { store.selectedSkin }
     var body: some View {
-        ScrollView {
+        IslandContentScroll {
             VStack(alignment: .leading, spacing: 14) {
                 if store.preferences.visibleProfiles.count > 1 {
                   HStack(spacing: 8) {
@@ -110,7 +110,7 @@ struct AgentPanel: View {
                 }
                 Text("\(skin.title) · \(store.preferences.skinID == "auto" ? "跟随主用Agent" : "自选皮肤")").font(.system(size: 10)).foregroundStyle(theme.secondaryLabel).frame(maxWidth: .infinity)
             }.padding(14).foregroundStyle(theme.primaryLabel).accessibilityIdentifier("island.agentPanel")
-        }.frame(height: IslandHost.panelHeight)
+        }
             .modifier(IslandReadingModule(moduleID: IslandHost.agentID))
 
     }

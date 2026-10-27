@@ -3,6 +3,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const PURPOSES = Object.freeze({
+ calendar:{id:'cli_aa217b534af89cdc',secret:'FEISHU_RECEIVE_SECRET',scope:'auth:user.id:read calendar:calendar:read calendar:calendar.event:read calendar:calendar.event:create calendar:calendar.event:update offline_access'},
  receive:{id:'cli_aa217b534af89cdc',secret:'FEISHU_RECEIVE_SECRET',scope:'auth:user.id:read im:chat:read im:chat.user_setting:read im:message.group_msg:get_as_user im:message.p2p_msg:get_as_user im:message:readonly offline_access'},
  archive:{id:'cli_aa534c191338dd29',secret:'FEISHU_ARCHIVE_SECRET',scope:'auth:user.id:read docx:document:create docx:document:write_only docx:document:readonly docs:document.media:upload drive:file:upload base:record:create base:field:read base:record:read wiki:node:read offline_access'}
 });
@@ -60,8 +61,9 @@ class Broker {
     this.pendingRefresh.delete(key);
    }else v=await this.vault.read(user,purpose);
    if(!v?.refresh||v.refreshExpires<=this.now())throw new AuthError(401,'请重新授权此连接');
-   if(v.expires>this.now()+120000)return {access:v.access,expires:v.expires,scope:v.scope};
-   const {r,j}=await this.request('https://open.feishu.cn/open-apis/authen/v2/oauth/token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({grant_type:'refresh_token',refresh_token:v.refresh,client_id:p.id,client_secret:this.env[p.secret]})});
+   const calendarExact=purpose!=='calendar'||(new Set(String(v.scope||'').split(/\s+/)).size===p.scope.split(' ').length&&p.scope.split(' ').every(s=>String(v.scope||'').split(/\s+/).includes(s)));
+   if(v.expires>this.now()+120000&&calendarExact)return {access:v.access,expires:v.expires,scope:v.scope};
+   const {r,j}=await this.request('https://open.feishu.cn/open-apis/authen/v2/oauth/token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({grant_type:'refresh_token',refresh_token:v.refresh,client_id:p.id,client_secret:this.env[p.secret],...(purpose==='calendar'?{scope:p.scope}:{})})});
    if(!r.ok||j.error||!j.access_token||!j.refresh_token||!Number.isFinite(j.expires_in)||j.expires_in<=0||!Number.isFinite(j.refresh_token_expires_in)||j.refresh_token_expires_in<=0)throw new AuthError(502,'续期未完成，原连接状态已保留');
    const scope=String(j.scope||v.scope);if(!p.scope.split(' ').every(s=>scope.split(/\s+/).includes(s)))throw new AuthError(403,'续期权限不完整');
    const next={...v,access:j.access_token,refresh:j.refresh_token,expires:this.now()+j.expires_in*1000,refreshExpires:this.now()+j.refresh_token_expires_in*1000,scope};

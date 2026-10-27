@@ -7,20 +7,20 @@ struct FeishuView: View {
     @State private var showAll = false
 
     var body: some View {
-        WorkspaceIslandFrame { bodyHeight in
+        Group {
             VStack(alignment: .leading, spacing: 10) {
                 if let id = store.readingID, let message = store.visibleMessages.first(where: { $0.id == id }) {
-                    ScrollView {
+                    IslandContentScroll(maximumHeight: 360) {
                         detail(message)
                         errorBanner
-                    }.frame(height: bodyHeight + WorkspaceLayout.headerHeight + WorkspaceLayout.sectionSpacing)
+                    }
                 } else {
                     header.frame(height: 28)
-                    ScrollView {
+                    IslandContentScroll(maximumHeight: 300) {
                         let list = showAll ? store.visibleMessages : store.important
                         if list.isEmpty { emptyState }
                         else {
-                            LazyVStack(spacing: 8) {
+                            VStack(spacing: 8) {
                                 ForEach(list) { message in
                                     Button { store.openReader(message.id) } label: { row(message) }
                                         .buttonStyle(.plain)
@@ -30,12 +30,12 @@ struct FeishuView: View {
                         }
                         if !store.status.hasPrefix("账号接收中") && !store.status.hasPrefix("演示模式") {
                             Button { WorkspaceWindow.shared.openSettings(store: .shared) } label: {
-                                Text(store.status).font(.system(size: 10)).lineLimit(2)
+                                Text(store.status).font(.system(size: 12)).fixedSize(horizontal:false,vertical:true)
                                     .foregroundStyle(store.status.contains("失败") || store.status.contains("异常") || store.status.contains("暂缓") ? theme.warning : theme.tertiaryLabel)
                             }.buttonStyle(.plain)
                         }
                         errorBanner
-                    }.frame(height: max(0, bodyHeight - 30))
+                    }
                     footer.frame(height: 24)
                 }
             }.padding(WorkspaceLayout.padding)
@@ -91,7 +91,7 @@ struct FeishuView: View {
             Text(!store.enabled ? "在工作台设置中，可以重新开始接收。" : "按你的规则筛选，继续遵守免打扰。")
                 .font(.system(size: 10)).foregroundStyle(theme.tertiaryLabel)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity).modifier(IslandCard())
+        .frame(maxWidth: .infinity).padding(.vertical,16).modifier(IslandCard())
     }
 
     private func row(_ message: FeishuMessage) -> some View {
@@ -108,8 +108,8 @@ struct FeishuView: View {
                     Spacer(minLength: 2)
                     Text(message.created, style: .time).font(.system(size: 9)).foregroundStyle(theme.tertiaryLabel)
                 }
-                Text(message.text.replacingOccurrences(of: "\n", with: " "))
-                    .font(.system(size: 11)).foregroundStyle(theme.secondaryLabel).lineLimit(1)
+                Text(message.text)
+                    .font(.system(size: 14)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal:false,vertical:true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 5) {
                     if let reason = message.importanceReason(followed: store.followed, rules: store.rules, custom: store.customRules) {
