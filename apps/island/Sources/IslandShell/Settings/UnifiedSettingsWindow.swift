@@ -77,7 +77,7 @@ private struct UnifiedSettingsLayout:View {
                 }
                 Spacer()
                 Button("使用说明") { if let url=Bundle.main.url(forResource:"开始使用",withExtension:"html") {NSWorkspace.shared.open(url)} }.buttonStyle(.plain).font(.system(size:12)).padding(.horizontal,12)
-                Text("本机保存 · 原生 Mac 应用\n0.9.0 · 融合版 51").font(.system(size:11)).foregroundStyle(theme.tertiaryLabel).lineSpacing(5).padding(12)
+                Text("本机保存 · 原生 Mac 应用\n0.9.0 · 融合版 52").font(.system(size:11)).foregroundStyle(theme.tertiaryLabel).lineSpacing(5).padding(12)
             }.padding(.horizontal,14).padding(.bottom,12).frame(width:208).frame(maxHeight:.infinity)
                 .background(Color(skinHex:agents.selectedSkin.palette(dark:dark).sidebar))
             Rectangle().fill(theme.subtleStroke).frame(width:1)

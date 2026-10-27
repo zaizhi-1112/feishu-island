@@ -67,8 +67,14 @@ import SwiftUI
             let model=UnifiedSettingsModel();model.appState=appState;model.visible=true
             if CommandLine.arguments.contains("--interactive") {
                 NookEditMenu.installIfNeeded()
+                if CommandLine.arguments.contains("--agent-order-review") {
+                    var preferences=AgentStore.shared.preferences
+                    preferences.enabled=false;preferences.quotaDisplayEnabled=false
+                    preferences.setVisibleIDs(["codex","claude","workbuddy"])
+                    try AgentStore.shared.update(preferences)
+                }
                 UnifiedSettingsWindow.shared.bind(appState:appState)
-                UnifiedSettingsWindow.shared.open(section:"messages")
+                UnifiedSettingsWindow.shared.open(section:CommandLine.arguments.contains("--agent-order-review") ? "agents":"messages")
                 print("Synthetic native settings window ready; no account reads.")
                 app.run(); return
             }

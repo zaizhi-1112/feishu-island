@@ -27,6 +27,11 @@ struct UnifiedAgentSettings:View {
     @State private var error=""
     @State private var detailID="codex"
     @ObservedObject private var workspace=WorkspaceStore.shared
+    private var orderedProfiles:[AgentProfile] {
+        let preferences=store.preferences
+        let visible=Set(preferences.visibleIDs)
+        return preferences.visibleProfiles + preferences.profiles.filter { !visible.contains($0.id) }
+    }
     var body:some View {
         IslandSettingsCard("监测与提醒") {
             Toggle("开启 Agent 状态监测",isOn:setting(\.enabled))
@@ -40,7 +45,7 @@ struct UnifiedAgentSettings:View {
             Text("只展示工具实际提供的状态与额度。未知数据会明确显示；不会在这里下发任务。冲屏素材在“外观与交互”管理。").font(.system(size:12)).foregroundStyle(.secondary)
         }
         IslandSettingsCard("我的 Agent · 主栏最多三个") {
-            ForEach(store.preferences.profiles) { profile in
+            ForEach(orderedProfiles) { profile in
                 VStack(alignment:.leading,spacing:10) {
                     HStack {
                         VStack(alignment:.leading,spacing:3) { Text(profile.name).fontWeight(.semibold); Text(store.snapshots[profile.id]?.source ?? "尚未取得状态").font(.system(size:11)).foregroundStyle(.secondary) }
@@ -62,7 +67,7 @@ struct UnifiedAgentSettings:View {
                 }
             }
             if !error.isEmpty { Text(error).foregroundStyle(.orange).font(.system(size:12)) }
-            Text("隐藏主栏不会断开监测；你仍可在此查看。关闭“监测”后不再读取该来源。").font(.system(size:12)).foregroundStyle(.secondary)
+            Text("列表与灵动岛使用同一顺序，隐藏项排在末尾。隐藏不会断开监测；关闭“监测”后不再读取该来源。").font(.system(size:12)).foregroundStyle(.secondary)
         }
         IslandSettingsCard("当前状态") { UnifiedAgentSnapshotView(store:store,profileID:detailID) }
         IslandSettingsCard("添加自定义 Agent") {
