@@ -1,6 +1,6 @@
 # 一切在岛发布图标
 
-来源是本人在2026-10-27发布请求中提供的蓝绿尾翼云朵插画。使用内置 imagegen 做透明背景提取，输出已复制为本目录 `island-mascot-transparent.png`；网页使用 `site/mascot.png`，中台使用 `site/icon.png`（256×256、透明PNG、54220字节）。原始生成文件保留。未更换build52安装包里的图标或程序名。
+来源是本人在2026-10-27发布请求中提供的蓝绿尾翼云朵插画。使用内置 imagegen 做透明背景提取，输出已复制为本目录 `island-mascot-transparent.png`；网页使用 `site/mascot.png`，中台使用 `site/icon.png`（256×256、透明PNG、54220字节）。原始生成文件保留。build52至build55曾只更新网页/中台图标；build56将同一透明云朵原图用于Resources/AppIcon.png，重新生成全部iconset与AppIcon.icns，构建脚本每次打包前重新生成图标，避免安装包沿用旧图。
 
 人工查看透明提取结果，保留了白色云朵、蓝绿尾翼、面罩、双眼、笑脸与水彩质感；这是生成式背景提取，不作像素完全一致的保证。缩小网页资源使用sips，保留透明通道。
 
