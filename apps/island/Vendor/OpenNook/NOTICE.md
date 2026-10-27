@@ -66,3 +66,5 @@ removes the forced click between edge reveal and the host's expanded content.
 - edgeDocked支持系统已有peekFirst偏好；移出结束hover拥有的peek，点击继续完整展开。
 - 收纳白色提示边缘限主体宽度65%且最多160pt，展开不套用窄遮罩。
 - `NookSurface/Nook+Peek.swift`：悬浮排队开始与 compact 转换返回后检查 transition generation、任务取消及鼠标仍在区域；收回悬浮也检查当前 generation，避免快速移入移出或新操作被旧任务覆盖。程序主动触发的 peek 不要求鼠标悬停。`Tests/UnifiedProductChecks/PeekTransitionChecks.swift` 提供不创建窗口的排队取消回归检查。
+
+- 2026-10-27: Edge-docked presentations share expanded screen geometry and notch clearance. Floating compact chrome retracts into the hardware notch without a visible lip; only pointer hover reveals it. Non-notched display edge fallback remains.

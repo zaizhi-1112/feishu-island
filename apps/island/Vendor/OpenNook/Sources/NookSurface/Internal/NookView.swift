@@ -51,7 +51,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     }
 
     private var fusesWithHardwareNotch: Bool {
-        nook.edgeDocked && nook.layoutForm == .notch && nook.physicalNotchHeight > 0
+        nook.edgeDocked && nook.physicalNotchHeight > 0
     }
 
     /// Residual safe-area insets the host's expanded view can read via
@@ -204,7 +204,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     private var positionedChrome: some View {
         if fusesWithHardwareNotch {
             let layout = NookNotchDockLayout(
-                state: nook.state, hovering: nook.isHovering || nook.compactRevealActive, peeking: nook.isPeeking,
+                state: nook.state,
+                hovering: nook.isHovering || (!isFloating && nook.compactRevealActive),
+                peeking: !isFloating && nook.isPeeking,
                 notchSize: nook.notchSize
             )
             chrome
@@ -212,12 +214,17 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 .overlay { companionLayer() }
                 .offset(x: layout.isRetracted ? 0 : xOffset)
                 .opacity(layout.isRetracted ? 0 : 1)
+                .padding(.top, layout.isRetracted ? 0 : floatingTopInset)
                 .frame(width: layout.frameWidth, height: layout.frameHeight, alignment: .top)
+                .frame(minWidth: isFloating && !layout.isRetracted ? nook.notchSize.width : nil, alignment: .top)
                 .clipped()
                 .background {
                     if layout.isRetracted {
                         // AppKit skips fully transparent pointer targets. This is a
                         // near-transparent hit area, not an additional black lip.
+                        Color.black.opacity(0.01)
+                    } else if isFloating {
+                        // Keep the pointer bridge from the camera to the revealed pill.
                         Color.black.opacity(0.01)
                     }
                 }

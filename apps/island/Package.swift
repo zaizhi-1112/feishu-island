@@ -8,6 +8,7 @@ let package = Package(
     targets: [
         .target(name: "IslandShell", dependencies: [.product(name: "NookApp", package: "OpenNook")], exclude: ["Feishu/SOURCE.md", "Danmu/SOURCE.md", "Platform/SOURCE.md"]),
         .executableTarget(name: "YuIsland", dependencies: ["IslandShell"]),
+        .executableTarget(name: "DockGeometryChecks", dependencies: ["IslandShell"], path: "Tests/DockGeometryChecks"),
         .executableTarget(name: "IslandChecks", dependencies: ["IslandShell"], path: "Tests/IslandChecks"),
         .executableTarget(name: "FusionChecks", dependencies: ["IslandShell"], path: "Tests/FusionTests"),
         .executableTarget(name: "AgentChecks", dependencies: ["IslandShell"], path: "Tests/AgentTests"),

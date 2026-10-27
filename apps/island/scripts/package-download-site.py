@@ -28,7 +28,7 @@ page = (ROOT/'Distribution/site/index.html').read_text()
 if name not in page or 'content="0.9.0/53/arm64"' not in page:
     raise SystemExit('Page and release metadata differ')
 # The hosted help and package must describe the same release.
-help_source = ROOT/'Distribution/开始使用.html'
+help_source = ROOT/'Distribution/site/start-build53.html'  # Frozen with the hosted build53 package.
 if 'build' + manifest['build'] not in help_source.read_text():
     raise SystemExit('Installation guide and package build differ; update them together before publishing')
 a.output.mkdir(parents=True,exist_ok=False)

@@ -31,6 +31,14 @@ expect(selected(.specific("external"), [other, laptop, monitor]) == 2, "pinned s
 expect(selected(.builtIn, [monitor]) == 0, "built-in preference in clamshell")
 expect(NookPresentation.auto.isFloating(screenHasNotch: false), "non-notch floating layout")
 expect(!NookPresentation.auto.isFloating(screenHasNotch: true), "notched built-in layout")
+for hasNotch in [true, false] {
+    let forms = NookPresentation.allCases.map { $0.resolvedForm(state: .expanded, edgeDocked: true, screenHasNotch: hasNotch) }
+    expect(forms.allSatisfy { $0 == forms[0] }, "all expanded modes share screen geometry")
+}
+expect(NookPresentation.floating.resolvedForm(state: .compact, edgeDocked: true, screenHasNotch: true) == .floating,
+       "hovered capsule retains floating compact form")
+expect(NookPresentation.floating.resolvedForm(state: .expanded, edgeDocked: false, screenHasNotch: true) == .floating,
+       "non-docked clients preserve floating behavior")
 let encoded = try JSONEncoder().encode(NookDisplayPreference.automatic)
 let decoded = try JSONDecoder().decode(NookDisplayPreference.self, from: encoded)
 expect(decoded == .automatic, "automatic preference persistence")
@@ -71,14 +79,14 @@ expect(hiddenQuotaDock.isRetracted,"turning off quota restores retraction")
 
 let hardware = CGSize(width: 179, height: 32)
 let notchRest = NookNotchDockLayout(state: .compact, hovering: false, notchSize: hardware)
-expect(notchRest.isRetracted && notchRest.frameWidth == 187 && notchRest.frameHeight == 36,
+expect(notchRest.isRetracted && notchRest.frameWidth == 179 && notchRest.frameHeight == 32,
        "notch standby reserves only its invisible pointer target")
 let notchReady = NookNotchDockLayout(state: .compact, hovering: true, notchSize: hardware)
 expect(!notchReady.isRetracted && notchReady.frameHeight == nil && notchReady.frameWidth == nil,
        "notch ready state reveals natural side slots")
 let notchPanel = NookNotchDockLayout(state: .expanded, hovering: false, notchSize: hardware)
 expect(!notchPanel.isRetracted && notchPanel.frameHeight == nil,
-       "notch expanded panel cannot be clipped to the 36-point trigger")
+       "notch expanded panel cannot be clipped to the 32-point trigger")
 let notchActivity = NookNotchDockLayout(state: .compact, hovering: false, peeking: true, notchSize: hardware)
 expect(!notchActivity.isRetracted && notchActivity.frameHeight == nil,
        "notch activity peek retains its full content height")

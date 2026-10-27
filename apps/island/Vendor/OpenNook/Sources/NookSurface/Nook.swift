@@ -144,6 +144,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// never pass through a host-called `expand`/`compact`.
     @Published public private(set) var state: NookState = .hidden {
         didSet {
+            layoutForm = presentation.resolvedForm(state: state, edgeDocked: edgeDocked,
+                                                   screenHasNotch: physicalNotchHeight > 0)
             // A peek is a way of being compact; leaving compact ends it, on the same
             // transaction (and so the same curve) as the state change itself.
             if state != .compact {
@@ -1414,13 +1416,19 @@ extension Nook {
 }
 
 extension Nook {
+    /// Screen metrics are applied together for display changes and isolated layout checks.
+    func updateScreenGeometry(notch: CGSize, physicalHeight: CGFloat, menuHeight: CGFloat) {
+        notchSize = notch
+        physicalNotchHeight = physicalHeight
+        menubarHeight = menuHeight
+        layoutForm = presentation.resolvedForm(state: state, edgeDocked: edgeDocked, screenHasNotch: physicalHeight > 0)
+    }
+
     fileprivate func initializeWindow(screen: NSScreen, orderFront: Bool = true) {
         deinitializeWindow()
 
-        notchSize = screen.notchFrameWithMenubarAsBackup.size
-        physicalNotchHeight = screen.safeAreaInsets.top
-        menubarHeight = screen.menubarHeight
-        layoutForm = presentation.isFloating(screenHasNotch: screen.hasNotch) ? .floating : .notch
+        updateScreenGeometry(notch: screen.notchFrameWithMenubarAsBackup.size,
+                             physicalHeight: screen.safeAreaInsets.top, menuHeight: screen.menubarHeight)
         // Extents were measured in the window being replaced; the new one re-reports them.
         companionExtents.removeAll()
         chromeExtent = 0
