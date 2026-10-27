@@ -14,137 +14,18 @@
 </head>
 <body>
 <div class="vx-app">
-  <header class="vx-topbar">
-    <a class="vx-appname island-brand" href="./">
-      <img src="icon.png" width="32" height="32" alt="">
-      <span>一切在岛</span>
-    </a>
-    <nav class="site-nav" aria-label="页面导航">
-      <a href="#features">功能</a>
-      <a href="#install">安装</a>
-      <a href="start.html">使用说明</a>
-    </nav>
-  </header>
-
-  <main class="vx-main">
-    <header class="vx-page-header">
-      <div>
-        <h1 class="vx-page-title">一切在岛</h1>
-        <p class="vx-page-desc">飞书消息、Agent 状态、待办与中台快捷入口，都在 Mac 顶部。</p>
-      </div>
-      <p class="release-credit">宰治和柚子 · 共同发布</p>
-    </header>
-
-    <div class="vx-stack-lg">
-      <section class="vx-card download-card" aria-labelledby="download-title">
-        <div class="vx-card-body download-layout">
-          <img class="product-icon" src="icon.png" width="104" height="104" alt="">
-          <div class="download-copy">
-            <p class="release-label">Mac 灵动岛 · 0.9.0 build 53</p>
-            <h2 id="download-title">把常用信息放在手边</h2>
-            <p>鼠标移入展开，移开后自动收起；也可以先预览，再点击展开。设置在独立的 Mac 窗口中完成。</p>
-            <p class="compatibility">Apple M 系列 · macOS 15 或更高版本 · 约 32 MB</p>
-          </div>
-          <div class="download-actions">
-            <a class="vx-btn vx-btn-primary" id="download" href="feishu-island-0.9.0-build53-arm64.dmg" download>
-              <svg class="vx-icon" data-icon="download" aria-hidden="true"></svg>下载 Mac 版
-            </a>
-            <a class="vx-more" href="#install">查看安装方法 <svg class="vx-icon" data-icon="chevron" aria-hidden="true"></svg></a>
-            <p id="download-feedback" class="download-feedback" role="status" aria-live="polite" hidden>下载已开始。打开 DMG，将“一切在岛”拖入应用程序。</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="features" aria-labelledby="features-title">
-        <div class="vx-section-head">
-          <h2 class="vx-section-title" id="features-title">四个入口，一个灵动岛</h2>
-          <p class="vx-section-desc">常用信息集中在一起，按自己的习惯选择和调整。</p>
-        </div>
-        <div class="feature-grid">
-          <article class="vx-card feature-card">
-            <div class="vx-card-body">
-              <span class="vx-icon-well"><svg class="vx-icon" data-icon="message" aria-hidden="true"></svg></span>
-              <h3>飞书消息</h3>
-              <p class="feature-summary">私聊与群聊，一处管理</p>
-              <p>首次引导本人授权，之后恢复有效连接。字号、速度、配色与气泡独立调整；长消息在岛内完整阅读。</p>
-            </div>
-          </article>
-          <article class="vx-card feature-card">
-            <div class="vx-card-body">
-              <span class="vx-icon-well"><svg class="vx-icon" data-icon="agent" aria-hidden="true"></svg></span>
-              <h3>Agent 状态</h3>
-              <p class="feature-summary">进度、额度与完成提醒</p>
-              <p>展示实际可获取的数据，支持自定义状态来源。岛内最多显示 3 个；点击上下箭头，设置整行与岛内顺序同步调整。</p>
-            </div>
-          </article>
-          <article class="vx-card feature-card">
-            <div class="vx-card-body">
-              <span class="vx-icon-well"><svg class="vx-icon" data-icon="check" aria-hidden="true"></svg></span>
-              <h3>待办</h3>
-              <p class="feature-summary">完成、折叠、归档与历史</p>
-              <p>未完成优先，完成后划线。按次或按周期提醒，轻提示与冲屏可选；按日期保留完成记录，可主动导出给 Agent 总结。</p>
-            </div>
-          </article>
-          <article class="vx-card feature-card">
-            <div class="vx-card-body">
-              <span class="vx-icon-well"><svg class="vx-icon" data-icon="grid" aria-hidden="true"></svg></span>
-              <h3>中台</h3>
-              <p class="feature-summary">常用卡片与快捷信号轮盘</p>
-              <p>8 个方向放 8 个常用入口，点击或拖动打开。主栏可隐藏，配置仍保留。</p>
-            </div>
-          </article>
-        </div>
-        <p class="section-note">主题、形态、两种悬浮模式与冲屏素材，都在“外观与交互”中统一设置。</p>
-      </section>
-
-      <section id="install" aria-labelledby="install-title">
-        <div class="vx-section-head">
-          <h2 class="vx-section-title" id="install-title">安装与连接</h2>
-          <p class="vx-section-desc">安装包内的应用名为“一切在岛”，沿用原应用身份与个人数据。</p>
-        </div>
-        <div class="vx-card">
-          <div class="vx-card-body">
-            <ol class="vx-steps vx-steps-row">
-              <li class="vx-step"><span class="vx-step-n">1</span><div class="vx-step-body"><h3 class="vx-step-title">下载并打开 DMG</h3><p class="vx-step-text">适用 Apple M 系列 Mac，macOS 15 或更高版本。</p></div></li>
-              <li class="vx-step"><span class="vx-step-n">2</span><div class="vx-step-body"><h3 class="vx-step-title">拖入应用程序</h3><p class="vx-step-text">首次安装拖入 Applications。更新前先退出旧版，安装后将旧版“你的飞包”移到废纸篓。</p></div></li>
-              <li class="vx-step"><span class="vx-step-n">3</span><div class="vx-step-body"><h3 class="vx-step-title">连接本人飞书</h3><p class="vx-step-text">从灵动岛打开原生设置，按提示完成本人授权；已有有效连接自动恢复。</p></div></li>
-            </ol>
-            <div class="install-note">
-              <svg class="vx-icon" data-icon="info" aria-hidden="true"></svg>
-              <p>当前包为本地签名，尚未完成 Apple 公证。遇到来源提示时，使用 macOS“隐私与安全性”中的确认入口。Intel Mac 和 Windows 暂不提供安装包。</p>
-            </div>
-            <div class="install-links">
-              <a class="vx-link" href="#download">返回下载</a>
-              <a class="vx-link" href="SHA256SUMS">查看 SHA-256 校验值</a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="help" aria-labelledby="help-title">
-        <div class="vx-section-head"><h2 class="vx-section-title" id="help-title">常见问题</h2></div>
-        <div class="vx-card help-card">
-          <details>
-            <summary>怎么打开设置？<svg class="vx-icon" data-icon="plus" aria-hidden="true"></svg></summary>
-            <div class="help-content"><p>将鼠标移到 Mac 顶部灵动岛，展开后点击齿轮。五个设置模块在独立原生窗口中配置，不用打开浏览器工作台。</p><a class="vx-link" href="start.html#features">查看功能说明</a></div>
-          </details>
-          <details>
-            <summary>Agent 能做什么？<svg class="vx-icon" data-icon="plus" aria-hidden="true"></svg></summary>
-            <div class="help-content"><p>展示实际可获取的状态、额度或积分，并在完成时提醒。自定义 Agent 可接本机 JSON 状态文件；当前版本在岛内不下发任务或传文档。</p><a class="vx-link" href="agent-guide.html">查看接入与协助说明</a></div>
-          </details>
-          <details>
-            <summary>数据和使用范围？<svg class="vx-icon" data-icon="plus" aria-hidden="true"></svg></summary>
-            <div class="help-content"><p>待办与历史保存在本人 Mac，飞书消息正文只在内存中使用。每位同事连接自己的账号。真实授权、新消息类别、Agent 来源和多日运行，按各人的设备实际核对。</p><a class="vx-link" href="start.html#data">查看保存与接入说明</a></div>
-          </details>
-        </div>
-      </section>
-    </div>
-
-    <footer class="site-footer">
-      <span>虚实传媒 · 全公司同事可用 · 使用本人账号连接</span>
-      <a class="vx-more" href="start.html#checks">版本与使用范围 <svg class="vx-icon" data-icon="chevron" aria-hidden="true"></svg></a>
-    </footer>
-  </main>
-</div>
-</body>
-</html>
+<header class="vx-topbar"><a class="vx-appname island-brand" href="./"><img src="icon.png" width="32" height="32" alt="">一切在岛</a><a class="vx-more" href="start.html">使用说明 ↗</a></header>
+<main class="vx-main">
+<header class="product-header">
+<div class="product-heading"><img src="icon.png" width="72" height="72" alt=""><div><h1 class="vx-page-title">一切在岛</h1><p class="vx-page-desc">四个入口，一个灵动岛。</p></div></div>
+<div class="download-actions" id="install"><a class="vx-btn vx-btn-primary" id="download" href="feishu-island-0.9.0-build53-arm64.dmg" download><svg class="vx-icon" data-icon="download" aria-hidden="true"></svg>下载 Mac 版</a><p class="compatibility">Apple M 系列 · macOS 15+ · build 53</p><p id="download-feedback" role="status" hidden>打开 DMG，将“一切在岛”拖入应用程序。<a href="start.html">安装帮助</a></p></div>
+</header>
+<section class="vx-card showcase" aria-label="功能演示" aria-roledescription="轮播">
+<div class="feature-tabs" role="tablist" aria-label="四个入口">
+<button id="tab-0" role="tab" aria-controls="panel-0" aria-selected="true" tabindex="0" data-slide="0"><svg class="vx-icon" data-icon="message" aria-hidden="true"></svg>飞书消息</button>
+<button id="tab-1" role="tab" aria-controls="panel-1" aria-selected="false" tabindex="-1" data-slide="1"><svg class="vx-icon" data-icon="agent" aria-hidden="true"></svg>Agent 状态</button>
+<button id="tab-2" role="tab" aria-controls="panel-2" aria-selected="false" tabindex="-1" data-slide="2"><svg class="vx-icon" data-icon="check" aria-hidden="true"></svg>待办</button>
+<button id="tab-3" role="tab" aria-controls="panel-3" aria-selected="false" tabindex="-1" data-slide="3"><svg class="vx-icon" data-icon="grid" aria-hidden="true"></svg>中台</button>
+</div><div class="demo-stage"><div class="slide" id="panel-0" role="tabpanel" aria-labelledby="tab-0" ><p class="feature-line">重要消息抬眼就看，长消息也能在岛内读完。</p><div class="desktop-demo" aria-label="飞书消息示意"><div class="desktop-bar"><span>一切在岛</span><span>星期二　10:24</span></div><div class="island-demo"><div class="island-handle"></div><div class="island-title">飞书消息<span>•••</span></div><div class="demo-row"><span class="avatar">林</span><div><strong>项目讨论</strong><small>林同学 · 刚刚</small></div><span class="demo-tag">未读</span></div><div class="message-bubble">新版方案整理好了，下午一起过一下。</div><div class="demo-bottom">最近消息<span>1 / 3　 →</span></div></div></div></div><div class="slide" id="panel-1" role="tabpanel" aria-labelledby="tab-1" hidden><p class="feature-line">Agent 进度与完成提醒，不必来回切窗口。</p><div class="desktop-demo" aria-label="Agent 状态示意"><div class="desktop-bar"><span>一切在岛</span><span>星期二　10:24</span></div><div class="island-demo"><div class="island-handle"></div><div class="island-title">Agent 状态<span>•••</span></div><div class="demo-row"><span class="avatar">C</span><strong>Codex</strong><span class="demo-tag">处理中</span></div><p class="demo-line">正在检查页面布局</p><div class="progress-track"><span></span></div><div class="demo-row"><span class="avatar">A</span><strong>Claude</strong><span class="demo-tag">已完成</span></div></div></div></div><div class="slide" id="panel-2" role="tabpanel" aria-labelledby="tab-2" hidden><p class="feature-line">记下要做的事，到点提醒，完成后留在历史里。</p><div class="desktop-demo" aria-label="待办示意"><div class="desktop-bar"><span>一切在岛</span><span>星期二　10:24</span></div><div class="island-demo"><div class="island-handle"></div><div class="island-title">待办<span>•••</span></div><div class="todo-row"><span class="todo-check"></span><span>整理本周工作计划</span><small>今天</small></div><div class="todo-row"><span class="todo-check"></span><span>下午确认活动流程</span><small>15:00</small></div><div class="todo-row done"><span class="todo-check">✓</span><span>发出会议材料</span><small>完成</small></div></div></div></div><div class="slide" id="panel-3" role="tabpanel" aria-labelledby="tab-3" hidden><p class="feature-line">常用中台入口，抬手就能打开。</p><div class="desktop-demo" aria-label="中台示意"><div class="desktop-bar"><span>一切在岛</span><span>星期二　10:24</span></div><div class="island-demo"><div class="island-handle"></div><div class="island-title">中台<span>•••</span></div><div class="hub-grid"><div>工作计划<span>查看今日安排 ↗</span></div><div>我的数据<span>打开个人卡片 ↗</span></div><div>常用应用<span>前往应用 ↗</span></div><div>公司资料<span>查找资料 ↗</span></div></div></div></div></div></div><div class="carousel-footer"><span>效果示意</span><div class="carousel-controls"><span id="slide-count" aria-live="off">01 / 04</span><button class="vx-btn vx-btn-ghost" id="previous" aria-label="上一个入口">←</button><button class="vx-btn vx-btn-ghost" id="play" aria-label="暂停轮播">暂停</button><button class="vx-btn vx-btn-ghost" id="next" aria-label="下一个入口">→</button></div></div></section>
+<footer class="site-footer"><span>宰治和柚子 · 共同发布</span><div><a href="start.html">安装与使用说明</a><a href="agent-guide.html">Agent 接入</a><a href="SHA256SUMS">安装包校验</a></div></footer>
+</main></div></body></html>
