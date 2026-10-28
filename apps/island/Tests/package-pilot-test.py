@@ -16,7 +16,7 @@ class DistributionChecks(unittest.TestCase):
         # Retain generated fixtures; do not irreversibly remove filesystem content.
         directory = Path(tempfile.mkdtemp(prefix='island-package-synthetic-'))
         app = directory/'一切在岛.app'
-        files = {'Contents/MacOS/YuIsland', 'Contents/Resources/AppIcon.icns', 'Contents/Resources/开始使用.html'}
+        files = {'Contents/MacOS/YuIsland', 'Contents/Resources/AppIcon.icns', 'Contents/Resources/开始使用.html', 'Contents/Resources/deepseek-balance.cjs'}
         files |= {'Contents/Resources/LOLPing/'+name for name in m.LOL_FILES}
         files |= {'Contents/Resources/SettingsWeb/'+name for name in m.REQUIRED_SKIN_FILES}
         files |= {'Contents/Helpers/'+name for name in m.HELPERS}
@@ -106,6 +106,19 @@ class DistributionChecks(unittest.TestCase):
         (app/'Contents/MacOS/YuIsland').write_bytes(b'changed synthetic binary')
         with self.assertRaisesRegex(ValueError, 'changed during packaging'): m.inspect_volume(directory, app.name, info, entries)
 
+    def test_installer_background_is_audited_and_cannot_hide_extra_files(self):
+        directory, app = self.fixture()
+        info, entries = m.inspect(app)
+        (directory/'Applications').symlink_to('/Applications', target_is_directory=True)
+        m.inspect_volume(directory, app.name, info, entries)
+        guide = directory/'.background'/m.layout_template(app.name)[0]['background']
+        guide.write_bytes(b'changed guide')
+        with self.assertRaisesRegex(ValueError, 'guide is missing or changed'):
+            m.inspect_volume(directory, app.name, info, entries)
+        (directory/'.background'/'credentials.json').write_text('{}')
+        with self.assertRaisesRegex(ValueError, 'only the reviewed illustration'):
+            m.inspect_volume(directory, app.name, info, entries)
+
     def test_runtime_keeps_signature_and_helper_architecture_checks(self):
         _, app = self.fixture()
         with patch.object(m.subprocess, 'run') as run, patch.object(m.subprocess, 'check_output', return_value='arm64\n'):
@@ -132,15 +145,23 @@ class DistributionChecks(unittest.TestCase):
             self.assertIn('-noautoopen', attach)
 
     def test_reviewed_icon_layout_is_pinned_to_app_and_both_positions(self):
+        from ds_store import DSStore
         metadata, data = m.layout_template('一切在岛.app')
         self.assertEqual(metadata['defaultView'], 'icon')
-        self.assertEqual(metadata['version'], 2)
+        self.assertEqual(metadata['version'], 3)
         self.assertTrue(metadata['alwaysOpenInIconView'])
-        self.assertEqual((metadata['windowWidth'], metadata['windowHeight']), (600, 360))
+        self.assertEqual((metadata['windowWidth'], metadata['windowHeight']), (820, 674))
         self.assertEqual(metadata['iconSize'], 96)
-        self.assertEqual(metadata['positions']['一切在岛.app'], [150, 160])
-        self.assertEqual(metadata['positions']['Applications'], [450, 160])
+        self.assertEqual(metadata['positions']['一切在岛.app'], [230, 148])
+        self.assertEqual(metadata['positions']['Applications'], [590, 148])
         self.assertGreater(len(data), 100)
+        with DSStore.open(str(m.LAYOUT_DIR/'FinderLayout.dsstore'), 'r') as store:
+            options = store['.']['icvp']
+            # Finder silently drops the entire icon/background setup above 100.
+            self.assertGreater(options['gridSpacing'], 0)
+            self.assertLessEqual(options['gridSpacing'], 100)
+            self.assertEqual(options['backgroundType'], 2)
+            self.assertTrue(options['backgroundImageAlias'])
         with self.assertRaisesRegex(ValueError, 'name does not match'):
             m.layout_template('Renamed.app')
 

@@ -168,6 +168,8 @@ public final class FeishuStore: ObservableObject {
     func beginAutomaticConnectionIfNeeded() {
         guard live, rulesConfigurationReadable, !defaults.bool(forKey: "firstConnectionOfferedV1") else { return }
         defaults.set(true, forKey: "firstConnectionOfferedV1")
+        // The first-run guide owns the explicit connect action. Skipping stays skipped.
+        guard !IslandOnboardingPolicy.isNewUser else { return }
         guard FeishuConnectionBootPolicy.shouldOffer(savedEnabled: defaults.object(forKey: "enabled") as? Bool,
                                                       hasConnection: hasSavedConnection) else { return }
         beginCompanyConnection()

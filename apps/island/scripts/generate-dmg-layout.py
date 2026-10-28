@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate the reviewed Finder layout template, without driving Finder or mounting a disk.
 
-Only regeneration needs the isolated build dependency ds_store==1.3.1. Normal packaging
-uses the checked-in template and standard-library hash validation. To change the layout,
+Regeneration and packaging use ds_store==1.3.1 and mac_alias==2.2.2. Packaging
+validates this template and binds its background alias to the actual disk. To change the layout,
 write into a new --output directory, inspect it, then update both template and metadata.
 Field meanings follow the upstream ds_store/dmgbuild implementations:
 https://ds-store.readthedocs.io/en/latest/
@@ -12,12 +12,14 @@ https://metacpan.org/dist/Mac-Finder-DSStore/view/DSStoreFormat.pod
 import argparse
 import hashlib
 import json
+from datetime import datetime, timezone
+from mac_alias import Alias, VolumeInfo, TargetInfo
 from pathlib import Path
 from ds_store import DSStore
 
 APP_NAME = '一切在岛.app'
-BOUNDS = '{{160, 140}, {600, 360}}'
-POSITIONS = {APP_NAME: (150, 160), 'Applications': (450, 160)}
+BOUNDS = '{{160, 100}, {820, 674}}'
+POSITIONS = {APP_NAME: (230, 148), 'Applications': (590, 148)}
 
 
 def generate(output):
@@ -26,6 +28,11 @@ def generate(output):
     metadata = output/'layout.json'
     if target.exists() or metadata.exists():
         raise ValueError('Choose a fresh output directory; preserve previous layout templates')
+    date = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    background = Alias(volume=VolumeInfo('一切在岛', date, b'H+', 5, 0, b'\x00\x00', posix_path='/Volumes/一切在岛'),
+        target=TargetInfo(0, 'background.tiff', 0xFFFFFFFF, 0xFFFFFFFF, date, b'\x00'*4, b'\x00'*4,
+            folder_name='.background', posix_path='/.background/background.tiff',
+            carbon_path='一切在岛:.background:background.tiff'))
     with DSStore.open(str(target), 'w+') as store:
         store['.']['vSrn'] = ('long', 1)
         store['.']['icvl'] = ('type', b'icnv')
@@ -40,9 +47,9 @@ def generate(output):
             'ShowTabView': False, 'PreviewPaneVisibility': False, 'SidebarWidth': 0,
         }
         store['.']['icvp'] = {
-            'viewOptionsVersion': 1, 'backgroundType': 1,
+            'viewOptionsVersion': 1, 'backgroundType': 2, 'backgroundImageAlias': background.to_bytes(),
             'backgroundColorRed': 0.97, 'backgroundColorGreen': 0.98, 'backgroundColorBlue': 1.0,
-            'gridOffsetX': 0.0, 'gridOffsetY': 0.0, 'gridSpacing': 180.0,
+            'gridOffsetX': 0.0, 'gridOffsetY': 0.0, 'gridSpacing': 100.0,
             'arrangeBy': 'none', 'showIconPreview': False, 'showItemInfo': False,
             'labelOnBottom': True, 'textSize': 14.0, 'iconSize': 96.0,
             'scrollPositionX': 0.0, 'scrollPositionY': 0.0,
@@ -55,12 +62,16 @@ def generate(output):
         assert store['.']['vstl'] == (b'type', b'icnv')
         assert store['.']['bwsp']['WindowBounds'] == BOUNDS
         assert store['.']['icvp']['iconSize'] == 96.0
+        # Finder rejects the entire icon-view dictionary above 100.
+        assert 0 < store['.']['icvp']['gridSpacing'] <= 100
         assert all(store[name]['Iloc'] == position for name, position in POSITIONS.items())
-    value = {'version': 2, 'appName': APP_NAME, 'defaultView': 'icon',
+    value = {'version': 3, 'appName': APP_NAME, 'defaultView': 'icon',
              'alwaysOpenInIconView': True,
-             'windowWidth': 600, 'windowHeight': 360, 'iconSize': 96,
+             'windowWidth': 820, 'windowHeight': 674, 'iconSize': 96,
              'positions': POSITIONS, 'sha256': hashlib.sha256(target.read_bytes()).hexdigest(),
-             'generator': 'ds_store==1.3.1'}
+             'background': 'background.tiff',
+             'backgroundSha256': hashlib.sha256((output/'background.tiff').read_bytes()).hexdigest(),
+             'generator': 'ds_store==1.3.1 / mac_alias==2.2.2'}
     metadata.write_text(json.dumps(value, ensure_ascii=False, indent=2)+'\n')
     print(str(target))
 

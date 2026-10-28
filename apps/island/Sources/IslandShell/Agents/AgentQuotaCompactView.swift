@@ -121,7 +121,7 @@ struct AgentIdentityIcon:View {
     let id:String
     let size:CGFloat
     var body:some View {
-        if ["codex","claude","workbuddy"].contains(id) {
+        if ["codex","claude","workbuddy","deepseek"].contains(id) {
             AgentPortrait(id:id,size:size,avatar:true,motion:false,tapFeedback:false)
         } else {
             Image(systemName:id == "dot" ? "sparkles" : id == "doubao" ? "bubble.left.and.text.bubble.right.fill" : "person.crop.square")

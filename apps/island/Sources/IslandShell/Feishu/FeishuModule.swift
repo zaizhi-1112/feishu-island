@@ -50,6 +50,7 @@ final class FeishuModule: NookModule {
             store.beginAutomaticConnectionIfNeeded()
             if ProcessInfo.processInfo.arguments.contains("--open-feishu-settings") { UnifiedSettingsWindow.shared.open(section: .messages) }
             if ProcessInfo.processInfo.arguments.contains("--feishu-demo"), store.readingID != nil { store.onOpenReader() }
+            IslandOnboardingWindow.shared.showIfNeeded(appState: coordinator.appState, store: store)
             RuntimeVerification.startIfRequested(coordinator: coordinator)
             SkinVerification.startIfRequested(coordinator: coordinator)
         }

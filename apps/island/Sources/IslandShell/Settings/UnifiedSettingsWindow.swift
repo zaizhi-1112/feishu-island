@@ -98,6 +98,9 @@ private struct UnifiedSettingsLayout:View {
                         .accessibilityIdentifier("unified.settings.\(section.rawValue)").accessibilityAddTraits(model.section==section ? .isSelected:[])
                 }
                 Spacer()
+                Button { if let store = FeishuStore.active { IslandOnboardingWindow.shared.open(appState: appState, store: store) } } label: {
+                    Label("重新体验引导", systemImage: "sparkles").font(.system(size: 12)).padding(10)
+                }.buttonStyle(.plain).foregroundStyle(theme.secondaryLabel)
             }.padding(.horizontal,14).padding(.bottom,12).frame(width:208).frame(maxHeight:.infinity)
                 .background(Color(skinHex:agents.selectedSkin.palette(dark:dark).sidebar).opacity(agents.selectedSkin == .virxact ? 0.86 : 1))
             Rectangle().fill(theme.subtleStroke).frame(width:1)

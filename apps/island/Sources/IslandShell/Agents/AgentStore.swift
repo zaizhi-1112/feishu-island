@@ -39,6 +39,11 @@ final class AgentStore: ObservableObject {
         let defaults = defaults ?? UserDefaults(suiteName: IslandRuntime.isSkinPreview ? "local.youzi.island.skin-preview.agents" : "local.zaizhi.feishu-island.preview.agents")!
         self.defaults = defaults
         preferences = .init()
+        if defaults.object(forKey: "preferences") == nil, IslandOnboardingPolicy.isNewUser {
+            preferences = IslandOnboardingPolicy.unselectedAgents(preferences)
+            // Persist opting into no tools so skipping stays quiet after restart.
+            if let data = try? JSONEncoder().encode(preferences) { defaults.set(data, forKey: "preferences") }
+        }
         if let raw = defaults.object(forKey:"preferences") {
             do {
                 guard let bytes=raw as? Data else {throw AgentReadError.unavailable("配置格式不正确。")}

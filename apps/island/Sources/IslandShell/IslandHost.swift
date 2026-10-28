@@ -16,6 +16,7 @@ public enum IslandHost {
     public static let sampleID = "local.zaizhi.feishu-island.preview.sample"
 
     public static func configuration() -> NookHostConfiguration {
+        MainActor.assumeIsolated { IslandOnboardingPolicy.prepareAtLaunch() }
         var host = NookHostConfiguration()
         host.branding = NookHostBranding(
             hostName: "一切在岛", hostTagline: "常用功能，抬手即达。",

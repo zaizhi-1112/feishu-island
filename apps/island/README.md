@@ -1,4 +1,4 @@
-# 一切在岛 0.10.5 build87
+# 一切在岛 0.11.0 build88
 
 macOS桌面APP：飞书消息、Agent状态、待办与提醒、中台入口和原生设置。当前只使用悬浮模式。
 
@@ -26,7 +26,10 @@ swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 UnifiedProductChecks --skin
 swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 FusionChecks --skin-preview
 node --test AuthService/*.test.cjs
 python3 Tests/package-pilot-test.py
+# 打包工具需 ds_store==1.3.1、mac_alias==2.2.2（建议在独立 venv 中安装）
 python3 scripts/package-pilot.py dist/一切在岛.app --output releases
+# 网站发布准备：包内容、SHA、版本与内置说明必须一致；不上传个人数据
+python3 scripts/package-download-site.py /path/to/audited.dmg .build/site-release
 
 ```
 
@@ -44,3 +47,6 @@ build86 补齐快捷键轮盘手势：轻按唤出后滑出目标方向外圈打
 
 
 build87 新增默认 DeepSeek Harness 入口与 DeepSeek 官方蓝色鲸鱼主题。复用本人 Harness 的既有登录，只读账户余额和赠送余额，每3分钟刷新；不读取对话、不派发任务、不存储或输出凭据。新入口不会自动替换已有岛上位置，也不会在其他使用者电脑上自动启用。
+
+
+build88 新增首次使用的六步原生引导：移入方式、外观、飞书连接、桌面弹幕、提醒预览、Agent 选择。图标跟随当前操作，支持返回、跳过和重新体验。升级保留已有设置，新安装未选择的 Agent 不会自动读取。DMG 下方包含 macOS 26.4.1 实际拦截截图和「仍要打开」位置示意；打包时根据实际磁盘生成 Finder 背景引用。安装实测和发布记录见 ../../docs/build88-installation.html。
