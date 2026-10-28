@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="island-release" content="0.9.0/56/arm64">
+  <title>一切在岛 · 你的 Mac 顶部工作台</title>
+  <meta name="description" content="一切在岛，把飞书消息、Agent 状态、待办提醒和虚实中台收进 Mac 顶部灵动岛。看演示，下载 Mac 版。">
+  <link rel="icon" href="icon.png" type="image/png">
+  <link rel="stylesheet" href="virxact-ui.css">
+  <link rel="stylesheet" href="landing.css">
+  <script src="vx.js" defer></script>
+  <script src="install.js" defer></script>
+</head>
+<body>
+<header class="site-nav">
+  <a class="brand" href="./"><img src="icon.png" width="40" height="40" alt=""><span>一切在岛</span></a>
+  <nav aria-label="主导航"><a href="#demo">功能演示</a><a href="start.html">使用指南 <span aria-hidden="true">↗</span></a></nav>
+</header>
+<main>
+  <section class="hero" aria-labelledby="hero-title">
+    <h1 id="hero-title">把工作，收进灵动岛。</h1>
+    <p class="hero-copy">你的 Mac 顶部工作台。<br class="mobile-break">飞书消息、Agent 状态、待办和中台，抬眼就能看到。</p>
+    <div class="download-actions" id="install">
+      <a class="download-button" id="download" href="feishu-island-0.9.0-build56-arm64.dmg" download><svg class="vx-icon" data-icon="download" aria-hidden="true"></svg>下载 Mac 版</a>
+      <p class="compatibility">Apple M 系列 · macOS 15 或更高版本</p>
+      <p id="download-feedback" class="download-feedback" role="status" hidden>打开 DMG，将“一切在岛”拖入应用程序。<a href="start.html">查看安装帮助</a></p>
+    </div>
+  </section>
+
+  <section class="showcase" id="demo" aria-label="四个入口，一个灵动岛" aria-roledescription="轮播">
+    <div class="demo-desktop" id="demo-desktop" data-phase="open" data-current="0" data-running="true">
+      <div class="desktop-menubar" aria-hidden="true"><span><strong>一切在岛</strong><i>文件</i><i>编辑</i></span><span>星期二　10:24</span></div>
+      <div class="workspace-window" aria-hidden="true">
+        <div class="window-toolbar"><span class="window-dots"><i></i><i></i><i></i></span><span>今天的工作</span><span>⋯</span></div>
+        <div class="workspace-content"><aside><b>工作空间</b><span class="workspace-selected">今天</span><span>项目</span><span>资料</span></aside><div class="workspace-document"><span class="document-eyebrow">周二 · 工作计划</span><h3>留一点空间，给专注。</h3><div class="document-line"></div><div class="document-line short"></div><div class="document-rows"><span><i></i>整理项目资料</span><span><i></i>准备下午的讨论</span></div></div></div>
+      </div>
+      <div class="island" id="island">
+        <div class="compact-island" aria-hidden="true"><img src="icon.png" width="24" height="24" alt=""><span>一切在岛</span><i></i></div>
+        <div class="island-content">
+          <div class="island-topline" aria-hidden="true"><span class="island-wordmark">一切在岛</span><span class="camera-dot"></span><svg class="vx-icon" data-icon="settings" aria-hidden="true"></svg></div>
+          <div class="island-navigation" aria-hidden="true"><span data-module="0">飞书</span><span data-module="1">Agent</span><span data-module="2">待办</span><span data-module="3">中台</span></div>
+          <div class="demo-panel" id="panel-0" role="tabpanel" aria-labelledby="tab-0">
+            <div class="panel-heading"><span>重要消息</span><span class="quiet">刚刚</span></div>
+            <div class="message-content"><div class="message-person"><span class="avatar">林</span><div><strong>项目讨论</strong><small>林同学</small></div><span class="unread-dot" aria-label="未读"></span></div><p>活动方案更新好了，下午一起过一下。</p><div class="message-foot"><span>不用切换到聊天窗口</span><span>1 / 2</span></div></div>
+          </div>
+          <div class="demo-panel" id="panel-1" role="tabpanel" aria-labelledby="tab-1" hidden>
+            <div class="panel-heading"><span>Agent 状态</span><span class="quiet">2 个已连接</span></div>
+            <div class="agent-row"><span class="agent-symbol">C</span><div><strong>Codex</strong><small class="agent-working-copy">正在整理项目资料</small><small class="agent-done-copy">已完成，结果可以查看</small></div><span class="agent-state working-label">处理中</span><span class="agent-state done-label">已完成</span></div>
+            <div class="agent-track"><span></span></div>
+            <div class="agent-row secondary"><span class="agent-symbol">A</span><div><strong>Claude</strong><small>等待下一项工作</small></div><span class="quiet">空闲</span></div>
+          </div>
+          <div class="demo-panel" id="panel-2" role="tabpanel" aria-labelledby="tab-2" hidden>
+            <div class="panel-heading"><span>今天的待办</span><span class="quiet">到点提醒</span></div>
+            <div class="todo-row"><span class="todo-check"></span><span>确认下午的活动流程</span><time>15:00</time></div>
+            <div class="todo-row"><span class="todo-check"></span><span>整理本周工作计划</span><time>今天</time></div>
+            <div class="todo-row completing"><span class="todo-check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8 3 3 7-7"/></svg></span><span>发出会议材料</span><time>完成</time></div>
+          </div>
+          <div class="demo-panel" id="panel-3" role="tabpanel" aria-labelledby="tab-3" hidden>
+            <div class="panel-heading"><span>虚实中台</span><span class="quiet">常用入口</span></div>
+            <div class="hub-grid"><div><svg class="vx-icon" data-icon="check" aria-hidden="true"></svg><span>工作计划</span><i>↗</i></div><div><svg class="vx-icon" data-icon="grid" aria-hidden="true"></svg><span>我的数据</span><i>↗</i></div><div><svg class="vx-icon" data-icon="doc" aria-hidden="true"></svg><span>公司资料</span><i>↗</i></div><div><svg class="vx-icon" data-icon="grid" aria-hidden="true"></svg><span>常用应用</span><i>↗</i></div></div>
+          </div>
+        </div>
+      </div>
+      <svg class="demo-pointer" viewBox="0 0 24 30" aria-hidden="true"><path d="M3 2v22l6-6 5 10 4-2-5-10h9Z"/></svg>
+      <div class="desktop-caption"><span class="caption-mark" aria-hidden="true"></span><span id="demo-caption">消息来了，移入灵动岛直接阅读。</span></div>
+    </div>
+    <div class="feature-tabs" role="tablist" aria-label="选择功能演示">
+      <button id="tab-0" role="tab" aria-controls="panel-0" aria-selected="true" tabindex="0" data-slide="0"><span class="tab-title"><svg class="vx-icon" data-icon="message" aria-hidden="true"></svg>飞书消息</span><span class="tab-copy">重要消息，抬眼就见</span><span class="tab-progress" aria-hidden="true"></span></button>
+      <button id="tab-1" role="tab" aria-controls="panel-1" aria-selected="false" tabindex="-1" data-slide="1"><span class="tab-title"><svg class="vx-icon" data-icon="agent" aria-hidden="true"></svg>Agent 状态</span><span class="tab-copy">进度与完成，及时知道</span><span class="tab-progress" aria-hidden="true"></span></button>
+      <button id="tab-2" role="tab" aria-controls="panel-2" aria-selected="false" tabindex="-1" data-slide="2"><span class="tab-title"><svg class="vx-icon" data-icon="check" aria-hidden="true"></svg>待办提醒</span><span class="tab-copy">记下要事，到点提醒</span><span class="tab-progress" aria-hidden="true"></span></button>
+      <button id="tab-3" role="tab" aria-controls="panel-3" aria-selected="false" tabindex="-1" data-slide="3"><span class="tab-title"><svg class="vx-icon" data-icon="grid" aria-hidden="true"></svg>虚实中台</span><span class="tab-copy">常用工作入口，随手打开</span><span class="tab-progress" aria-hidden="true"></span></button>
+    </div>
+    <div class="demo-controls"><span>交互示意 · 悬停展开，移开收起</span><div><button id="replay" aria-label="重新播放演示"><svg class="vx-icon" data-icon="refresh" aria-hidden="true"></svg>重播</button><button id="play" aria-label="暂停演示"><svg viewBox="0 0 16 16" aria-hidden="true" class="play-symbol"><path class="pause-icon" d="M5 3v10M11 3v10"/><path class="resume-icon" d="m5 3 7 5-7 5Z"/></svg><span>暂停</span></button></div></div>
+  </section>
+
+  <section class="closing" aria-labelledby="closing-title">
+    <div><h2 id="closing-title">少切几个窗口，多留一点专注。</h2><p>原生 Mac 应用，使用你自己的账号连接。<br>飞书消息仅在内存中处理，待办与完成历史保存在本机。</p></div>
+    <a class="download-link" href="feishu-island-0.9.0-build56-arm64.dmg" download>下载一切在岛 <span aria-hidden="true">↗</span></a>
+  </section>
+</main>
+<footer class="site-footer"><span>一切在岛 · 宰治与柚子共同发布</span><div><a href="start.html">安装与使用</a><a href="agent-guide.html">Agent 接入</a><a href="SHA256SUMS">版本 0.9.0 · build 56</a></div></footer>
+</body>
+</html>

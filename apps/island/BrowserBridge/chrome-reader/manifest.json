@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "你的飞包 · 当前网页收录",
+  "version": "1.0.0",
+  "description": "点击后预览当前网页正文，确认后仅送到本机你的飞包草稿。",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArT6h2g/afQW5yVLNERjHSEvOafQmQS5q1wDpSpSLUamxj9p1MFFx/VeMLhsxG5KefsfSaeIdhBqYrRxIM9VHYYh1ddK60oSocS0nEj/6kCY2fsJZctZ7mkB9F/51xS4OPGQphW/+jKXIWJdJl/Rxz51tfBPp6mAV5EL+2xxbcr/P7XCgjOo1rxXwpZ7zorCBN/8PVI8kU9WuN27427ti+xB/ejciUmTJuYRRz/XNofKkZY/7YtoRn0EFu+48wtcqXmiRem6ZqFKYPt9LGgdNIZ6Ppuk7n2SYUpHeOOI/CLmS5kbRMKSW5zdRJVjY5BVoMqMObtRolY01qHxCmANNgQIDAQAB",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:18766/*"
+  ],
+  "action": {
+    "default_title": "收录当前网页到你的飞包",
+    "default_popup": "popup.html"
+  }
+}
