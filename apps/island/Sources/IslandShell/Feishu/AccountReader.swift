@@ -24,6 +24,10 @@ private final class AccountSession {
     var selectedCount = 0
     var backgroundFailed = false
     var unresolvedChats = Set<String>()
+    var fastQueue: [AccountChat] = []
+    var fastActive = Set<String>()
+    var fastLastRead: [String: TimeInterval] = [:]
+    var fastRetryAt: [String: TimeInterval] = [:]
     init(token: Int, ownID: String, started: Date) { self.token = token; self.ownID = ownID; self.started = started }
 }
 
@@ -64,7 +68,7 @@ final class AccountReader {
             self.post(token) { completion(unread) }
         }
     }
-    init(cli: URL? = nil, profile: String = "", localAccount: LocalFeishuAccount? = nil, pollDelay: TimeInterval = 3, pageDelay: TimeInterval = 0.3, concurrency: Int = 3, catalogInterval: TimeInterval = 60, requestTimeout: TimeInterval = 8, clock: ServerClock = ServerClock()) {
+    init(cli: URL? = nil, profile: String = "", localAccount: LocalFeishuAccount? = nil, pollDelay: TimeInterval = 2, pageDelay: TimeInterval = 0.3, concurrency: Int = 3, catalogInterval: TimeInterval = 60, requestTimeout: TimeInterval = 8, clock: ServerClock = ServerClock()) {
         self.profile = profile
         self.localAccount = localAccount
         self.cli = cli ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".local/bin/lark-cli")
@@ -119,10 +123,15 @@ final class AccountReader {
         }
         requestSlots.wait(); defer { requestSlots.signal() }
         guard alive(token) else { throw AccountFailure(detail: "接收已停止") }
-        guard profile != "company" else { throw AccountFailure(detail: "旧公司连接已停用，请连接本机飞书账号。") }
+        let company = profile == CompanyConnection.profile
+        let credential = company ? try CompanyConnection.shared.credential(.receive) : nil
+        guard alive(token) else { throw AccountFailure(detail: "接收已停止") }
+        if let credential, args == ["auth", "status", "--json"] {
+            return ["identities": ["user": ["available": true, "openId": credential.openID, "userName": credential.userName]]]
+        }
         let p = Process(); p.executableURL = cli
-        p.arguments = (profile.isEmpty ? [] : ["--profile", profile]) + args
-        var env = LocalFeishuAccount.environment(ProcessInfo.processInfo.environment)
+        p.arguments = (profile.isEmpty || company ? [] : ["--profile", profile]) + args
+        var env = credential?.environment(ProcessInfo.processInfo.environment) ?? LocalFeishuAccount.environment(ProcessInfo.processInfo.environment)
         p.currentDirectoryURL = URL(fileURLWithPath: NSHomeDirectory())
         env["LARKSUITE_CLI_NO_UPDATE_NOTIFIER"] = "1"; env["LARKSUITE_CLI_NO_SKILLS_NOTIFIER"] = "1"
         p.environment = env; p.standardInput = FileHandle.nullDevice
@@ -218,31 +227,56 @@ final class AccountReader {
             // Only fetch muted candidates when a gray exception actually needs them.
             let rows = rules().0.isEmpty ? unmuted : try chats(session.token, excludeMuted: false, full: false)
             let selected = catalog(rows, unmuted: allowedIDs).filter { allowed($0) }
-            let group = DispatchGroup(); let slots = DispatchSemaphore(value: concurrency - 1)
-            let failureLock = NSLock(); var failed = 0
-            for chat in selected.prefix(6) {
-                guard alive(session.token) else { break }
-                slots.wait(); group.enter()
-                DispatchQueue.global(qos: .userInitiated).async {
-                    defer { slots.signal(); group.leave() }
-                    do { try self.receive(chat, session, fast: true) }
-                    catch { failureLock.lock(); failed += 1; failureLock.unlock() }
-                }
-            }
-            group.wait()
+            // Discover newly active chats independently of slow message pages.
+            // Pending work is replaced by the latest directory; at most two fast
+            // reads remain active, with the existing three-process global cap.
+            session.lock.lock()
+            let recent = Array(selected.prefix(6))
+            session.fastQueue = recent.enumerated().filter { !session.fastActive.contains($0.element.id) }.sorted {
+                let left = session.fastLastRead[$0.element.id] ?? -.infinity
+                let right = session.fastLastRead[$1.element.id] ?? -.infinity
+                return left == right ? $0.offset < $1.offset : left < right
+            }.map(\.element)
+            session.fastLastRead = session.fastLastRead.filter { Set(recent.map(\.id)).contains($0.key) || session.fastActive.contains($0.key) }
+            session.fastRetryAt = session.fastRetryAt.filter { Set(recent.map(\.id)).contains($0.key) || session.fastActive.contains($0.key) }
+            session.lock.unlock()
+            drainFastReads(session)
             guard alive(session.token) else { return }
-            session.lock.lock(); let count = session.selectedCount; let total = session.catalogCount; let backFailed = session.backgroundFailed; let unknownRead = !session.unresolvedChats.isEmpty; session.lock.unlock()
-            if failed > 0 { retryDelay = 5 }
+            session.lock.lock(); let count = session.selectedCount; let total = session.catalogCount; let backFailed = session.backgroundFailed; let unknownRead = !session.unresolvedChats.isEmpty; let failed = session.fastRetryAt.count; session.lock.unlock()
             let scope = total == 0 ? "会话发现中" : "\(count)/\(total) 个会话"
             let suffix = (failed > 0 ? " · \(failed) 个快查读取失败，将重试" : backFailed ? " · 后台补读重试中" : "") + (unknownRead ? " · 部分消息待确认未读状态" : "")
             let seconds = ProcessInfo.processInfo.systemUptime - began
             let correction = abs(clock.offset) >= 2 ? String(format:" · 时间校准 %+.0f 秒",clock.offset) : ""
             let state = failed > 0 || backFailed ? "接收异常，重试中" : "账号接收中"
-            post(session.token) { self.onStatus?("\(state) · \(scope) · 快查 \(String(format:"%.1f",seconds)) 秒\(correction)\(suffix)") }
+            post(session.token) { self.onStatus?("\(state) · \(scope) · 会话检查 \(String(format:"%.1f",seconds)) 秒\(correction)\(suffix)") }
         } catch { retryDelay = 5; post(session.token) { self.onStatus?("快查暂缓：\(self.reason(error)) · 自动重试中") } }
         guard alive(session.token) else { return }
-        lock.lock(); let delay = max(pollDelay, retryDelay); lock.unlock()
+        lock.lock(); let delay = max(max(0.05, pollDelay - (ProcessInfo.processInfo.systemUptime - began)), retryDelay); lock.unlock()
         worker.asyncAfter(deadline: .now() + delay) { [weak self] in self?.cycle(session) }
+    }
+    private func drainFastReads(_ session: AccountSession) {
+        guard alive(session.token) else { return }
+        session.lock.lock()
+        var ready: [AccountChat] = []
+        let now = ProcessInfo.processInfo.systemUptime
+        while session.fastActive.count < concurrency - 1, !session.fastQueue.isEmpty {
+            let chat = session.fastQueue.removeFirst()
+            guard (session.fastRetryAt[chat.id] ?? 0) <= now, session.fastActive.insert(chat.id).inserted else { continue }
+            ready.append(chat)
+        }
+        session.lock.unlock()
+        for chat in ready {
+            DispatchQueue.global(qos: .userInitiated).async {
+                var succeeded = false
+                do { try self.receive(chat, session, fast: true); succeeded = true } catch { }
+                session.lock.lock()
+                session.fastActive.remove(chat.id)
+                session.fastLastRead[chat.id] = ProcessInfo.processInfo.systemUptime
+                session.fastRetryAt[chat.id] = succeeded ? nil : ProcessInfo.processInfo.systemUptime + 5
+                session.lock.unlock()
+                self.drainFastReads(session)
+            }
+        }
     }
     private func backfill(_ session: AccountSession) {
         var list: [AccountChat] = []; var cursor = 0; var refreshed = -Double.infinity

@@ -125,9 +125,9 @@ print(json.dumps({'ok':True,'identity':'user','data':{}}))
     check(service.profiles.isEmpty && service.selected.isEmpty && service.feedback.contains("首次配置"), "empty CLI profile list gives actionable first-install setup")
     do { _ = try await Task.detached { try LocalCLIJob().run(FeishuConnection(cliPath: cli.path, profile: "company"), ["auth","status"]) }.value; check(false,"legacy company profile rejected") }
     catch { check(true, "legacy company profile cannot fall back to a company or arbitrary local account") }
-    let retired = CompanyConnection(defaults: defaults)
-    do { _ = try await Task.detached { try retired.prepare(.calendar) }.value; check(false, "retired broker blocked") }
-    catch { check(true, "retired broker cannot contact gateway even with preserved preferences") }
+    let unavailable = CompanyConnection(defaults: defaults, fetcher: { _, complete in complete(.failure(AccountFailure(detail: "合成服务不可用"))) })
+    do { _ = try await Task.detached { try unavailable.prepare(.calendar) }.value; check(false, "unavailable broker rejected") }
+    catch { check(!unavailable.isEnabled(.calendar), "failed hosted authorization does not activate a purpose") }
     try "oversized".write(to: mode, atomically: true, encoding: .utf8)
     do { _ = try await Task.detached { try LocalCLIJob().run(connection,["auth","status"]) }.value; check(false,"oversized helper output rejected") }
     catch { check((error as? AccountFailure)?.detail.contains("响应过大") == true, "oversized output drains and stops cleanly without racing stderr handles") }

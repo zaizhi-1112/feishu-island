@@ -13,7 +13,7 @@ public final class FeishuStore: ObservableObject {
     private(set) var rulesConfigurationReadable = true
     var hasSavedConnection: Bool { defaults.data(forKey: "connection") != nil }
     var canResumeSavedConnection: Bool {
-        hasSavedConnection && connection.localAccount != nil && connection.profile != "company"
+        hasSavedConnection && (connection.localAccount != nil || connection.profile == CompanyConnection.profile && CompanyConnection.shared.isEnabled(.receive))
     }
 
     @Published public private(set) var messages: [FeishuMessage] = []
@@ -23,6 +23,17 @@ public final class FeishuStore: ObservableObject {
     private(set) var readingPages: [String: Int] = [:]
     var onOpenReader: () -> Void = {}
     var onCloseReader: () -> Void = {}
+    // AppKit does not promise a main-queue completion. Keep the system launcher
+    // injectable so a background callback is covered without opening real chats.
+    var launchConversation: (URL, @escaping @Sendable (String?) -> Void) -> Void = { url, complete in
+        let targets = ["com.bytedance.macos.feishu", "com.bytedance.macos.lark", "com.electron.lark", "com.bytedance.Lark"]
+        guard let app = targets.compactMap({ NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }).first else {
+            complete("未找到飞书客户端，请先安装并登录飞书。"); return
+        }
+        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+            complete(error == nil ? nil : "飞书未能打开会话，请在飞书中查找该会话。")
+        }
+    }
     @Published public private(set) var status = "正在连接飞书…"
     @Published public private(set) var account = "本机账号"
     @Published public private(set) var enabled: Bool
@@ -108,7 +119,7 @@ public final class FeishuStore: ObservableObject {
                   !self.offeredAuthorizationRecovery, FeishuConnectionBootPolicy.needsAuthorization(status) else { return }
             self.offeredAuthorizationRecovery = true
             self.connectionHint = "登录已过期，请在连接窗口重新授权；完成后会自动恢复接收。"
-            LocalFeishuService.shared.open(.receive)
+            CompanyConnection.shared.open(purpose: .receive)
         }
         reader.onAccount = { [weak self] in self?.account = $0 }
         playback.checkUnread = { [weak self] id, completion in
@@ -164,11 +175,42 @@ public final class FeishuStore: ObservableObject {
     var usesLocalConnection: Bool { connection.localAccount != nil }
     func openMessageConnection() {
         guard live, rulesConfigurationReadable else { return }
-        LocalFeishuService.shared.open(.receive)
+        CompanyConnection.shared.open(purpose: .receive)
     }
     func showLocalAccountInfo() { openMessageConnection() }
-    // Compatibility entry for old callers. It never opens the company gateway.
     func beginCompanyConnection() { openMessageConnection() }
+    func completeCompanyConnection() {
+        guard live, rulesConfigurationReadable, !connecting else { return }
+        let company = CompanyConnection.shared
+        let attempt = UUID(), priorConnection = connection
+        connecting = true; connectionAttempt = attempt
+        connectionHint = "正在核对飞书账号…"
+        connectionTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { if connectionAttempt == attempt { connecting = false; connectionTask = nil; connectionAttempt = nil } }
+            do {
+                let credential = try await company.prepareReceive()
+                guard !Task.isCancelled, connectionAttempt == attempt, connection == priorConnection, !playback.suspended else { return }
+                if let bound = priorConnection.localAccount, bound.appID != credential.appID || bound.openID != credential.openID {
+                    connectionHint = "这次授权与当前账号不同。请先点“更换账号”，当前接收保持不变。"; return
+                }
+                if let conflict = receiveConflict { connectionHint = conflict; return }
+                let savedRules = rules, savedCustom = customRules
+                try company.activate(credential, purpose: .receive)
+                guard updateConnection(.init(cliPath: priorConnection.cliPath, profile: CompanyConnection.profile)) else { return }
+                updateSettings(enabled: true, rules: savedRules, custom: savedCustom)
+                if defaults.bool(forKey: "restoreConversationAfterAccountSwitch") {
+                    restoreConversationSnapshot(key: CompanyConnection.conversationStorageKey(userID: credential.appID, openID: credential.openID))
+                    restoreConversationSnapshot(key: CompanyConnection.conversationStorageKey(userID: credential.userID, openID: credential.openID))
+                    defaults.removeObject(forKey: "restoreConversationAfterAccountSwitch")
+                }
+                account = credential.userName; connectionHint = "已连接飞书，正在接收新消息。"
+                await company.refreshAuthorizationStatus()
+            } catch {
+                connectionHint = (error as? AccountFailure)?.detail ?? "连接未完成，请重试。"
+            }
+        }
+    }
     func bindLocalConnection(_ selected: FeishuConnection, resumeReceiving: Bool = true) throws {
         guard live, rulesConfigurationReadable, let account = selected.localAccount, selected.valid else { throw AccountFailure(detail: "连接配置或消息规则无效。") }
         if let conflict = receiveConflict { throw AccountFailure(detail: conflict) }
@@ -213,7 +255,24 @@ public final class FeishuStore: ObservableObject {
         var restoredRules = saved.rules; restoredRules.followedChats = false
         updateSettings(enabled: enabled, rules: restoredRules, custom: restored)
     }
-    func requestCompanyAccountSwitch() { openMessageConnection() }
+    func requestCompanyAccountSwitch() {
+        guard live, rulesConfigurationReadable else { return }
+        let alert = NSAlert()
+        alert.messageText = "更换连接的飞书账号？"
+        alert.informativeText = "当前接收和日历同步会暂停。已有待办、完成记录和原账号提醒规则会保留。"
+        alert.addButton(withTitle: "更换账号"); alert.addButton(withTitle: "取消")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let company = CompanyConnection.shared
+        if let key = connection.localAccount.map({ CompanyConnection.conversationStorageKey(userID: $0.appID, openID: $0.openID) }) ?? company.boundConversationStorageKey() { saveConversationSnapshot(key: key) }
+        cancelConnection()
+        if enabled { toggleReceiving() }
+        _ = WorkspaceStore.shared.mutate { $0.feishuSchedule?.enabled = false }
+        do { try company.resetForNativeAccountSwitch() } catch { connectionHint = error.localizedDescription; return }
+        _ = updateConnection(.init(cliPath: connection.cliPath, profile: CompanyConnection.profile))
+        updateSettings(enabled: false, rules: .init(), custom: .init())
+        defaults.set(true, forKey: "restoreConversationAfterAccountSwitch")
+        company.open(purpose: .receive)
+    }
     func setConversation(_ target: FeishuRuleTarget, mode: FeishuReminderMode?) {
         var next = customRules
         if target.id.hasPrefix("ou_") {
@@ -325,7 +384,7 @@ public final class FeishuStore: ObservableObject {
     }
     private func startReaderIfAllowed() {
         guard live, enabled, rulesConfigurationReadable else { return }
-        guard canResumeSavedConnection else { reader.stop(); status = "请连接本机飞书账号。旧公司连接及规则已保留。"; return }
+        guard canResumeSavedConnection else { reader.stop(); status = "请先连接飞书，已有提醒规则已保留。"; return }
         if let conflict = receiveConflict {
             reader.stop(); enabled = false; defaults.set(false,forKey:"enabled"); playback.clear(); status = conflict; actionError = conflict
         } else { reader.start() }
@@ -383,14 +442,12 @@ public final class FeishuStore: ObservableObject {
     }
     public func open(_ message: FeishuMessage) {
         guard let url = message.chatURL else { actionError = "缺少有效会话地址"; return }
-        let targets = ["com.bytedance.macos.feishu", "com.bytedance.macos.lark", "com.electron.lark", "com.bytedance.Lark"]
-        guard let app = targets.compactMap({ NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }).first else {
-            actionError = "未找到飞书客户端，请先安装并登录飞书。"; return
-        }
-        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) { [weak self] _, error in
-            MainActor.assumeIsolated {
-                if error == nil { self?.markViewed(message.id) }
-                else { self?.actionError = "飞书未能打开会话，请在飞书中查找该会话。" }
+        let id = message.id
+        actionError = nil
+        launchConversation(url) { [weak self] error in
+            Task { @MainActor [weak self] in
+                if let error { self?.actionError = error }
+                else { self?.markViewed(id) }
             }
         }
     }

@@ -178,7 +178,7 @@ struct FeishuView: View {
                             onFollow: { store.toggleFollow(message.chatID) },
                             onDone: { store.finishReading() },
                             onRemind: { store.remindLater(message.id); store.finishReading() },
-                            onOpen: { store.open(message) }, appearance: store.appearance,
+                            onOpen: { store.open(message) },
                             initialPage: store.readingPages[message.id] ?? 0,
                             onPageChange: { store.rememberReadingPage($0, for: message.id) })
             .id(message.id)

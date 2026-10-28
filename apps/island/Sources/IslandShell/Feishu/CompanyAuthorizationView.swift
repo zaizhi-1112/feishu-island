@@ -19,23 +19,15 @@ struct CompanyAuthorizationView: View {
                 GeometryReader { geometry in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
-                        HStack(spacing: 10) {
-                            step("1", "登录公司账号", complete: true)
-                            step("2", "确认飞书授权", complete: connection.authorizationGranted)
-                            step("3", "Mac确认连接", complete: connection.authorizationConnected)
-                        }
-                        Picker("连接用途", selection: $connection.authorizationPurpose) {
-                            Text("消息接收").tag(CompanyConnection.Purpose.receive)
-                            Text("待办日历").tag(CompanyConnection.Purpose.calendar)
-                        }.pickerStyle(.segmented).disabled(connection.authorizationBusy)
-                            .onChange(of: connection.authorizationPurpose) { _, _ in Task { await connection.refreshAuthorizationStatus() } }
+                        Text(connection.authorizationPurpose == .calendar ? "同步飞书日历" : "接收飞书消息")
+                            .font(.system(size: 18, weight: .semibold))
                         VStack(alignment: .leading, spacing: 16) {
                             Image(systemName: connection.authorizationConnected || connection.authorizationGranted ? "checkmark.circle.fill" : "paperplane.circle.fill")
                                 .font(.system(size: 38)).foregroundStyle(connection.authorizationGranted ? Color.green : .accentColor)
                             Text(connection.authorizationConnected ? "已连接，可以使用了" : connection.authorizationGranted ? "飞书授权已完成" : "确认后，让飞书与小岛连接")
                                 .font(.system(size: 21, weight: .semibold))
                             Text(connection.authorizationPurpose == .calendar
-                                 ? "读取主日历，创建或更新你主动选择同步的待办。不删除日程、不邀请参会人。"
+                                 ? "查看未来30天的日程，在岛上提醒你。日程内容继续在飞书管理。"
                                  : "读取本人会话与新消息，按你的规则提醒。不发送消息，也不修改已读状态。")
                                 .font(.system(size: 13)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                             Divider()
@@ -54,7 +46,7 @@ struct CompanyAuthorizationView: View {
                             } else if connection.authorizationConnected {
                                 Button("返回设置") { connection.returnToSettings() }.buttonStyle(.borderedProminent).controlSize(.large)
                             } else {
-                                Button(connection.authorizationGranted ? "重新核对连接" : "授权并前往飞书") {
+                                Button(connection.authorizationGranted ? "重新核对连接" : "连接飞书") {
                                     if connection.authorizationGranted { connection.continueDesktopConnection() }
                                     else { connection.beginAuthorization() }
                                 }.buttonStyle(.borderedProminent).controlSize(.large).disabled(!connection.authorizationConfigured)
@@ -65,7 +57,7 @@ struct CompanyAuthorizationView: View {
                             .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.primary.opacity(0.08)))
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "info.circle")
-                            Text("授权、Mac连接和消息接收分别显示。接收开关可以在设置中单独关闭。")
+                            Text("你可以随时在设置里暂停同步或接收。")
                                 .fixedSize(horizontal: false, vertical: true)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -81,7 +73,7 @@ struct CompanyAuthorizationView: View {
                     Button("重新打开登录页") { connection.reloadLoginPage() }.buttonStyle(.borderedProminent)
                 }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(24)
             } else if let web = connection.web {
-                Text("先完成公司账号登录，随后会自动进入授权步骤。")
+                Text("用飞书登录，随后会自动打开授权页。")
                     .font(.system(size: 13)).foregroundStyle(.secondary).padding(.horizontal, 24).padding(.vertical, 14)
                 CompanyLoginWebView(web: web)
             } else {

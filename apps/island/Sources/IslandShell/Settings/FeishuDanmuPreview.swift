@@ -42,7 +42,7 @@ final class FeishuDanmuPreviewView: NSView {
         text.corner = CGFloat((appearance["corner"] as? NSNumber)?.doubleValue ?? 12)
         var attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: fontSize, weight: .medium), .foregroundColor: text.textColor]
         if !text.backdrop { attrs[.strokeColor] = NSColor.black; attrs[.strokeWidth] = -1.5 }
-        text.content = NSAttributedString(string: "小林：今天的方案已更新", attributes: attrs)
+        text.content = NSAttributedString(string: "小林：方案已更新", attributes: attrs)
         let measured = text.content.size()
         text.setFrameSize(NSSize(width: ceil(measured.width) + 28, height: ceil(measured.height) + 16))
         text.needsDisplay = true
@@ -58,7 +58,7 @@ final class FeishuDanmuPreviewView: NSView {
     private func place() {
         let distance = CGFloat(Date().timeIntervalSince(started)) * speed
         let finished = distance >= bounds.width + text.frame.width
-        let x = playing && !finished ? bounds.width - distance : 16
+        let x = playing && !finished ? bounds.width - distance : max(8, (bounds.width - text.frame.width) / 2)
         text.setFrameOrigin(NSPoint(x: x, y: (bounds.height - text.frame.height) / 2))
         if playing && finished {
             playing = false; stop()

@@ -44,6 +44,30 @@ func runAuthorizationExperienceChecks(check: (Bool, String) -> Void, renderTo: U
         check(false, "malformed result must reject")
     } catch { check(true, "malformed WebKit result rejected") }
 
+    var calendarStarts = 0, calendarPurpose = ""
+    let calendar = CompanyConnection(defaults: UserDefaults(suiteName: "authorization-calendar-" + UUID().uuidString)!, authorizationTransport: { route, payload in
+        switch route {
+        case "status": return ["schedule": ["configured": true, "authorized": false], "calendar": ["configured": true, "authorized": true]]
+        case "start":
+            calendarPurpose = payload?["purpose"] ?? ""
+            calendarStarts += 1
+            return ["flow": "synthetic-calendar", "url": "https://accounts.feishu.cn/synthetic-calendar", "interval": 5]
+        case "cancel": return ["cancelled": true]
+        default: return ["state": "pending"]
+        }
+    })
+    calendar.authorizationPurpose = .calendar
+    calendar.authorizationOpenURL = { $0.host == "accounts.feishu.cn" }
+    await calendar.refreshAuthorizationStatus()
+    check(calendar.authorizationConfigured && !calendar.authorizationGranted, "legacy broad calendar grant does not count as a readonly grant")
+    calendar.beginAuthorization()
+    try await Task.sleep(for: .milliseconds(80))
+    check(calendarStarts == 1 && calendar.authorizationBusy, "calendar starts directly without a local profile")
+    check(calendarPurpose == "schedule", "calendar button starts only the readonly schedule purpose")
+    try await capture(calendar, "calendar-readonly")
+    calendar.cancelAuthorization()
+    try await Task.sleep(for: .milliseconds(80))
+
     var authorized = false, starts = 0, opened = 0, cancelled = 0
     let defaults = UserDefaults(suiteName: "authorization-experience-" + UUID().uuidString)!
     let connection = CompanyConnection(defaults: defaults, authorizationTransport: { route, _ in

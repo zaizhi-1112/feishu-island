@@ -71,6 +71,7 @@ final class WorkspaceStore: ObservableObject {
     var calendarVerifiedAt: Date?
     @Published var calendarStatus = "未连接飞书日历"
     @Published var calendarSyncing = false
+    @Published var scheduleNow = Date()
     var integrationEnabled = false
     private var activity: NSObjectProtocol?
     private var writable = true

@@ -177,8 +177,8 @@ final class SettingsServer {
             if method == "GET" { return .json(["state": [:], "message": "飞书功能已改为本机直连，请在原生连接窗口管理本人账号。"] as [String:Any]) }
             guard method == "POST", headers["origin"] == "http://\(host)", headers["x-island-settings"] == "1", headers["content-type"]?.hasPrefix("application/json") == true else { return .error(403,"请从本机设置页操作。") }
             guard store.allowsDirectoryLookup else { return .error(403,"合成模式不连接真实账号。") }
-            LocalFeishuService.shared.open(.receive)
-            return .json(["message": "已打开本机飞书连接窗口；旧公司连接不再使用。"])
+            CompanyConnection.shared.open(purpose: .receive)
+            return .json(["message": "已打开飞书授权窗口，确认后自动连接。"])
         }
 
         if url.path == "/api/workspace" {

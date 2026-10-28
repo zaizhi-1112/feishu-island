@@ -1,12 +1,12 @@
-# 一切在岛 0.10.0 build82
+# 一切在岛 0.10.1 build83
 
 macOS桌面APP：飞书消息、Agent状态、待办与提醒、中台入口和原生设置。当前只使用悬浮模式。
 
-本目录为APP完整源码：原生代码、资源、依赖源码与许可证、测试和构建打包脚本。没有聊天记录、个人配置、任务数据、修复备份、逐轮工作记录、旧弹幕项目或协作平台。独立网页授权服务、浏览器扩展及历史宣传网站不属于本源码包。
+本目录为APP完整源码：原生代码、资源、依赖源码与许可证、测试和构建打包脚本。没有聊天记录、个人配置、任务数据、修复备份、逐轮工作记录、旧弹幕项目或协作平台。AuthService 提供现有公司登录下的飞书业务授权；不含凭据和下载安装包。
 
 ## 构建
 
-macOS 15+，Swift工具链与兼容macOS SDK。本机验证使用macOS 26.5 SDK；按本机实际环境设置路径。
+macOS 15+，Swift工具链与兼容macOS SDK。本轮验证使用macOS 26.4 SDK；按本机实际环境设置路径。
 
 ```sh
 export ISLAND_SDK="$(xcrun --sdk macosx --show-sdk-path)"
@@ -22,10 +22,14 @@ bash scripts/build.sh
 ## 检查与打包
 
 ```sh
-swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 UnifiedProductChecks
+swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 UnifiedProductChecks --skin-preview
+swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 FusionChecks --skin-preview
+node --test AuthService/*.test.cjs
 python3 Tests/package-pilot-test.py
 python3 scripts/package-pilot.py dist/一切在岛.app --output releases
-shasum -a 256 -c SOURCE-MANIFEST.sha256
+
 ```
 
-主程序与build82已验证的原生代码、资源一致；本源码包只调整了构建时许可证和图标输出的路径，使其可独立构建。此前产品、融合、Agent、待办及飞书检查已通过；多日运行、Intel及其他同事首次授权仍待验证。
+本轮基于柚子的 build82 修复会话打开、接收调度、长消息弹幕、日程同步、待办历史与设置交互。普通用户点击「连接飞书」直接进入本人授权，日历使用只读的 `schedule` 用途。原本已绑定的本机账号保持可用。
+
+当前事实、验收边界与安装结果见 ../../docs/build82-refinements.md；面向用户的离线说明为 Distribution/开始使用.html。SOURCE-MANIFEST.sha256 是 build82 导入快照，不能用作修改后源码的校验清单。

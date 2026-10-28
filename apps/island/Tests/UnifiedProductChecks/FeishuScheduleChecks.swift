@@ -34,7 +34,7 @@ import NookApp
     reload.tickReminders(now:event.start.addingTimeInterval(-900))
     check(notifications.count==2,"second reminder fires independently")
     _=reload.mutate{$0.feishuSchedule?.apply([],calendarID:"primary",now:now)}
-    check(reload.disk.feishuSchedule?.events[0].active==false,"removed event retains card and stops reminders")
+    check(reload.disk.feishuSchedule?.events.isEmpty==true,"deleted event disappears after complete synchronization")
     reload.tickReminders(now:event.start)
     check(notifications.count==2,"cancelled event never fires")
     check(reload.disk.items==beforeTasks && reload.disk.todoHistory==beforeHistory,"calendar changes preserve ordinary tasks and history")

@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 struct TodoCompletionHistory: View {
     @ObservedObject var store: WorkspaceStore
     @State private var period="all"
+    @State private var expanded = false
     @State private var detail:WorkTodoCompletion?
     @State private var query=""
     @State private var limit=50
@@ -14,6 +15,9 @@ struct TodoCompletionHistory: View {
     @State private var deleting: WorkTodoCompletion?
     @State private var recovery: String?
     @Environment(\.nookResolvedTheme) private var theme
+    init(store: WorkspaceStore, initiallyExpanded: Bool = false) {
+        self.store = store; _expanded = State(initialValue: initiallyExpanded)
+    }
     private var records: [WorkTodoCompletion] {
         store.todoHistory.filter {event in
             (period=="all" || event.completedAt.map {date in
@@ -32,10 +36,17 @@ struct TodoCompletionHistory: View {
     var body: some View {
         VStack(alignment:.leading,spacing:24) {
             HStack {
-                Text("完成记录").font(.system(size:16,weight:.semibold))
+                Button { withAnimation(.easeInOut(duration: 0.18)) { expanded.toggle() } } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: expanded ? "chevron.down" : "chevron.right").font(.system(size: 12, weight: .semibold))
+                        Text("完成记录 · \(store.todoHistory.count)").font(.system(size:16,weight:.semibold))
+                    }
+                }.buttonStyle(.plain).accessibilityIdentifier("unified.todo.history.expand")
+                    .accessibilityValue(expanded ? "已展开" : "已折叠")
                 Spacer()
                 Button("复制本周记录"){copyWeek()}.buttonStyle(TodoSettingsLinkStyle())
             }
+            if expanded {
             HStack(spacing:12) {
                 HStack(spacing:2) {
                     ForEach([("today","今天"),("week","本周"),("all","全部")],id:\.0) {key,title in
@@ -59,6 +70,8 @@ struct TodoCompletionHistory: View {
                 Text(query.isEmpty ? "这段时间还没有完成记录。":"没有找到对应的完成记录。")
                     .font(.system(size:14)).foregroundStyle(theme.secondaryLabel).frame(maxWidth:.infinity).padding(.vertical,32)
             }
+            ScrollView {
+            LazyVStack(alignment: .leading, spacing: 16) {
             ForEach(groups,id:\.0) {day,events in
                 VStack(alignment:.leading,spacing:8) {
                     Text(day).font(.system(size:13)).foregroundStyle(theme.secondaryLabel)
@@ -69,11 +82,16 @@ struct TodoCompletionHistory: View {
                 }
             }
             if records.count>limit {Button("继续查看（还有\(records.count-limit)条）"){limit+=50}.buttonStyle(TodoSettingsLinkStyle())}
+            }
+            }.frame(height: min(320, CGFloat(records.count) * 120))
+                .scrollIndicators(.visible).scrollBounceBehavior(.basedOnSize)
+                .accessibilityIdentifier("unified.todo.history.records")
             HStack(spacing:20) {
                 Button("导出记录"){export()}.buttonStyle(TodoSettingsLinkStyle())
                 if !(store.disk.trash ?? []).isEmpty {Button("最近删除（\(store.disk.trash!.count)）"){recovery="trash"}.buttonStyle(TodoSettingsLinkStyle())}
                 if !store.archivedIncompleteTodos.isEmpty {Button("找回旧待办"){recovery="incomplete"}.buttonStyle(TodoSettingsLinkStyle())}
                 Spacer()
+            }
             }
         }.foregroundStyle(theme.primaryLabel).padding(24).frame(maxWidth:.infinity,alignment:.leading).modifier(IslandCard(radius:18))
         .task(id:notice){guard !notice.isEmpty else{return};do{try await Task.sleep(for:.seconds(4));notice=""}catch{}}

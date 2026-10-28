@@ -18,12 +18,12 @@ final class LocalCLIJob: @unchecked Sendable {
     private var cancelled = false
     func cancel() { lock.lock(); cancelled = true; let p = process; lock.unlock(); if let p, p.isRunning { p.terminate(); DispatchQueue.global().asyncAfter(deadline: .now()+1) { if p.isRunning { kill(p.processIdentifier, SIGKILL) } } } }
     func run(_ connection: FeishuConnection, _ arguments: [String], input: Data? = nil,
-             timeout: Double = 30, output: ((String) -> Void)? = nil) throws -> Data {
-        guard connection.valid, connection.profile != "company" else { throw AccountFailure(detail: "请选择本机飞书配置，旧公司连接已停用。") }
+             timeout: Double = 30, output: ((String) -> Void)? = nil, companyCredential: CompanyConnection.Credential? = nil) throws -> Data {
+        guard connection.valid, (connection.profile == "company") == (companyCredential != nil) else { throw AccountFailure(detail: "飞书连接尚未完成，请重新授权。") }
         let p = Process(), pipe = Pipe(), errors = Pipe(), stdin = Pipe()
         p.executableURL = URL(fileURLWithPath: connection.cliPath)
-        p.arguments = (connection.profile.isEmpty ? [] : ["--profile", connection.profile]) + arguments
-        p.environment = LocalFeishuAccount.environment(ProcessInfo.processInfo.environment)
+        p.arguments = (connection.profile.isEmpty || companyCredential != nil ? [] : ["--profile", connection.profile]) + arguments
+        p.environment = companyCredential?.environment(ProcessInfo.processInfo.environment) ?? LocalFeishuAccount.environment(ProcessInfo.processInfo.environment)
         p.currentDirectoryURL = URL(fileURLWithPath: NSHomeDirectory())
         p.standardInput = stdin; p.standardOutput = pipe; p.standardError = errors
         defer { for h in [pipe.fileHandleForReading, pipe.fileHandleForWriting, errors.fileHandleForReading, errors.fileHandleForWriting, stdin.fileHandleForReading, stdin.fileHandleForWriting] { try? h.close() } }
@@ -65,8 +65,8 @@ final class LocalCLIJob: @unchecked Sendable {
         guard p.terminationStatus == 0 else { throw AccountFailure(detail: "飞书操作未完成，请检查登录、应用权限或网络后重试。") }
         return bytes
     }
-    static func json(_ connection: FeishuConnection, _ args: [String], input: Data? = nil) throws -> [String: Any] {
-        let bytes = try LocalCLIJob().run(connection, args, input: input)
+    static func json(_ connection: FeishuConnection, _ args: [String], input: Data? = nil, companyCredential: CompanyConnection.Credential? = nil) throws -> [String: Any] {
+        let bytes = try LocalCLIJob().run(connection, args, input: input, companyCredential: companyCredential)
         guard let value = try JSONSerialization.jsonObject(with: bytes) as? [String: Any], value["ok"] as? Bool != false else { throw AccountFailure(detail: "飞书返回无效，未继续操作。") }
         return value
     }

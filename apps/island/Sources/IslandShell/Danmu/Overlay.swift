@@ -97,7 +97,7 @@ final class Overlay: NSObject {
         if showsWindow { window.orderFrontRegardless() }
     }
     func enqueue(_ text: String, demo: Bool = false, gray: Bool = false, createdAt: Date? = nil, receivedAt: Date? = nil, messageID: String? = nil) {
-        let clean = cleanMessage(text)
+        let clean = text.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
 
         if queue.count >= 500 { queue.removeFirst(); overflow += 1 }
@@ -198,7 +198,7 @@ final class Overlay: NSObject {
         if currentCard == nil { controlsWindow?.orderOut(nil) }
         guard !flying.contains(where: { $0.card }) else { return }
         guard !queue.isEmpty else { return }
-        let long = allowsCards && (isCardMessage(queue[0].text) || preferStatic)
+        let long = allowsCards && (queue[0].text.count > 80 || queue[0].text.contains("\n") || preferStatic)
         if long && !flying.isEmpty { return }
         if let id = queue[0].messageID, let verifyUnread, verified != queue[0].identity {
             guard checking == nil, now >= retryAt else { return }

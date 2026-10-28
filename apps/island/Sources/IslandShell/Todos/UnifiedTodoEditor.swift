@@ -65,7 +65,7 @@ struct UnifiedTodoEditor: View {
                                 VStack(alignment:.leading,spacing:6) {
                                     Text(mode=="repeat" ? "首次提醒":"提醒\(i+1)").font(.system(size:12)).foregroundStyle(theme.secondaryLabel)
                                     HStack(spacing:8) {
-                                        DatePicker("提醒日期\(i+1)",selection:$dates[i],displayedComponents:.date).labelsHidden().datePickerStyle(.field)
+                                        TodoDateField(title:"提醒日期\(i+1)",selection:$dates[i])
                                         DatePicker("提醒时间\(i+1)",selection:$dates[i],displayedComponents:.hourAndMinute).labelsHidden().datePickerStyle(.field)
                                         if mode=="times" && dates.count>1 {Button{dates.remove(at:i)}label:{Image(systemName:"minus.circle").frame(width:24,height:28)}.buttonStyle(.plain).accessibilityLabel("移除提醒\(i+1)")}
                                     }.font(.system(size:13)).controlSize(.large)
@@ -92,14 +92,14 @@ struct UnifiedTodoEditor: View {
                                 }
                                 Text("完成后停止提醒。").font(.system(size:12)).foregroundStyle(theme.secondaryLabel)
                                 Toggle("到指定时间停止",isOn:$bounded).toggleStyle(.switch)
-                                if bounded {DatePicker("停止于",selection:$end,displayedComponents:[.date,.hourAndMinute]).datePickerStyle(.field).controlSize(.large)}
+                                if bounded {HStack {Text("停止于");TodoDateField(title:"停止日期",selection:$end);DatePicker("停止时间",selection:$end,displayedComponents:.hourAndMinute).labelsHidden().datePickerStyle(.field)}.controlSize(.large)}
                             }
                         }
                     }
                     Divider().overlay(theme.subtleStroke)
                     Toggle("完成期限",isOn:$hasDeadline).toggleStyle(.switch)
                     Text("这件事最晚何时完成，不会额外提醒。").font(.system(size:12)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal:false,vertical:true)
-                    if hasDeadline {DatePicker("最晚完成",selection:$deadline,displayedComponents:[.date,.hourAndMinute]).datePickerStyle(.field).controlSize(.large)}
+                    if hasDeadline {HStack {Text("最晚完成");TodoDateField(title:"完成日期",selection:$deadline);DatePicker("完成时间",selection:$deadline,displayedComponents:.hourAndMinute).labelsHidden().datePickerStyle(.field)}.controlSize(.large)}
                     if mode != "off" {Divider().overlay(theme.subtleStroke);ScreenReminderChoice(store:store,selection:$reminder).controlSize(.large)}
                 }.font(.system(size:13)).padding(14).modifier(IslandCard(radius:14)).padding(14)
             }.scrollBounceBehavior(.basedOnSize).frame(maxWidth:.infinity,maxHeight:.infinity)

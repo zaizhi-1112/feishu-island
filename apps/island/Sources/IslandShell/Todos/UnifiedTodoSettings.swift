@@ -57,18 +57,18 @@ struct UnifiedCalendarSettings: View {
             HStack(alignment:.top,spacing:12) {
                 Image(systemName:"calendar").font(.system(size:26)).foregroundStyle(.blue).frame(width:44,height:44).background(.blue.opacity(0.08),in:RoundedRectangle(cornerRadius:12))
                 VStack(alignment:.leading,spacing:5) {
-                    Text(LocalFeishuService.shared.connection(.calendar)?.localAccount?.userName ?? "连接你的飞书日历").font(.system(size:14,weight:.semibold))
+                    Text(store.disk.feishuSchedule == nil ? "连接你的飞书日历" : store.calendarAccountName).font(.system(size:14,weight:.semibold))
                     Text(store.calendarStatus).font(.system(size:12)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
                 }
                 Spacer(minLength:0)
                 if store.calendarSyncing {ProgressView().controlSize(.small)}
             }
-            Text("一键同步本人主日历未来30天的日程。默认提前1天、提前15分钟提醒，可在每张日程卡片中调整。").font(.system(size:12)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            Text("授权后同步未来30天的日程。默认提前1天和15分钟提醒，可逐项调整。").font(.system(size:12)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             HStack {
-                Button(store.calendarSyncing ? "同步中…":"一键同步"){Task{await store.connectFeishuSchedule()}}.disabled(store.calendarSyncing).buttonStyle(TodoSettingsActionStyle(prominent:true))
+                Button(store.calendarSyncing ? "同步中…" : store.disk.feishuSchedule == nil ? "连接飞书" : "立即同步"){Task{await store.connectFeishuSchedule()}}.disabled(store.calendarSyncing).buttonStyle(TodoSettingsActionStyle(prominent:true))
                 Button("新建日程"){store.openFeishuCalendar()}.buttonStyle(TodoSettingsActionStyle())
                 Spacer()
-                Button("管理连接"){LocalFeishuService.shared.open(.calendar)}.buttonStyle(TodoSettingsLinkStyle())
+                Button("管理连接"){CompanyConnection.shared.open(purpose:.calendar)}.buttonStyle(TodoSettingsLinkStyle())
             }
             if store.disk.feishuSchedule != nil {
                 Toggle("自动同步并提醒",isOn:Binding(get:{store.disk.feishuSchedule?.enabled == true},set:{v in

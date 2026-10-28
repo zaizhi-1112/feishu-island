@@ -28,6 +28,7 @@ struct UnifiedFeishuSettingsContent: View {
     @State private var undoAction: (() -> Void)?
     @State private var undoRevision = -1
     @State private var appearanceError: String?
+    @State private var colorDraft: [String: Any]?
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
@@ -47,7 +48,7 @@ struct UnifiedFeishuSettingsContent: View {
             displaySection
             HStack(spacing: 5) {
                 Image(systemName: "checkmark").font(.system(size: 11))
-                Text("更改立即生效，自动保存在这台Mac。").font(.system(size: 12))
+                Text("设置自动保存在这台 Mac；自定义配色点「应用配色」后生效。").font(.system(size: 12))
             }.foregroundStyle(theme.secondaryLabel).frame(maxWidth: .infinity)
         }
         .font(.system(size: 14)).foregroundStyle(theme.primaryLabel)
@@ -133,7 +134,7 @@ struct UnifiedFeishuSettingsContent: View {
             Image(systemName: "paperplane.fill").font(.system(size: 21)).foregroundStyle(theme.accent)
                 .frame(width: 43, height: 43).background(theme.accent.opacity(0.09), in: RoundedRectangle(cornerRadius: 12))
             VStack(alignment: .leading, spacing: 3) {
-                Text(store.connection.localAccount?.userName ?? "连接自己的飞书").font(.system(size: 15, weight: .semibold)).lineLimit(2)
+                Text(store.connection.localAccount?.userName ?? (store.canResumeSavedConnection ? store.account : "连接自己的飞书")).font(.system(size: 15, weight: .semibold)).lineLimit(2)
                 Text(store.canResumeSavedConnection ? "个人飞书账号" : "在岛上查看你的新消息").font(.system(size: 12)).foregroundStyle(theme.secondaryLabel)
             }
         }
@@ -251,16 +252,21 @@ struct UnifiedFeishuSettingsContent: View {
                 Text(muted ? "飞书已免打扰，岛上不弹出提醒" : mode == nil ? "默认：" + FeishuSettingsRuleText.defaultSummary(target, rules: store.rules) : target.detail + " · 已单独设置")
                     .font(.system(size: 11)).foregroundStyle(muted ? theme.warning : theme.secondaryLabel).lineLimit(2)
             }.frame(maxWidth: .infinity, alignment: .leading)
-            Picker("提醒方式", selection: Binding(get: { mode?.rawValue ?? "default" }, set: { raw in
+            Menu {
+                ForEach([("default", "跟随默认"), ("all", person ? "提醒新消息" : "每条都提醒"), ("mentions", "@我或@所有人"), ("quiet", "不提醒")].filter { !person || $0.0 != "mentions" || mode == .mentions }, id: \.0) { raw, title in
+                    Button {
                 let previous = store.customRules
                 store.setConversation(target, mode: FeishuReminderMode(rawValue: raw))
                 if store.customRules != previous { remember("会话提醒已更新", undo: { store.updateSettings(enabled: store.enabled, rules: store.rules, custom: previous) }) }
-            })) {
-                Text("跟随默认").tag("default")
-                Text(person ? "提醒新消息" : "每条消息都提醒").tag("all")
-                if !person || mode == .mentions { Text("@我或@所有人时").tag("mentions") }
-                Text("不提醒").tag("quiet")
-            }.labelsHidden().pickerStyle(.menu).frame(width: 164)
+                    } label: { if (mode?.rawValue ?? "default") == raw { Label(title, systemImage: "checkmark") } else { Text(title) } }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Text(mode == nil ? "跟随默认" : mode == .quiet ? "不提醒" : mode == .mentions ? "@我或@所有人" : person ? "提醒新消息" : "每条都提醒")
+                    Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                }.font(.system(size: 12)).padding(.horizontal, 10).padding(.vertical, 7)
+                    .background(theme.subtleFill, in: RoundedRectangle(cornerRadius: 7))
+            }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 .disabled(!store.rulesConfigurationReadable).accessibilityLabel("\(target.name)的提醒方式")
         }.padding(.vertical, 11).overlay(alignment: .bottom) { Divider().opacity(0.6) }
     }
@@ -274,7 +280,7 @@ struct UnifiedFeishuSettingsContent: View {
                 HStack(spacing: 15) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("同时显示桌面弹幕").font(.system(size: 14, weight: .medium))
-                        Text("短消息从桌面划过，完整内容仍在岛内查看。").font(.system(size: 12)).foregroundStyle(theme.secondaryLabel)
+                        Text("短消息从桌面划过，长消息分页显示。").font(.system(size: 12)).foregroundStyle(theme.secondaryLabel)
                     }
                     Spacer()
                     Toggle("同时显示桌面弹幕", isOn: Binding(get: { store.danmu.enabled }, set: { value in
@@ -296,7 +302,7 @@ struct UnifiedFeishuSettingsContent: View {
                         Button(preview ? "停止预览" : "重播") { if preview { preview = false } else { playPreview() } }.buttonStyle(.link)
                             .accessibilityIdentifier("unified.feishu.preview")
                     }
-                    FeishuDanmuPreview(appearance: store.appearance, playing: preview && !reduceMotion, started: previewStarted, onFinished: { preview = false })
+                    FeishuDanmuPreview(appearance: colorDraft ?? store.appearance, playing: colorDraft == nil && preview && !reduceMotion, started: previewStarted, onFinished: { preview = false })
                         .frame(height: 118).background(Color(red: 0.19, green: 0.24, blue: 0.23), in: RoundedRectangle(cornerRadius: 10))
                         .clipShape(RoundedRectangle(cornerRadius: 10)).accessibilityLabel("合成弹幕预览")
                     HStack(spacing: 10) { styleChoice("none", "纯文字"); styleChoice("dark", "深色气泡"); styleChoice("light", "浅色气泡") }
@@ -314,14 +320,10 @@ struct UnifiedFeishuSettingsContent: View {
                     }
                     Divider()
                     DisclosureGroup("自定义配色", isExpanded: $customColors) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                ColorPicker("文字", selection: colorBinding("foreground", fallback: .white), supportsOpacity: false)
-                                ColorPicker("背景", selection: colorBinding("background", fallback: Color(skinHex: "#15171C")), supportsOpacity: false)
-                                ColorPicker("边线", selection: colorBinding("border", fallback: Color(skinHex: "#414753")), supportsOpacity: false)
-                            }
-                            Text("调整后使用自定义气泡，只影响消息弹幕，不改变整款皮肤。").font(.system(size: 12)).foregroundStyle(theme.secondaryLabel)
-                        }.padding(.top, 12)
+                        DanmuPaletteEditor(appearance: store.appearance, preview: { colorDraft = $0 }, apply: { value in
+                            saveAppearance(value); colorDraft = nil
+                        }).padding(.top, 12)
+                            .onDisappear { colorDraft = nil }
                     }.font(.system(size: 13)).tint(theme.accent)
                     if let appearanceError { Text(appearanceError).font(.system(size: 12)).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true) }
                     if bubble == "custom" { Text("当前使用自定义配色。点击上方任一样式可以恢复预设。").font(.system(size: 12)).foregroundStyle(theme.secondaryLabel) }
@@ -369,6 +371,7 @@ struct UnifiedFeishuSettingsContent: View {
         })
     }
     private func setBubble(_ value: String) {
+        colorDraft = nil; customColors = false
         let light = value == "light"
         saveAppearance(["bubble": value, "foreground": light ? "#18202A" : "#FFFFFF", "background": light ? "#FFFFFF" : "#15171C", "border": light ? "#D9DEE5" : "#414753"])
         playPreview()
@@ -380,16 +383,6 @@ struct UnifiedFeishuSettingsContent: View {
         }
         appearanceError = nil
         if announce { remember("弹幕样式已更新", undo: { _ = store.updateAppearance(previous) }) }
-    }
-    private func colorBinding(_ key: String, fallback: Color) -> Binding<Color> {
-        Binding(get: { (store.appearance[key] as? String).map { Color(skinHex: $0) } ?? fallback }, set: { value in
-            guard let rgb = NSColor(value).usingColorSpace(.sRGB) else { return }
-            let hex = String(format: "#%02X%02X%02X", Int((rgb.redComponent * 255).rounded()), Int((rgb.greenComponent * 255).rounded()), Int((rgb.blueComponent * 255).rounded()))
-            var patch: [String: Any] = ["bubble": "custom", key: hex]
-            if store.appearance["background"] is NSNull, key != "background" { patch["background"] = "#15171C" }
-            if store.appearance["foreground"] is NSNull, key != "foreground" { patch["foreground"] = "#FFFFFF" }
-            clearFeedback(); saveAppearance(patch, announce: false)
-        })
     }
     private func playPreview() { preview = true; previewStarted = Date() }
     private func remember(_ message: String, undo: @escaping () -> Void) { feedback = message; undoAction = undo; undoRevision = store.settingsRevision }

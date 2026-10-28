@@ -27,6 +27,8 @@ struct FeishuScheduleEvent: Codable, Identifiable, Equatable {
 }
 struct FeishuScheduleState: Codable, Equatable {
     var accountKey: String
+    var source: String?
+    var userName: String?
     var enabled = true
     var calendarID: String?
     var events: [FeishuScheduleEvent] = []
@@ -37,16 +39,14 @@ struct FeishuScheduleState: Codable, Equatable {
     mutating func apply(_ remote: [FeishuScheduleEvent], calendarID: String, now: Date) {
         let existing=Dictionary(events.map { ($0.id,$0) },uniquingKeysWith: { a,_ in a })
         var result: [FeishuScheduleEvent] = []
-        for var event in remote {
+        for var event in remote where event.active && event.end > now {
             if let old=existing[event.id] { event.offsets=old.offsets;event.consumed=old.consumed }
             // Import/reschedule never replays a reminder whose time has already passed.
             if existing[event.id]?.start != event.start { event.consumed=Array(Set(event.consumed+event.reminderDates.filter{$0<=now})).sorted() }
             result.append(event)
         }
-        let ids=Set(remote.map(\.id))
-        for var old in events where !ids.contains(old.id) && old.end > now {
-            old.status="removed";result.append(old)
-        }
+        // The caller supplies a complete verified snapshot. Missing/cancelled
+        // events disappear; a failed or partial fetch never calls apply.
         events=result.filter{$0.end>now}.sorted{$0.start<$1.start}
         self.calendarID=calendarID;lastSync=now
     }
@@ -55,20 +55,30 @@ struct FeishuScheduleState: Codable, Equatable {
 /// Only reads the bound user's primary calendar. No event write endpoint exists here.
 struct FeishuScheduleClient {
     let connection: FeishuConnection
+    var companyCredential: CompanyConnection.Credential?
     var requestOverride: ((String,String,[String:String]) async throws -> [String:Any])?
     init(localConnection: FeishuConnection) { connection=localConnection }
+    init(companyCredential: CompanyConnection.Credential) {
+        connection = FeishuConnection(profile: CompanyConnection.profile); self.companyCredential = companyCredential
+    }
     func request(_ method: String, _ path: String, params: [String:String] = [:]) async throws -> [String:Any] {
         if let requestOverride { return try await requestOverride(method,path,params) }
         var args=["api",method,"/open-apis/calendar/v4/"+path,"--as","user"]
         if !params.isEmpty { args += ["--params",String(decoding:try JSONSerialization.data(withJSONObject:params),as:UTF8.self)] }
         let input=method=="POST" ? Data("{}".utf8):nil
         if input != nil {args += ["--data","-"]}
-        let result=try await Task.detached { try LocalCLIJob.request(connection,purpose:.calendar,arguments:args,input:input) }.value
+        let result=try await Task.detached {
+            if let credential = companyCredential {
+                guard credential.scope == CompanyConnection.Purpose.calendar.scopes, credential.expires > Date().addingTimeInterval(30) else { throw WorkError.message("日历授权已过期，请重新连接。") }
+                return try LocalCLIJob.json(connection,args,input:input,companyCredential:credential)
+            }
+            return try LocalCLIJob.request(connection,purpose:.calendar,arguments:args,input:input)
+        }.value
         guard result["ok"] as? Bool == true,result["identity"] as? String == "user",let data=result["data"] as? [String:Any] else { throw WorkError.message("日历返回身份或内容无效。") }
         return data
     }
     func primary() async throws -> String {
-        guard let openID=connection.localAccount?.openID else {throw WorkError.message("请先核对日历账号。")}
+        guard let openID=companyCredential?.openID ?? connection.localAccount?.openID else {throw WorkError.message("请先核对日历账号。")}
         let data=try await request("POST","calendars/primary",params:["user_id_type":"open_id"])
         guard let rows=data["calendars"] as? [[String:Any]],
               let row=rows.first(where: { $0["user_id"] as? String == openID }),
@@ -118,7 +128,13 @@ struct FeishuScheduleClient {
 }
 
 @MainActor extension WorkspaceStore {
-    var scheduleEvents: [FeishuScheduleEvent] { (disk.feishuSchedule?.events ?? []).filter{$0.end>Date()} }
+    var scheduleEvents: [FeishuScheduleEvent] { (disk.feishuSchedule?.events ?? []).filter{$0.active && $0.end>scheduleNow} }
+    var calendarAccountName: String { disk.feishuSchedule?.userName ?? LocalFeishuService.shared.connection(.calendar)?.localAccount?.userName ?? "飞书日历" }
+    var scheduleAccountMatches: Bool {
+        guard let snapshot = disk.feishuSchedule else { return false }
+        if snapshot.source == "company" { return CompanyConnection.shared.isEnabled(.calendar) && CompanyConnection.shared.boundAccountKey(.calendar) == snapshot.accountKey }
+        return LocalFeishuService.shared.connection(.calendar).flatMap(FeishuScheduleState.key) == snapshot.accountKey
+    }
     func activateFeishuSchedule(_ connection: FeishuConnection) -> Bool {
         guard let key=FeishuScheduleState.key(connection) else {return false}
         calendarVerifiedAt=nil
@@ -141,24 +157,51 @@ struct FeishuScheduleClient {
     }
     func connectFeishuSchedule() async {
         guard !calendarSyncing else{return}
-        guard let connection=LocalFeishuService.shared.connection(.calendar) else {LocalFeishuService.shared.open(.calendar);return}
+        if disk.feishuSchedule?.source == "company" {
+            if scheduleAccountMatches { await syncFeishuSchedule() }
+            else { CompanyConnection.shared.open(purpose: .calendar) }
+            return
+        }
+        guard let connection=LocalFeishuService.shared.connection(.calendar) else {CompanyConnection.shared.open(purpose:.calendar);return}
         guard activateFeishuSchedule(connection) else{return}
         await syncFeishuSchedule()
     }
+    func connectCompanyFeishuSchedule() async {
+        guard integrationEnabled, !calendarSyncing else { return }
+        let company = CompanyConnection.shared
+        do {
+            let credential = try await company.prepareAuthorization(.calendar)
+            try company.activate(credential, purpose: .calendar)
+            let key = credential.appID + ":" + credential.openID
+            guard mutate({ state in
+                if state.feishuSchedule?.accountKey != key { state.feishuSchedule = FeishuScheduleState(accountKey:key) }
+                state.feishuSchedule?.source = "company"; state.feishuSchedule?.userName = credential.userName
+                state.feishuSchedule?.enabled = true
+            }) else { return }
+            await syncFeishuSchedule()
+        } catch { calendarStatus = (error as? AccountFailure)?.detail ?? "日历连接未完成，请重试。" }
+    }
     func syncFeishuSchedule() async {
         guard disk.feishuSchedule?.enabled == true,!calendarSyncing else{return}
-        guard let connection=LocalFeishuService.shared.connection(.calendar),let key=FeishuScheduleState.key(connection),key==disk.feishuSchedule?.accountKey else {
+        guard scheduleAccountMatches,let key=disk.feishuSchedule?.accountKey else {
             calendarVerifiedAt=nil;calendarStatus="账号连接已变化，请重新连接日历";return
         }
         calendarSyncing=true;calendarStatus="正在检查未来30天的日程…"
         defer{calendarSyncing=false}
         do {
             let now=Date(),end=Calendar.current.date(byAdding:.day,value:30,to:now)!
-            let client=FeishuScheduleClient(localConnection:connection)
+            let client: FeishuScheduleClient
+            if disk.feishuSchedule?.source == "company" {
+                let credential = try await CompanyConnection.shared.prepareAuthorization(.calendar)
+                guard credential.appID + ":" + credential.openID == key else { throw WorkError.message("日历账号已变化，请重新连接。") }
+                client = FeishuScheduleClient(companyCredential: credential)
+            } else if let connection = LocalFeishuService.shared.connection(.calendar) { client = FeishuScheduleClient(localConnection:connection) }
+            else { throw WorkError.message("请连接飞书日历。") }
             let id=try await client.primary()
             let events=try await client.events(calendarID:id,from:now,to:end)
-            _=try await Task.detached {try LocalCLIJob.verified(connection,purpose:.calendar)}.value
-            guard LocalFeishuService.shared.connection(.calendar)==connection,disk.feishuSchedule?.enabled == true,disk.feishuSchedule?.accountKey==key else{return}
+            if client.companyCredential == nil { _=try await Task.detached {try LocalCLIJob.verified(client.connection,purpose:.calendar)}.value }
+            guard scheduleAccountMatches,disk.feishuSchedule?.enabled == true,disk.feishuSchedule?.accountKey==key else{return}
+            scheduleNow = Date()
             guard mutate({$0.feishuSchedule?.apply(events,calendarID:id,now:Date())}) else{throw WorkError.message(error)}
             calendarVerifiedAt=Date();calendarStatus="已同步\(events.count)个日程 · "+Date().formatted(date:.omitted,time:.shortened)
         } catch {
@@ -175,10 +218,13 @@ struct FeishuScheduleClient {
         }) else{throw WorkError.message(error)}
     }
     func tickFeishuSchedules(now: Date) {
+        if now < scheduleNow || (disk.feishuSchedule?.events.contains { $0.active && $0.end > scheduleNow && $0.end <= now } ?? false) {
+            scheduleNow = now
+        }
         guard let snapshot=disk.feishuSchedule,snapshot.enabled,!remindersAreLocked(),!restSleeping else{return}
         if integrationEnabled {
             guard let verified=calendarVerifiedAt,now.timeIntervalSince(verified)<180,
-                  let connection=LocalFeishuService.shared.connection(.calendar),FeishuScheduleState.key(connection)==snapshot.accountKey else{return}
+                  scheduleAccountMatches else{return}
         }
         let due=snapshot.events.filter{event in event.active && event.end>now && event.reminderDates.contains{$0<=now && !event.consumed.contains($0)}}
         guard !due.isEmpty else{return}

@@ -28,7 +28,7 @@ MainActor.assumeIsolated {
         AgentPortrait(id: "codex", size: 25, avatar: true, state: .working, motion: false, tapFeedback: false)
             .overlay(alignment: .bottomTrailing) { Circle().fill(.red).frame(width: 5, height: 5) }
     } compactTrailing: {
-        Text("Codex · 工作中").font(.system(size: 10)).foregroundStyle(.white)
+        Text("WorkBuddy · 正在处理你的任务").font(.system(size: 10)).foregroundStyle(.white)
     }
     nook.pointerLocation = { [weak nook] in
         guard let nook, let window = nook.window else { return .zero }
@@ -310,6 +310,7 @@ MainActor.assumeIsolated {
             }
             check(capsuleSizes[0] == capsuleSizes[1], "second-stage sizes match on physical notch \(physical)")
             check(capsuleSizes[0].height == 30, "second-stage capsule always measures 30pt")
+            if physical > 0 { check(capsuleSizes[0].width <= 180, "long WorkBuddy status fits the physical notch width") }
             check(panelSizes[0] == panelSizes[1], "third-stage sizes match on physical notch \(physical)")
         }
         check(SkinManifest.shared.agents["codex"]?.avatar == "avatar-codex.png"

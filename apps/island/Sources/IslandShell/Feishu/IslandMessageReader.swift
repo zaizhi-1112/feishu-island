@@ -32,7 +32,6 @@ struct IslandMessageReader: View {
     var onDone: () -> Void
     var onRemind: () -> Void
     var onOpen: () -> Void
-    var appearance: [String: Any] = AppearanceMCP.defaults
     var initialPage = 0
     var onPageChange: (Int) -> Void = { _ in }
     @Environment(\.nookResolvedTheme) private var theme
@@ -40,11 +39,7 @@ struct IslandMessageReader: View {
     @State private var automatic = false
     @State private var remaining: TimeInterval = 12
     @State private var pages: [String] = []
-    private var fontSize: CGFloat { CGFloat((appearance["fontSize"] as? NSNumber)?.doubleValue ?? 28) / 2 }
-    private func color(_ key: String, fallback: Color) -> Color {
-        guard let hex = appearance[key] as? String, let rgb = UInt32(hex.dropFirst(), radix: 16) else { return fallback }
-        return Color(red: Double((rgb >> 16) & 255) / 255, green: Double((rgb >> 8) & 255) / 255, blue: Double(rgb & 255) / 255)
-    }
+    private let fontSize: CGFloat = 14
     var body: some View {
         let parts = pages.isEmpty ? [""] : pages
         VStack(alignment: .leading, spacing: 10) {
@@ -63,11 +58,11 @@ struct IslandMessageReader: View {
                 Text(message.senderName).font(.system(size: 10)).foregroundStyle(theme.secondaryLabel)
             }
             Text(parts[min(page, parts.count - 1)]).font(.system(size: fontSize)).lineSpacing(4)
-                .foregroundStyle(color("foreground", fallback: theme.primaryLabel))
+                .foregroundStyle(theme.primaryLabel)
                 .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .topLeading).padding(12)
-                .background(color("background", fallback: theme.subtleFill), in: RoundedRectangle(cornerRadius: CGFloat((appearance["corner"] as? NSNumber)?.doubleValue ?? 12)))
-                .overlay(RoundedRectangle(cornerRadius: CGFloat((appearance["corner"] as? NSNumber)?.doubleValue ?? 12)).stroke(color("border", fallback: theme.subtleStroke), lineWidth: 0.8))
+                .background(theme.subtleFill, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.subtleStroke, lineWidth: 0.8))
                 .accessibilityIdentifier("feishu.reader.body")
             HStack(spacing: 8) {
                 Button("上一页") { move(-1, count: parts.count) }
@@ -96,7 +91,6 @@ struct IslandMessageReader: View {
             page = min(max(0, initialPage), pages.count - 1)
         }
         .onChange(of: page) { _, value in onPageChange(value) }
-        .onChange(of: fontSize) { _, _ in pages = IslandReadingPages.split(message.text, fontSize: fontSize); page = min(page, pages.count - 1) }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             guard automatic else { return }
             remaining -= 1

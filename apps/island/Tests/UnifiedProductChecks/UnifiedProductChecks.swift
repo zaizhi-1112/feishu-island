@@ -142,6 +142,7 @@ import SwiftUI
         try await runAuthorizationExperienceChecks(check: check, renderTo: authorizationOutput)
         try await runFeishuScheduleChecks(check: check, renderTo: authorizationOutput?.deletingLastPathComponent().appendingPathComponent("todo-calendar"))
         try await runLocalFeishuChecks(check: check, renderTo: authorizationOutput?.appendingPathComponent("local"))
+        try await runBuild82RefinementChecks(check: check)
         try await runFeishuSettingsChecks(check: check, renderTo: authorizationOutput?.deletingLastPathComponent().appendingPathComponent("feishu-settings"))
         print("PASS \(count) unified product checks; synthetic data only")
     }

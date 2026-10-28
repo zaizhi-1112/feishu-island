@@ -27,13 +27,6 @@ struct UnifiedPlatformPanel: View {
     var body: some View {
         IslandContentScroll {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("虚实中台").font(.system(size: 21, weight: .semibold))
-                    Spacer()
-                    Button { HubPingLauncher.shared.show() } label: { Label("快捷打开", systemImage: "arrow.up.right") }
-                        .buttonStyle(IslandButtonStyle()).font(.system(size: 11)).accessibilityIdentifier("platform.openWheel")
-                }
-                if !launcher.error.isEmpty { Text(launcher.error).font(.system(size: 12)).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true) }
                 if !workspace.hub.connected {
                     Text("连接后，在这里查看本人中台卡片。")
                         .font(.system(size: 12)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)

@@ -10,6 +10,7 @@ import SwiftUI
 final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
     enum AuthorizationFailure: Error { case expired, loginRequired, forbidden, unavailable }
     enum Purpose: String, CaseIterable { case receive, archive, calendar
+        var serviceKey: String { self == .calendar ? "schedule" : rawValue }
         var appID: String { self == .archive ? "cli_aa534c191338dd29" : "cli_aa217b534af89cdc" }
         var scopes:Set<String> {
             if self == .calendar { return Set("auth:user.id:read calendar:calendar:read calendar:calendar.event:read offline_access".split(separator:" ").map(String.init)) }
@@ -91,6 +92,7 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor private var authorizationPolling: Task<Void, Never>?
     @MainActor private var authorizationAttempt = UUID()
     @MainActor private var window:NSWindow?
+    @MainActor private var connectAfterStatus = false
     private struct PendingRequest {
         let preparing:Bool
         let complete:(Result<Credential,Error>)->Void
@@ -134,6 +136,9 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
               let open = defaults.string(forKey: "island.company.receive.openID") else { return nil }
         return Self.conversationStorageKey(userID: user, openID: open)
     }
+    func boundAccountKey(_ purpose: Purpose) -> String? {
+        defaults.string(forKey: "island.company." + purpose.rawValue + ".openID").map { purpose.appID + ":" + $0 }
+    }
     /// Invoked only after the native account-switch confirmation. The old archive
     /// consumer no longer runs in this product; its local switch must not trap the
     /// person behind a removed settings page. Server grants are not revoked here.
@@ -162,7 +167,18 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
         web?.stopLoading(); web=nil; window?.close(); window=nil; loading=false
     }
     @MainActor func open(purpose: Purpose = .receive) {
-        LocalFeishuService.shared.open(LocalFeishuPurpose(rawValue: purpose.rawValue) ?? .receive)
+        guard !authorizationBusy || authorizationPurpose == purpose else { window?.makeKeyAndOrderFront(nil); return }
+        authorizationPurpose = purpose
+        connectAfterStatus = !authorizationBusy
+        ensureWeb()
+        if window == nil {
+            let next = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 620), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+            next.title = "连接飞书 · 一切在岛"; next.minSize = NSSize(width: 480, height: 540)
+            next.contentView = NSHostingView(rootView: CompanyAuthorizationView(connection: self))
+            next.isReleasedWhenClosed = false; next.delegate = self; next.center(); window = next
+        }
+        window?.makeKeyAndOrderFront(nil); NSApp.activate()
+        if authorizationPageReady { Task { await refreshAuthorizationStatus() } }
     }
     @MainActor var isConnectionWindowVisible: Bool { window?.isVisible == true }
     @MainActor func refreshAuthorizationStatus() async {
@@ -173,8 +189,10 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
         do {
             let response = try await authorizationRequest("status")
             guard epoch == generation, purpose == authorizationPurpose else { return }
-            guard let state = response[purpose.rawValue] as? [String: Any] else {
-                throw Self.failure("没有取得完整授权状态，请重新检查。")
+            guard let state = response[purpose.serviceKey] as? [String: Any] else {
+                authorizationConfigured = false
+                authorizationFeedback = "日历连接服务正在升级，请稍后重试。无需创建应用或填写配置。"
+                return
             }
             authorizationConfigured = state["configured"] as? Bool == true
             authorizationGranted = state["authorized"] as? Bool == true
@@ -185,6 +203,10 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
                     : authorizationConnected ? "已核实本人授权，Mac连接已完成。"
                     : authorizationGranted ? "飞书授权已保存。点下方按钮核对Mac连接，成功后会显示连接结果。"
                     : "点击下方按钮，在飞书核对自己的账号并确认。完成后这里会自动更新。"
+            }
+            if connectAfterStatus && authorizationConfigured && !authorizationBusy {
+                connectAfterStatus = false
+                if authorizationGranted { continueDesktopConnection() } else { beginAuthorization() }
             }
         } catch {
             guard epoch == generation, purpose == authorizationPurpose else { return }
@@ -208,7 +230,7 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
         authorizationPolling = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                let started = try await authorizationRequest("start", payload: ["purpose": purpose.rawValue])
+                let started = try await authorizationRequest("start", payload: ["purpose": purpose.serviceKey])
                 guard !Task.isCancelled, authorizationAttempt == attempt else {
                     if let flow = started["flow"] as? String { _ = try? await authorizationRequest("cancel", payload: ["flow": flow]) }
                     return
@@ -281,10 +303,13 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
         }
     }
     @MainActor func continueDesktopConnection() {
-        if authorizationPurpose == .receive, let store = FeishuStore.active, !store.enabled, !store.connecting {
-            store.beginCompanyConnection()
+        if authorizationPurpose == .receive, let store = FeishuStore.active, !store.connecting {
+            store.completeCompanyConnection()
         } else if authorizationPurpose == .calendar {
-            Task { await WorkspaceStore.shared.connectFeishuSchedule() }
+            Task {
+                await WorkspaceStore.shared.connectCompanyFeishuSchedule()
+                await refreshAuthorizationStatus()
+            }
         } else { Task { await refreshAuthorizationStatus() } }
     }
     @MainActor func cancelAuthorization() {
@@ -364,8 +389,11 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
     /// The first-run UI waits for the user's own login without changing any server
     /// grants or importing cookies from another browser.
     @MainActor func prepareReceive() async throws -> Credential {
+        try await prepareAuthorization(.receive)
+    }
+    @MainActor func prepareAuthorization(_ purpose: Purpose) async throws -> Credential {
         try await withCheckedThrowingContinuation { continuation in
-            enqueue(.receive, preparing: true) { continuation.resume(with: $0) }
+            enqueue(purpose, preparing: true) { continuation.resume(with: $0) }
         }
     }
     /// Explicit activation first prepares without changing the running mode,
@@ -388,7 +416,6 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
     /// a main-thread caller fails instead of deadlocking the running receiver.
     func credential(_ p:Purpose) throws -> Credential { try waitForCredential(p,preparing:false) }
     private func waitForCredential(_ p:Purpose,preparing:Bool) throws -> Credential {
-        guard fetcher != nil else { throw Self.failure("旧公司授权已停用，请连接本机飞书。") }
         guard !Thread.isMainThread else { throw Self.failure("公司连接需在后台读取。") }
         guard preparing || isEnabled(p) else { throw Self.failure("尚未启用此项公司连接。") }
         let waiter=Waiter()
@@ -403,9 +430,11 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
         func value() throws -> Credential{lock.lock();let r=result;lock.unlock();return try r!.get()}
     }
     @MainActor private func ensureWeb() {
-        // Hosted authorization is retired. Synthetic transports remain available
-        // for historical regression checks; production never opens a gateway.
-        return
+        guard web == nil, fetcher == nil, authorizationTransport == nil else { return }
+        let config = WKWebViewConfiguration(); config.websiteDataStore = WKWebsiteDataStore(forIdentifier: storeIdentifier)
+        let next = WKWebView(frame: .zero, configuration: config); next.navigationDelegate = self; next.uiDelegate = self
+        next.allowsBackForwardNavigationGestures = false; web = next; loading = true
+        next.load(URLRequest(url: Self.connectURL, cachePolicy: .reloadIgnoringLocalCacheData))
     }
     @MainActor private func invalidate(_ purpose:Purpose,_ message:String) {
         lock.lock();cached[purpose]=nil;errors[purpose]=nil;lock.unlock()
@@ -461,7 +490,7 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
           } return await r.json();
         } finally { clearTimeout(timer); }
         """
-        web.callAsyncJavaScript(code,arguments:["purpose":p.rawValue],in:nil,in:.page) { [weak self] result in
+        web.callAsyncJavaScript(code,arguments:["purpose":p.serviceKey],in:nil,in:.page) { [weak self] result in
             guard let self,self.generation == epoch,self.attempts[p] == attempt,self.pending[p] != nil else{return}
             guard Self.allowed(web.url),web.url?.path == "/connect.html",self.isEnabled(p) || self.pending[p]?.contains(where:{$0.preparing}) == true else {self.finish(p,.failure(Self.failure("公司连接页面已变化，请重试。")));return}
             do {
@@ -511,6 +540,7 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
 
 @MainActor extension CompanyConnection: WKNavigationDelegate, WKUIDelegate, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
+        connectAfterStatus = false
         cancelAuthorization()
         if authorizationPurpose == .receive, FeishuStore.active?.connecting == true { FeishuStore.active?.cancelConnection() }
     }

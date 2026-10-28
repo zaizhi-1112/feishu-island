@@ -78,3 +78,5 @@ HotkeyController now forwards foreign Carbon signatures instead of consuming the
 The surface now honors an explicit host removal transition for docked content. With system Reduce Motion enabled, the surface disables shape and content animation in its view transaction; peripheral effects retain their existing reduced-motion behavior.
 
 The edge-dock reveal mask uses floating corners while the floating chrome is exposed, preventing the animated reveal rectangle from cutting square corners into a growing capsule. Retracted and notch-fused mask behavior stays the same.
+
+2026-10-29 build83: Explicit full-hover expansion has no added delay; peek-first retains its timing. Edge-docked compact content is clipped to the physical notch width including corner padding. Retracted chrome is black to prevent a pale lip below the hardware notch. No screen overlay or input interception is added.

@@ -182,6 +182,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             .background { NookBackdropFill(backdrop: nook.backdrop, shape: notchShape) }
             .overlay { rimLine() }
             .overlay { feedbackOverlay() }
+            .overlay { if nook.edgeDocked && edgeLayout.isRetracted { Color.black } }
             .compositingGroup()
             .clipShape(notchShape)
             .background { rimHalo() }
@@ -546,6 +547,11 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             }
         }
         .frame(height: compactHeight)
+        // On a notched display, both Agent names share the same physical width.
+        // The trailing text receives the remaining proposal and can truncate.
+        .frame(width: nook.edgeDocked && isFloating && nook.physicalNotchHeight > 0
+               ? max(80, nook.notchSize.width - 2 * topCornerRadius) : nil)
+        .clipped()
         .environment(\.nookSharedElementRegion, .compact)
         // `disableCompactLeading/Trailing` are construction-time `let`s on `Nook` -
         // they cannot change at runtime, so no `.onChange` reconciliation is needed.

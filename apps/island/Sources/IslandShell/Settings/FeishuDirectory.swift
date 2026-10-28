@@ -90,9 +90,10 @@ final class FeishuDirectory: @unchecked Sendable {
     }
     private func call(_ args: [String]) throws -> [String: Any] {
         if connection.localAccount != nil { _ = try LocalFeishuAccount.inspect(connection) }
-        guard profile != "company" else { throw AccountFailure(detail: "请先连接本机飞书账号。") }
-        let process = Process(); process.executableURL = cli; process.arguments = (profile.isEmpty ? [] : ["--profile",profile]) + args
-        var env = LocalFeishuAccount.environment(ProcessInfo.processInfo.environment)
+        let company = profile == CompanyConnection.profile
+        let credential = company ? try CompanyConnection.shared.credential(.receive) : nil
+        let process = Process(); process.executableURL = cli; process.arguments = (profile.isEmpty || company ? [] : ["--profile",profile]) + args
+        var env = credential?.environment(ProcessInfo.processInfo.environment) ?? LocalFeishuAccount.environment(ProcessInfo.processInfo.environment)
         process.currentDirectoryURL = URL(fileURLWithPath: NSHomeDirectory())
         env["LARKSUITE_CLI_NO_UPDATE_NOTIFIER"] = "1"; env["LARKSUITE_CLI_NO_SKILLS_NOTIFIER"] = "1"
         process.environment = env; process.standardInput = FileHandle.nullDevice

@@ -18,7 +18,7 @@ struct FeishuScheduleSection: View {
         VStack(alignment:.leading,spacing:18) {
             HStack {
                 Button {Task{await store.connectFeishuSchedule()}} label: {
-                    Label(store.calendarSyncing ? "正在同步…":"一键同步",systemImage:"arrow.triangle.2.circlepath")
+                    Label(store.calendarSyncing ? "正在同步…" : store.disk.feishuSchedule == nil ? "连接飞书" : "立即同步",systemImage:"arrow.triangle.2.circlepath")
                 }.buttonStyle(TodoSettingsLinkStyle()).disabled(store.calendarSyncing)
                 Spacer()
                 Button {store.openFeishuCalendar()} label: {HStack(spacing:6){Image(systemName:"plus");Text("新建日程");Image(systemName:"arrow.up.right").font(.system(size:10))}}
@@ -27,7 +27,7 @@ struct FeishuScheduleSection: View {
             VStack(alignment:.leading,spacing:5) {
                 HStack(spacing:7) {
                     Circle().fill(store.calendarVerifiedAt != nil || (!store.integrationEnabled && store.disk.feishuSchedule?.lastSync != nil) ? Color(red:0.1,green:0.52,blue:0.42):theme.secondaryLabel).frame(width:6,height:6)
-                    Text((LocalFeishuService.shared.connection(.calendar)?.localAccount?.userName ?? "飞书日历")+" · 本人主日历 · 未来30天")
+                    Text(store.calendarAccountName+" · 本人主日历 · 未来30天")
                         .font(.system(size:11)).foregroundStyle(theme.secondaryLabel)
                 }
                 Text(store.calendarStatus).font(.system(size:10)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal:false,vertical:true)

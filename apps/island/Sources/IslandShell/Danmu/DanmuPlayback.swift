@@ -53,10 +53,10 @@ public final class DanmuPlayback {
         case "light": overlay.skinBackground = color("background") ?? NSColor.white.withAlphaComponent(0.94); overlay.skinForeground = color("foreground") ?? NSColor(srgbRed: 0.1, green: 0.12, blue: 0.15, alpha: 1)
         default: break
         }
-        // Desktop output is always a small moving line. Static/long reading stays
-        // inside the island, even if an older appearance requested a desktop card.
+        // Short text moves across the desktop. Long/multiline text uses the
+        // existing paged reader; never silently discard it at an arbitrary length.
         overlay.preferStatic = false
-        overlay.allowsCards = false
+        overlay.allowsCards = true
         overlay.backdrop = bubble != "none"
     }
     static func isShortMessage(_ message: FeishuMessage) -> Bool {
@@ -66,10 +66,10 @@ public final class DanmuPlayback {
     }
     @discardableResult
     func enqueue(_ message: FeishuMessage, demo: Bool = false) -> Bool {
-        guard options.enabled, !suspended, Self.isShortMessage(message), !seen.contains(message.id) else { return false }
+        guard options.enabled, !suspended, !message.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !seen.contains(message.id) else { return false }
         if overlay == nil {
             overlay = Overlay(showsWindow: !headless, frame: headless ? NSRect(x:0,y:0,width:640,height:480) : nil)
-            overlay?.allowsCards = false // Long messages are read in the actual island surface.
+            overlay?.allowsCards = true
             overlay?.verifyUnread = { [weak self] id, completion in self?.checkUnread?(id,completion) }
             overlay?.onPresented = { [weak self] _ in self?.presented += 1 }
             overlay?.onUnreadCheck = { [weak self] unread in

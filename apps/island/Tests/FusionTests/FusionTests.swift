@@ -312,7 +312,7 @@ final class FusionTests {
         let overlay=s.playback.overlay!, t=ProcessInfo.processInfo.systemUptime
         overlay.tick(now:t);overlay.tick(now:t+0.01)
         XCTAssertEqual(s.playback.presented,1);XCTAssertEqual(overlay.flying.count,1)
-        XCTAssertFalse(overlay.allowsCards);XCTAssertFalse(overlay.flying[0].card);XCTAssertFalse(overlay.flying[0].backdrop)
+        XCTAssertTrue(overlay.allowsCards);XCTAssertFalse(overlay.flying[0].card);XCTAssertFalse(overlay.flying[0].backdrop)
         XCTAssertTrue(overlay.window.ignoresMouseEvents);XCTAssertFalse(overlay.window.canBecomeKey);XCTAssertFalse(overlay.window.isOpaque)
         XCTAssertEqual(overlay.window.backgroundColor?.alphaComponent,0)
         let x=overlay.flying[0].frame.minX;overlay.tick(now:t+0.1)
@@ -321,7 +321,7 @@ final class FusionTests {
         s.toggleMute();s.receive(fixture("reading-muted"))
         XCTAssertEqual(s.messages.count,2);XCTAssertEqual(s.readingAccepted,1)
     }
-    func testDesktopSkipsReadAndLongMessagesWithoutLosingIslandContent() async {
+    func testDesktopSkipsReadAndKeepsLongMessagesInBothOutputs() async {
         let (s,d,suite)=store();defer { d.removePersistentDomain(forName:suite) }
         s.updateDanmu(.init(enabled:true,paused:true));s.receive(fixture("read-before-flight"))
         s.openReader("read-before-flight")
@@ -329,7 +329,7 @@ final class FusionTests {
         XCTAssertEqual(s.playback.skippedRead,1);XCTAssertEqual(s.playback.visible,0)
         let long=String(repeating:"长",count:81)
         s.receive(fixture("long-only",text:long));s.receive(fixture("multiline-only",text:"第一行\n第二行"))
-        XCTAssertEqual(s.playback.accepted,1);XCTAssertEqual(s.playback.queued,0)
+        XCTAssertEqual(s.playback.accepted,3);XCTAssertEqual(s.playback.queued,2)
         XCTAssertEqual(s.messages.first(where:{$0.id=="long-only"})?.text,long)
         XCTAssertTrue(s.readingQueue.contains("long-only"));XCTAssertTrue(s.readingQueue.contains("multiline-only"))
         XCTAssertTrue(DanmuPlayback.isShortMessage(fixture(text:String(repeating:"短",count:80))))
@@ -432,7 +432,7 @@ final class FusionTests {
         let text=String(repeating:"这是岛内阅读的合成长消息。\n换行与表情🌱都要保留。",count:45)
         s.receive(fixture("island-long-1",text:text))
         XCTAssertEqual(s.readingID,"island-long-1");XCTAssertEqual(opened,1)
-        XCTAssertNil(s.playback.overlay);XCTAssertEqual(s.playback.accepted,0)
+        XCTAssertTrue(s.playback.overlay != nil);XCTAssertEqual(s.playback.accepted,1)
         let pages=IslandReadingPages.split(text)
         XCTAssertGreaterThan(pages.count,1);XCTAssertEqual(pages.joined(),text)
         XCTAssertEqual(IslandReadingPages.split(""),[""])
@@ -453,8 +453,8 @@ final class FusionTests {
         s.closeReader();s.openReader("island-long-1")
         XCTAssertEqual(s.readingPages["island-long-1"],2);s.closeReader()
         s.receive(fixture("short-island",text:"短消息"));XCTAssertEqual(s.readingAccepted,3)
-        XCTAssertEqual(s.readingID,"short-island");XCTAssertEqual(s.playback.queued,1)
-        XCTAssertEqual(s.playback.accepted,1)
+        XCTAssertEqual(s.readingID,"short-island");XCTAssertEqual(s.playback.queued,3)
+        XCTAssertEqual(s.playback.accepted,3)
         s.toggleMute();s.receive(fixture("muted-long",text:text))
         XCTAssertNil(s.readingID);XCTAssertEqual(s.readingAccepted,3)
         s.toggleMute();s.receive(fixture("stoppable-long",text:text));s.toggleReceiving()
@@ -486,7 +486,7 @@ final class FusionTests {
         XCTAssertTrue(s.messages.contains(where:{$0.id == "unknown"}))
         XCTAssertEqual(s.readingAccepted,s.important.count)
         XCTAssertGreaterThan(s.readingAccepted,0)
-        XCTAssertEqual(s.playback.accepted,s.important.filter(DanmuPlayback.isShortMessage).count)
+        XCTAssertEqual(s.playback.accepted,s.important.count)
         XCTAssertGreaterThan(s.playback.accepted,0);XCTAssertFalse(s.playback.windowVisible)
         let state=try JSONSerialization.jsonObject(with:Data(contentsOf:temp.appendingPathComponent("state.json"))) as! [String:Any]
         XCTAssertEqual((state["bad"] as! [String]).count,0)
@@ -673,8 +673,8 @@ final class FusionTests {
             await tests.testMutePauseStopAndRulesAreSeparate()
             print("CHECK: testExpandedIslandStillReceivesAndPresentsDesktopDanmu")
             await tests.testExpandedIslandStillReceivesAndPresentsDesktopDanmu()
-            print("CHECK: testDesktopSkipsReadAndLongMessagesWithoutLosingIslandContent")
-            await tests.testDesktopSkipsReadAndLongMessagesWithoutLosingIslandContent()
+            print("CHECK: testDesktopSkipsReadAndKeepsLongMessagesInBothOutputs")
+            await tests.testDesktopSkipsReadAndKeepsLongMessagesInBothOutputs()
             print("CHECK: testIslandHorizontalSwipeIntentAndLifetime")
             tests.testIslandHorizontalSwipeIntentAndLifetime()
             print("CHECK: testOrdinaryAndBlockedMessagesDoNotBecomeDanmu")
