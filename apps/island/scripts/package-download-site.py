@@ -11,12 +11,15 @@ import shutil
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = {'index.html', 'install.js', 'install.css', 'landing.css', 'agent-guide.html',
           'icon.png', 'mascot.png', 'virxact-ui.css', 'virxact-story.css', 'vx.js'}
+MAX_DMG_BYTES = 48_000_000  # Reserve room within the backend's 50 MB upload limit.
 SERVICE = {'server.cjs', 'core.cjs', 'desktop.cjs', 'package.json', 'package-lock.json', 'virxact.json'}
 
 
 def validate(package, manifest, root=ROOT):
     if package.is_symlink() or not package.is_file() or package.suffix != '.dmg':
         raise ValueError('Expected an audited DMG file')
+    if package.stat().st_size > MAX_DMG_BYTES:
+        raise ValueError('DMG exceeds the download service upload budget; compress media before publishing')
     info = plistlib.loads((root/'Resources/Info.plist').read_bytes())
     version, build = info['CFBundleShortVersionString'], info['CFBundleVersion']
     expected = (version, build, ['arm64'], 'pilot-preparation', 'dmg')

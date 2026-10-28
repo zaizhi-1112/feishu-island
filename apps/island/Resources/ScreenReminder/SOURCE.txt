@@ -1,14 +1,14 @@
-一切在岛 · 内置冲屏素材（build89）
+一切在岛 · 内置冲屏素材（build90）
 
 猫咪走动：用户提供 neko1.webm，并明确要求加入本应用内置素材。
-保留透明通道，转为 Mac 原生 HEVC Alpha，1280×720、约11秒；保留音轨。
+保留透明通道，转为 Mac 原生 HEVC Alpha，960×540、约11秒；保留音轨。
 原下载文件不变；本应用不宣称原创或转授素材版权。
 
 KUN · What a Day：用户提供的60秒已截取视频。
-内置副本缩至1920×960，保留完整60秒和原音轨；不改变原文件。
+内置副本缩至1280×640，保留完整60秒和原音轨；不改变原文件。
 
 Gemini 人物视频：用户提供 gemini_generated_video_ca8f6c3a.mp4。
-720×1280、约10秒；按原文件复制，保留画面与音轨。
+540×960、约10秒；内置副本压缩，保留完整时长与音轨。
 
 瑞克传送门：此前由用户提供的 Gemini 生成动作视频并要求内置。
 1280×720、10秒、24fps、静音 HEVC Alpha，沿用现有成品。
@@ -20,8 +20,10 @@ Gemini 人物视频：用户提供 gemini_generated_video_ca8f6c3a.mp4。
 素材全部删除时，既有提醒改为岛内文字；提醒时间和任务记录保留。
 播放始终采用透明窗口、鼠标穿透和可关闭提醒；普通视频只在有限画面内播放。
 
+为符合中台带后台服务50 MB上传限制，压缩内置视频副本；用户提供的三个原文件均不改动。
+
 包内文件 SHA-256：
-297cbe8dc866de691b45d0f7c5daf520238170da95806c98db03fe7c4c988a06  cat-walk.mov
-f2536a5708bed846cb2a6ca2bcef34c62cfd0dedb22df24530cac973057bc147  gemini-greeting.mp4
+bee856c016667a7832cf90d05a05a484387c6994438621a6251db128d70d52af  cat-walk.mov
+d14019b2259241f98f494f88bceed762aa343d9379637552c7bc3dbe93a1f526  gemini-greeting.mp4
 c3e31785fd74960637587b811ab7bc4a692f6bdb39cbb7c181b464ed26c361ea  rick-portal.mov
-61067b2794eb3f5f5f7fcd4781c417b288616d47a0f99850f2b3ce1c4612424a  what-a-day.mp4
+afb8949535823a883d667e1733d51878f5b3b99f3ba5ebf59a1b866f491d9d1c  what-a-day.mp4
