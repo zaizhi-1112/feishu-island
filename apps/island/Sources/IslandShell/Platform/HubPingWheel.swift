@@ -4,15 +4,15 @@ import NookApp
 import SwiftUI
 
 /// Native port of LOLPingYourAI's eight-slice wheel. The interaction stays inside
-/// a transparent circular panel: click or drag-and-release opens a destination.
+/// a transparent circular panel, with mouse and shortcut gestures sharing geometry.
 @MainActor
 struct HubPingWheel: View {
     let destinations: [HubPingDestination]
-    var diameter: CGFloat = 320
+    @ObservedObject var gesture: HubPingGesture
     var activate: (HubPingDestination) -> Bool
     var cancel: () -> Void = {}
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var hovered: Int?
+    @State private var draggedSelection: Int?
     @State private var dragging = false
     @State private var cancelledGesture = false
     @State private var pulse: Int?
@@ -20,8 +20,9 @@ struct HubPingWheel: View {
 
     static let icons = ["pingwheel_retreatrender", "push", "omw", "all_in", "assist_me", "need_vision", "enemy_missing", "pingwheel_enemyvisionrender"]
     static let colors: [Color] = [.red, .green, .blue, .orange, .green, .green, .yellow, .pink]
+    private var diameter: CGFloat { gesture.diameter }
     private var scale: CGFloat { diameter / 320 }
-    private var selection: HubPingDestination? { destinations.first { $0.id == hovered } }
+    private var hovered: Int? { dragging ? draggedSelection : gesture.selection }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -45,7 +46,7 @@ struct HubPingWheel: View {
                         Image(nsImage:image).resizable().scaledToFit().frame(width:34 * scale,height:34 * scale)
                     }
                     Text("PING").font(.system(size: 15 * scale, weight: .bold)).foregroundStyle(.cyan)
-                    Label(dragging ? "移回取消" : "关闭", systemImage: "computermouse")
+                    Label(dragging ? "移回取消" : (gesture.shortcutHeld ? "松开打开" : "滑动 / 点击"), systemImage: "computermouse")
                         .font(.system(size: 9 * scale, weight: .semibold)).foregroundStyle(.white.opacity(0.55)).padding(.top, 6 * scale)
                 }.allowsHitTesting(false)
                 if let pulse {
@@ -57,29 +58,23 @@ struct HubPingWheel: View {
             }
             .frame(width: diameter, height: diameter)
             .contentShape(Circle())
-            .onContinuousHover { phase in
-                guard !dragging else { return }
-                switch phase {
-                case .active(let point): hovered = pick(point)
-                case .ended: hovered = nil
-                }
-            }
             .gesture(DragGesture(minimumDistance: 0)
                 .onChanged { value in
                     if !dragging { cancelledGesture = false }
                     dragging = true
-                    if !cancelledGesture { hovered = pick(value.location) }
+                    if !cancelledGesture { draggedSelection = pick(value.location) }
                 }
                 .onEnded { value in
                     let choice = pick(value.location)
-                    dragging = false; hovered = nil
+                    dragging = false; draggedSelection = nil
                     guard !cancelledGesture else { cancelledGesture = false; return }
                     if let choice, let destination = destinations.first(where: { $0.id == choice }) { launch(destination) } else { cancel() }
                 })
-            .onExitCommand { hovered = nil; cancelledGesture = true; cancel() }
+            .onExitCommand { draggedSelection = nil; cancelledGesture = true; cancel() }
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovered)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("中台八方向快捷轮盘")
+            .help("滑出目标方向的外圈打开；也可按住快捷键选方向，松开打开。点击入口同样有效。")
             .accessibilityChildren {
                 Button("关闭轮盘", action: cancel)
                 ForEach(destinations) { destination in
@@ -98,7 +93,7 @@ struct HubPingWheel: View {
     }
 
     private func pick(_ point: CGPoint) -> Int? {
-        HubPingGeometry.slice(dx: Double(point.x - diameter / 2), dy: Double(point.y - diameter / 2), deadZone: Double(75 * scale), outerLimit: Double(diameter / 2))
+        gesture.pick(point)
     }
     private func launch(_ destination: HubPingDestination) {
         guard destination.available, activate(destination) else { return }

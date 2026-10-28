@@ -11,6 +11,7 @@ func check(_ result: @autoclosure () -> Bool, _ label: String, line: Int = #line
 }
 
 Task { @MainActor in
+    checkHubPingGestures()
     for index in 0..<8 {
         let angle = (Double(index) * 45 - 90) * Double.pi / 180
         check(HubPingGeometry.slice(dx: cos(angle) * 100, dy: sin(angle) * 100) == index, "compass direction \(index)")
@@ -100,7 +101,7 @@ Task { @MainActor in
         let output = URL(fileURLWithPath: CommandLine.arguments[index + 1])
         let app = NSApplication.shared; app.setActivationPolicy(.accessory)
         let previewDefaults = UnifiedPlatformStore(root: root.appendingPathComponent("default-preview"))
-        let view = NSHostingView(rootView: HubPingWheel(destinations: previewDefaults.destinations(cards:[],selectedIDs:[]), diameter: 400, activate: { _ in true })
+        let view = NSHostingView(rootView: HubPingWheel(destinations: previewDefaults.destinations(cards:[],selectedIDs:[]), gesture: HubPingGesture(), activate: { _ in true })
             .frame(width: 400, height: 400).preferredColorScheme(.dark))
         let window = NSWindow(contentRect: NSRect(x: -2000, y: -2000, width: 400, height: 400), styleMask: [.borderless], backing: .buffered, defer: false)
         window.isOpaque = false; window.backgroundColor = .clear; window.hasShadow = false

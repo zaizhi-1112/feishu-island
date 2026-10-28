@@ -20,6 +20,7 @@ import SwiftUI
                 HubShortcutRecorder(store: launcher)
                 Spacer()
                 Button("试开轮盘") { HubPingLauncher.shared.show() }.buttonStyle(IslandButtonStyle())
+                    .help("滑出目标方向的外圈打开，也可直接点击。按住快捷键时，选好方向后松开即可打开。")
             }
             Text("把右边的入口拖到左边；拖动左边两行可交换位置。")
                 .font(.system(size: 13)).foregroundStyle(.secondary)
