@@ -104,11 +104,14 @@ test('large release files support HEAD and a tail range without loading the whol
  const tail=await fetch(base+'/'+name,{headers:{...owner,Range:'bytes=-4'}});assert.equal(tail.status,206);assert.equal(tail.headers.get('content-range'),'bytes '+(size-4)+'-'+(size-1)+'/'+size);assert.equal(await tail.text(),'tail');
 });
 
-test('every asset referenced by the real landing page is served with its browser MIME type',async t=>{
+test('every asset referenced by the real landing and guide pages is served with its browser MIME type',async t=>{
  const {root,base}=await fixture(t);
  const source=process.env.ISLAND_DOWNLOAD_SITE||path.join(__dirname,'public');
- const html=await fs.readFile(path.join(source,process.env.ISLAND_DOWNLOAD_SITE?'index.html':'connect.html'),'utf8');
- const assets=[...new Set([...html.matchAll(/<(?:link|script|img)\b[^>]*(?:href|src)="([^"]+)"/g)].map(match=>match[1]))];
+ const pages=process.env.ISLAND_DOWNLOAD_SITE?['index.html','start.html','agent-guide.html']:['connect.html'];
+ const content=await Promise.all(pages.map(page=>fs.readFile(path.join(source,page),'utf8')));
+ if(process.env.ISLAND_DOWNLOAD_SITE){assert(!/<style>|\s(?:style|on\w+)\s*=/i.test(content[1]),'hosted guide must honor the self-only CSP');}
+ const html=content.join('\n');
+ const assets=[...new Set([...html.matchAll(/<(?:link|script|img)\b[^>]*(?:href|src)="([^"]+)"/g)].map(match=>match[1]).filter(asset=>!asset.startsWith('data:image/')))];
  assert(assets.length>0);assert(assets.includes('virxact-ui.css'));
  const types={'.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png'};
  for(const asset of assets){

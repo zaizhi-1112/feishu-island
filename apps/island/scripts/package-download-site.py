@@ -52,6 +52,23 @@ def copy_regular(source, destination):
     shutil.copyfile(source, destination)
 
 
+def web_guide(source):
+    """Keep the offline guide's content while honoring the service's self-only CSP."""
+    styles = re.findall(r'<style>(.*?)</style>', source, re.S)
+    if len(styles) != 1:
+        raise ValueError('Expected one self-contained guide stylesheet')
+    html = re.sub(r'<style>.*?</style>', '<link rel="stylesheet" href="start.css">', source, flags=re.S)
+    for size in ('21px', '23px'):
+        html = html.replace(f'onclick="document.body.style.fontSize=\'{size}\'"', f'data-reading-size="{size}"')
+    html = html.replace('style="width:100%;height:auto;border-radius:16px"', 'class="install-illustration"')
+    if re.search(r'\s(?:on\w+|style)\s*=', html, re.I):
+        raise ValueError('Guide still contains inline behavior forbidden by CSP')
+    html = html.replace('</head>', '<script src="start.js" defer></script></head>')
+    css = styles[0] + '\n.install-illustration{width:100%;height:auto;border-radius:16px}\n'
+    js = "document.querySelectorAll('[data-reading-size]').forEach(button=>button.addEventListener('click',()=>{document.body.style.fontSize=button.dataset.readingSize;}));\n"
+    return html, css, js
+
+
 def stage(package, output, manifest_path=None):
     manifest = json.loads((manifest_path or package.parent/'package-manifest.json').read_text())
     name, digest, aliases = validate(package, manifest)
@@ -63,7 +80,9 @@ def stage(package, output, manifest_path=None):
         copy_regular(ROOT/'Distribution/site'/asset, public/asset)
     for asset in ('connect.html', 'connect.js'):
         copy_regular(ROOT/'AuthService/public'/asset, public/asset)
-    copy_regular(ROOT/'Distribution/开始使用.html', public/'start.html')
+    html, css, js = web_guide((ROOT/'Distribution/开始使用.html').read_text())
+    for filename, text in [('start.html', html), ('start.css', css), ('start.js', js)]:
+        (public/filename).write_text(text)
     copy_regular(package, public/name)
     (public/'download-aliases.json').write_text(json.dumps(aliases, indent=2)+'\n')
     (public/'SHA256SUMS').write_text(digest+'  '+name+'\n')

@@ -48,5 +48,23 @@ class DownloadSiteChecks(unittest.TestCase):
         (self.root/'Distribution/released-packages.json').write_text('["../private.json"]')
         with self.assertRaisesRegex(ValueError,'legacy'): m.validate(self.package,self.manifest,self.root)
 
+    def test_hosted_guide_preserves_content_under_self_only_csp(self):
+        source = (m.ROOT/'Distribution/开始使用.html').read_text()
+        html, css, js = m.web_guide(source)
+        self.assertNotIn('<style>', html)
+        self.assertNotIn('onclick=', html)
+        self.assertNotIn(' style=', html)
+        self.assertIn('href="start.css"', html)
+        self.assertIn('src="start.js"', html)
+        self.assertIn('data-reading-size="23px"', html)
+        self.assertIn('font-size:21px', css)
+        self.assertIn('addEventListener', js)
+        self.assertIn('仍要打开', html)
+        self.assertIn('data:image/png;base64,', html)
+
+    def test_unhandled_inline_behavior_stops_guide_publication(self):
+        with self.assertRaisesRegex(ValueError, 'inline behavior'):
+            m.web_guide('<head><style>body{}</style></head><button onclick="unexpected()">Go</button>')
+
 
 if __name__ == '__main__': unittest.main()
