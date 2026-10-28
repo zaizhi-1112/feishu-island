@@ -11,10 +11,10 @@ struct UnifiedTodoSettings: View {
                 Text("待办和飞书日程到时间后，怎样提醒你。").font(.system(size:12)).foregroundStyle(.secondary)
                 HStack(spacing:12) {
                     effectChoice("灵动岛提醒",subtitle:"在屏幕顶部轻轻提醒",symbol:"capsule.fill",selected:store.disk.defaultTodoScreen==nil){_ = store.mutate{$0.defaultTodoScreen=nil}}
-                    effectChoice("屏幕动效",subtitle:"用一段动效提醒你",symbol:"sparkles.rectangle.stack",selected:store.disk.defaultTodoScreen != nil){_ = store.mutate{$0.defaultTodoScreen = .init()}}
+                    effectChoice("屏幕动效",subtitle:"用一段动效提醒你",symbol:"sparkles.rectangle.stack",selected:store.disk.defaultTodoScreen != nil){_ = store.mutate{$0.defaultTodoScreen = store.screenMaterials.first.map{ScreenReminderStyle(materialID:$0.id)}}}
                 }
                 if store.disk.defaultTodoScreen != nil {
-                    WorkspaceReminderLibrary(store:store,selected:Binding(get:{store.disk.defaultTodoScreen?.materialID ?? "cat"},set:{v in _=store.mutate{$0.defaultTodoScreen = .init(materialID:v)}}))
+                    WorkspaceReminderLibrary(store:store,selected:Binding(get:{store.disk.defaultTodoScreen?.materialID ?? "cat"},set:{v in _=store.mutate{$0.defaultTodoScreen = v.isEmpty ? nil : .init(materialID:v)}}))
                 }
                 HStack {
                     Text("新待办使用默认效果，已有待办可单独调整。").font(.system(size:12)).foregroundStyle(.secondary)

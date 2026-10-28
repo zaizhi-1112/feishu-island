@@ -120,7 +120,11 @@ struct IslandOnboardingView: View {
                 preview.frame(width: 345, height: 322)
                     .background(dark ? Color.white.opacity(0.04) : Color.white.opacity(0.8), in: RoundedRectangle(cornerRadius: 25))
                     .overlay(RoundedRectangle(cornerRadius: 25).strokeBorder(.secondary.opacity(0.12)))
-                VStack(alignment: .leading, spacing: 12) { choices }.frame(maxWidth: .infinity, alignment: .leading)
+                if step == .reminder && workspace.screenMaterials.count > 4 {
+                    ScrollView { VStack(alignment:.leading,spacing:12) {choices} }.frame(maxWidth:.infinity,maxHeight:400)
+                } else {
+                    VStack(alignment: .leading, spacing: 12) { choices }.frame(maxWidth: .infinity, alignment: .leading)
+                }
             }.frame(maxHeight: .infinity)
             Text(feedback.isEmpty ? "选中即保存 · 之后可在设置里调整" : feedback)
                 .font(.system(size: 12)).foregroundStyle(feedback.isEmpty ? Color.secondary : accent)
@@ -220,8 +224,9 @@ struct IslandOnboardingView: View {
             }
         case .reminder:
             option(0, "岛内轻提醒", "在屏幕顶部提示。", "capsule", selected: reminder == "island") { _ = workspace.mutate { $0.defaultTodoScreen = nil }; replay() }
-            option(1, "猫咪伸懒腰", "一只小猫来叫你。", "cat", selected: reminder == "cat") { chooseReminder("cat") }
-            option(2, "瑞克传送门", "从传送门里登场。", "sparkles", selected: reminder == "rick") { chooseReminder("rick") }
+            ForEach(Array(workspace.screenMaterials.enumerated()),id:\.element.id) {index,material in
+                option(index+1, material.name, "", material.id == "cat" ? "cat" : "play.rectangle", selected: reminder == material.id) { chooseReminder(material.id) }
+            }
         case .agents:
             ForEach(Array(agents.preferences.profiles.filter { ["codex","claude","workbuddy","deepseek"].contains($0.id) }.enumerated()), id: \.element.id) { index, profile in
                 Button { target = "choice-\(index)"; toggleAgent(profile.id) } label: {

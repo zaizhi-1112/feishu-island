@@ -77,6 +77,7 @@ struct WorkDisk: Codable {
     var chromeImportEnabled: Bool?
     var screenSchedules: [WorkScreenSchedule]?
     var screenMaterials: [ScreenReminderMaterial]?
+    var removedScreenMaterialIDs: [String]?
     var restReminder: RestReminderPlan?
     var todoHistory: [WorkTodoCompletion]?
     var deletedTodoHistoryTasks: [UUID]?

@@ -33,6 +33,8 @@ import SwiftUI
         if CommandLine.arguments.contains("--onboarding-only") { print("PASS \(count) onboarding checks; isolated preferences, no live accounts"); return }
         try runDeepSeekChecks(check: check)
         if CommandLine.arguments.contains("--deepseek-only") { print("PASS \(count) DeepSeek checks; synthetic data only"); return }
+        try await runReminderLibraryChecks(check:check)
+        if CommandLine.arguments.contains("--reminders-only") { print("PASS \(count) reminder library checks; isolated data, no live accounts"); return }
         try runSystemAuditFixChecks(check:check)
         try await runFocusedFixChecks(check:check)
         await runPeekTransitionChecks(check: check)

@@ -4,7 +4,10 @@ import CryptoKit
 
 @MainActor
 extension WorkspaceStore {
-    var screenMaterials: [ScreenReminderMaterial] { ScreenReminderMaterial.builtins + (disk.screenMaterials ?? []) }
+    var screenMaterials: [ScreenReminderMaterial] {
+        let removed=Set(disk.removedScreenMaterialIDs ?? [])
+        return (ScreenReminderMaterial.builtins + (disk.screenMaterials ?? [])).filter{!removed.contains($0.id)}
+    }
     var screenSchedules: [WorkScreenSchedule] { disk.screenSchedules ?? [] }
     func setTaskScreenReminder(_ id: UUID, style: ScreenReminderStyle?) {
         do { if let style { try ScreenReminderRules.validate(style,materials:screenMaterials) }
@@ -13,7 +16,7 @@ extension WorkspaceStore {
     }
     @discardableResult func upsertScreenSchedule(id: UUID? = nil, title: String, firstFire: Date, repeatMinutes: Int?, style: ScreenReminderStyle, enabled: Bool = true, lightOnly: Bool = false) throws -> UUID {
         try ScreenReminderRules.validate(title:title,firstFire:firstFire,repeatMinutes:repeatMinutes)
-        try ScreenReminderRules.validate(style,materials:screenMaterials)
+        if !lightOnly {try ScreenReminderRules.validate(style,materials:screenMaterials)}
         var schedule=WorkScreenSchedule(id:id ?? UUID(),title:title.trimmingCharacters(in:.whitespacesAndNewlines),fireAt:firstFire,repeatMinutes:repeatMinutes,style:style,enabled:enabled)
         schedule.lightOnly=lightOnly
         let existing=screenSchedules.first(where:{$0.id==schedule.id})
@@ -64,12 +67,13 @@ extension WorkspaceStore {
         }
     }
     func screenReminderRequest(style: ScreenReminderStyle, title: String) throws -> ScreenReminderRequest {
+        var style=style
+        if (disk.removedScreenMaterialIDs ?? []).contains(style.materialID), let fallback=screenMaterials.first {style.materialID=fallback.id}
         try ScreenReminderRules.validate(style,materials:screenMaterials)
         guard let material=screenMaterials.first(where:{$0.id==style.materialID}) else { throw WorkError.message("提醒素材不可用。") }
-        let url: URL?
-        if material.id=="cat" { url=nil }
-        else if material.id=="rick" {
-            guard let resource=Bundle.main.url(forResource:"rick-portal",withExtension:"mov",subdirectory:"ScreenReminder") else { throw WorkError.message("内置瑞克素材未安装，请重新下载安装包。") }
+        let url: URL
+        if ScreenReminderMaterial.builtins.contains(where:{$0.id==material.id}) {
+            guard let resource=ScreenReminderMedia.bundledURL(material.id) else { throw WorkError.message("内置素材未安装，请重新下载安装包。") }
             url=resource
         } else { url=try ScreenReminderMedia.ownedURL(material,root:todoStorageRoot) }
         return ScreenReminderRequest(title:String(title.prefix(80)),style:style,material:material,videoURL:url)

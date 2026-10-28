@@ -24,8 +24,8 @@ struct UnifiedRestSettings:View {
             }
             IslandSettingsCard("提醒效果") {
                 WorkspaceReminderLibrary(store:store,selected:selected)
-                Toggle("实际提醒时播放视频声音",isOn:Binding(get:{store.restPlan.sound},set:{v in store.changeRest{$0.sound=v}}))
-                HStack {Button("在桌面体验提醒"){do{var request=try store.screenReminderRequest(style:.init(materialID:store.restPlan.materialID),title:"站起来，活动一下");request.sound=store.restPlan.sound;request.isRest=true;store.presentScreenReminder(request)}catch{store.error=error.localizedDescription}};Button("10分钟后提醒"){store.postponeRest()}.disabled(!store.restPlan.enabled)}
+                Toggle("实际提醒时播放视频声音",isOn:Binding(get:{store.restPlan.sound},set:{v in store.changeRest{$0.sound=v}})).disabled(store.screenMaterials.isEmpty)
+                HStack {Button("在桌面体验提醒"){do{var request=try store.screenReminderRequest(style:.init(materialID:store.restPlan.materialID),title:"站起来，活动一下");request.sound=store.restPlan.sound;request.isRest=true;store.presentScreenReminder(request)}catch{store.error=error.localizedDescription}}.disabled(store.screenMaterials.isEmpty);Button("10分钟后提醒"){store.postponeRest()}.disabled(!store.restPlan.enabled)}
             }
             ExistingReminderSettings(store:store)
             if !store.error.isEmpty {Text(store.error).font(.caption).foregroundStyle(.orange)}

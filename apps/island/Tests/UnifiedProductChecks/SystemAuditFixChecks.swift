@@ -81,7 +81,7 @@ import Foundation
     let media="custom"
     _=store.mutate{$0.screenMaterials=[.init(id:media,name:"合成视频",durationSeconds:8,hasAlpha:true)];$0.defaultTodoScreen = .init(materialID:media)}
     check(store.materialIsUsed(media),"default todo and schedule material is protected")
-    store.removeScreenMaterial(media);check(store.screenMaterials.contains{$0.id==media},"referenced material cannot be removed")
+    store.removeScreenMaterial(media);check(!store.screenMaterials.contains{$0.id==media} && store.disk.defaultTodoScreen?.materialID=="cat","removing referenced material selects available fallback")
     _=store.mutate{$0.defaultTodoScreen=nil;$0.items[0].completionReminder = .init(materialID:media);$0.items[0].archivedAt=now}
     check(store.materialIsUsed(media),"archived completion effect remains protected")
     _=store.mutate{$0.trash=[$0.items.removeFirst()]}
@@ -115,7 +115,7 @@ import Foundation
     NSApplication.shared.setActivationPolicy(.accessory)
     let presenter=ScreenReminderPresenter(sessionIsLocked:{false})
     for title in ["第一条 · 合成休息提醒","第二条 · 合成日程提醒","第三条 · 合成待办提醒"] {
-        try presenter.present(ScreenReminderRequest(title:title,style:.init(durationSeconds:2),material:.init(id:"cat",name:"测试",durationSeconds:0.1,hasAlpha:true)))
+        try presenter.present(ScreenReminderRequest(title:title,style:.init(durationSeconds:2),material:.init(id:"cat",name:"测试",durationSeconds:0.1,hasAlpha:true),videoURL:ScreenReminderMedia.bundledURL("cat")))
     }
     guard presenter.verificationWindows.allSatisfy({$0.isVisible}) else {throw WorkError.message("屏幕提醒窗口不可见")}
     try await Task.sleep(for:.seconds(2.5))

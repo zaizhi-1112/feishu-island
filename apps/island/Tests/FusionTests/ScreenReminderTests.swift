@@ -73,18 +73,6 @@ extension FusionTests {
 
         let evidence=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent(".build/screen-reminder-evidence")
         try FileManager.default.createDirectory(at:evidence,withIntermediateDirectories:true)
-        var rendered:Set<Data>=[]
-        for progress in [0.0,0.3,0.7,1.0] {
-            let image=ScreenReminderCatView.renderPreview(progress:progress)!
-            XCTAssertTrue(image.hasAlpha)
-            XCTAssertEqual(image.colorAt(x:0,y:0)?.alphaComponent,0)
-            let data=image.representation(using:.png,properties:[:])!
-            try data.write(to:evidence.appendingPathComponent("cat-\(Int(progress*100)).png")); rendered.insert(data)
-        }
-        // The animation returns to its resting pose; stretch and raised-paw frames differ.
-        XCTAssertGreaterThanOrEqual(rendered.count,3)
-        XCTAssertNil(ScreenReminderCatView.renderPreview(size:CGSize(width:10000,height:400)))
-        XCTAssertTrue(ScreenReminderCatView.renderPreview(progress:.nan) != nil)
         let personal=root.appendingPathComponent("not-video.mov"); try Data("合成非视频".utf8).write(to:personal)
         do { _=try await store.importScreenReminderVideo(personal); XCTAssertTrue(false) } catch { XCTAssertEqual(store.disk.screenMaterials?.count ?? 0,0) }
         XCTAssertEqual(try String(contentsOf:personal,encoding:.utf8),"合成非视频")

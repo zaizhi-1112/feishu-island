@@ -15,9 +15,12 @@ struct ScreenReminderMaterial: Codable, Identifiable, Equatable, Sendable {
     var filename: String?
     var durationSeconds: Double
     var hasAlpha: Bool
+    var bundledFilename: String?
     static let builtins = [
-        Self(id:"cat",name:"猫咪伸懒腰",durationSeconds:8,hasAlpha:true),
-        Self(id:"rick",name:"瑞克传送门",durationSeconds:10,hasAlpha:true)
+        Self(id:"cat",name:"猫咪走动",durationSeconds:11,hasAlpha:true,bundledFilename:"cat-walk.mov"),
+        Self(id:"rick",name:"瑞克传送门",durationSeconds:10,hasAlpha:true,bundledFilename:"rick-portal.mov"),
+        Self(id:"what-a-day",name:"KUN · What a Day",durationSeconds:60,hasAlpha:false,bundledFilename:"what-a-day.mp4"),
+        Self(id:"gemini-greeting",name:"Gemini 人物视频",durationSeconds:10.005,hasAlpha:false,bundledFilename:"gemini-greeting.mp4")
     ]
 }
 
@@ -77,6 +80,14 @@ enum ScreenReminderRules {
 
 enum ScreenReminderMedia {
     static let maximumBytes = 150_000_000
+    static func bundledURL(_ id: String) -> URL? {
+        guard let filename=ScreenReminderMaterial.builtins.first(where:{$0.id==id})?.bundledFilename else{return nil}
+        if let url=Bundle.main.resourceURL?.appendingPathComponent("ScreenReminder").appendingPathComponent(filename), FileManager.default.fileExists(atPath:url.path) {return url}
+        // Command-line checks use only the repository's explicitly bundled media.
+        guard Bundle.main.bundleIdentifier != "local.zaizhi.feishu-island.preview" else{return nil}
+        let source=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Resources/ScreenReminder").appendingPathComponent(filename)
+        return FileManager.default.fileExists(atPath:source.path) ? source : nil
+    }
     static func validateFile(_ url: URL) throws {
         let properties = try url.resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey,.fileSizeKey])
         guard url.isFileURL, properties.isRegularFile == true, properties.isSymbolicLink != true,
@@ -131,7 +142,6 @@ enum ScreenReminderMedia {
     var pendingCount:Int {pending.count}
     private var windows: [NSPanel] = []
     private var player: AVPlayer?
-    private var cat: ScreenReminderCatView?
     private var expiry: Timer?
     private var dismissalWatchdog: DispatchWorkItem?
     private var localEscape: Any?
@@ -168,9 +178,7 @@ enum ScreenReminderMedia {
         try display(entry)
     }
     private func validateDelivery(_ request:ScreenReminderRequest) throws {
-        if request.material.id != "cat" {
-            guard let url=request.videoURL,url.isFileURL,FileManager.default.fileExists(atPath:url.path) else {throw WorkError.message("提醒视频不可用，请重新选择素材。")}
-        }
+        guard let url=request.videoURL,url.isFileURL,FileManager.default.fileExists(atPath:url.path) else {throw WorkError.message("提醒视频不可用，请重新选择素材。")}
     }
     private func display(_ entry:Entry) throws {
         let request=entry.request,screen=entry.screen,testFrame=entry.testFrame
@@ -187,16 +195,11 @@ enum ScreenReminderMedia {
         let root=NSView(frame:CGRect(origin:.zero,size:bounds.size)); root.wantsLayer=true
         root.layer?.backgroundColor=NSColor.clear.cgColor; panel.contentView=root
         let frame=ScreenReminderRules.visualFrame(in:bounds.size,hasAlpha:request.material.hasAlpha)
-        if request.material.id == "cat" {
-            let view=ScreenReminderCatView(frame:frame); root.addSubview(view); cat=view
-            if displaysWindows { view.start() }
-        } else {
-            guard let url=request.videoURL, url.isFileURL else { throw WorkError.message("提醒视频不可用，请重新选择素材。") }
-            let view=ScreenReminderVideoView(frame:frame), media=AVPlayer(url:url)
-            media.isMuted = !request.sound; media.actionAtItemEnd = .pause; view.videoLayer.player=media
-            root.addSubview(view); player=media
-            if displaysWindows { media.play() }
-        }
+        guard let url=request.videoURL else { throw WorkError.message("提醒视频不可用，请重新选择素材。") }
+        let view=ScreenReminderVideoView(frame:frame), media=AVPlayer(url:url)
+        media.isMuted = !request.sound; media.actionAtItemEnd = .pause; view.videoLayer.player=media
+        root.addSubview(view); player=media
+        if displaysWindows { media.play() }
         let caption=NSTextField(wrappingLabelWithString:request.title)
         caption.isSelectable=false; caption.alignment = .center
         caption.font = .systemFont(ofSize:min(32,max(18,bounds.width/45)),weight:.semibold)
@@ -275,10 +278,14 @@ enum ScreenReminderMedia {
             do {try display(entry);return} catch {deliveryFailed(entry.request,error)}
         }
     }
+    func removeMaterial(_ id:String) {
+        pending.removeAll{$0.request.material.id==id}
+        if current?.request.material.id==id {dismiss()}
+    }
     private func clearCurrent() {
         current=nil
         expiry?.invalidate(); expiry=nil; dismissalWatchdog?.cancel(); dismissalWatchdog=nil
-        player?.pause(); player=nil; cat?.stop(); cat=nil
+        player?.pause(); player=nil
         if let localEscape { NSEvent.removeMonitor(localEscape) }; localEscape=nil
         if let globalEscape { NSEvent.removeMonitor(globalEscape) }; globalEscape=nil
         if let lockObserver { DistributedNotificationCenter.default().removeObserver(lockObserver) }; lockObserver=nil

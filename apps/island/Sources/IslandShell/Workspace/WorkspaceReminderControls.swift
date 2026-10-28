@@ -57,7 +57,7 @@ struct WorkspaceReminderShelf: View {
     }
     private func preset(title:String,minutes:Int) {
         if let existing=store.screenSchedules.first(where:{$0.title==title && $0.repeatMinutes==minutes}) { store.setScreenScheduleEnabled(existing.id,enabled:!existing.enabled); return }
-        do { try store.upsertScreenSchedule(title:title,firstFire:Date().addingTimeInterval(Double(minutes)*60),repeatMinutes:minutes,style:.init()) } catch { store.error=error.localizedDescription }
+        do { try store.upsertScreenSchedule(title:title,firstFire:Date().addingTimeInterval(Double(minutes)*60),repeatMinutes:minutes,style:.init(materialID:store.screenMaterials.first?.id ?? ""),lightOnly:store.screenMaterials.isEmpty) } catch { store.error=error.localizedDescription }
     }
 }
 struct WorkspaceReminderEditor:View {
@@ -78,12 +78,12 @@ struct WorkspaceReminderEditor:View {
             DatePicker("提醒时间",selection:$firstFire,displayedComponents:[.date,.hourAndMinute]).datePickerStyle(.field)
             Toggle("循环提醒",isOn:$repeats)
             if repeats { Stepper("每 \(minutes) 分钟",value:$minutes,in:1...10080) }
-            Picker("冲屏素材",selection:$material) { ForEach(store.screenMaterials) { Text($0.name).tag($0.id) } }
+            Picker("提醒效果",selection:$material) { Text("岛内文字提醒").tag(""); ForEach(store.screenMaterials) { Text($0.name).tag($0.id) } }
             if !error.isEmpty { Text(error).font(.caption).foregroundStyle(.orange) }
             Button("保存提醒") {
-                do { try store.upsertScreenSchedule(id:schedule.flatMap { value in store.screenSchedules.contains(where:{$0.id==value.id}) ? value.id : nil },title:title,firstFire:firstFire,repeatMinutes:repeats ? minutes : nil,style:.init(materialID:material,durationSeconds:15),enabled:schedule?.enabled ?? true,lightOnly:schedule?.lightOnly ?? false); onSave() } catch { self.error=error.localizedDescription }
+                do { try store.upsertScreenSchedule(id:schedule.flatMap { value in store.screenSchedules.contains(where:{$0.id==value.id}) ? value.id : nil },title:title,firstFire:firstFire,repeatMinutes:repeats ? minutes : nil,style:.init(materialID:material,durationSeconds:15),enabled:schedule?.enabled ?? true,lightOnly:material.isEmpty); onSave() } catch { self.error=error.localizedDescription }
             }.buttonStyle(.borderedProminent).tint(.orange)
-        }.font(.system(size:14)).controlSize(.regular).onAppear { if let schedule { title=schedule.title; firstFire=schedule.fireAt; repeats=schedule.repeatMinutes != nil; minutes=schedule.repeatMinutes ?? 30; material=schedule.style.materialID } }
+        }.font(.system(size:14)).controlSize(.regular).onAppear { if let schedule { title=schedule.title; firstFire=schedule.fireAt; repeats=schedule.repeatMinutes != nil; minutes=schedule.repeatMinutes ?? 30; material=schedule.lightOnly == true ? "" : schedule.style.materialID } else {material=store.screenMaterials.first?.id ?? ""} }
     }
 }
 
@@ -96,6 +96,11 @@ struct WorkspaceReminderLibrary: View {
     @State private var renaming=false
     @State private var removing=false
     @State private var removeID:String?
+    private var hasRemovedBuiltins:Bool {ScreenReminderMaterial.builtins.contains{(store.disk.removedScreenMaterialIDs ?? []).contains($0.id)}}
+    private var removalMessage:String {
+        let fallback=store.screenMaterials.first{$0.id != removeID}
+        return "原文件不受影响。正在使用它的提醒将" + (fallback.map{"改用“"+$0.name+"”。"} ?? "改为岛内文字提醒。")
+    }
     @State private var previewGeneration = 0
     @State private var playing = false
     @State private var importError = ""
@@ -110,13 +115,18 @@ struct WorkspaceReminderLibrary: View {
                 }
                 Spacer()
                 Button(playing ? "停止预览" : "播放预览") { playing.toggle(); previewGeneration += 1 }
-                    .buttonStyle(IslandButtonStyle(prominent: true))
+                    .buttonStyle(IslandButtonStyle(prominent: true)).disabled(store.screenMaterials.isEmpty)
             }
+            if store.screenMaterials.isEmpty {
+                Text("素材库空了。添加一个视频，或恢复内置素材；现有提醒会在岛内显示文字。")
+                    .font(.system(size:14)).foregroundStyle(theme.secondaryLabel).frame(maxWidth:.infinity,minHeight:150)
+            } else {
             WorkspaceReminderMediaPreview(store: store, materialID: selected, generation: previewGeneration, playing: $playing)
                 .frame(height: 210).frame(maxWidth: .infinity)
                 .background(theme.subtleFill, in: RoundedRectangle(cornerRadius: 14))
                 .overlay(alignment: .bottomLeading) { Text("窗口内预览").font(.system(size: 10)).foregroundStyle(theme.secondaryLabel).padding(12) }
                 .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), spacing: 10)], spacing: 10) {
                 ForEach(store.screenMaterials) { material in
                     Button {
@@ -135,7 +145,7 @@ struct WorkspaceReminderLibrary: View {
                             .background(selected == material.id ? theme.accent.opacity(0.08) : theme.subtleFill, in: RoundedRectangle(cornerRadius: 12))
                             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(selected == material.id ? theme.accent.opacity(0.5) : theme.subtleStroke))
                     }.buttonStyle(.plain).accessibilityAddTraits(selected == material.id ? .isSelected : [])
-                    .contextMenu {if material.filename != nil {Button("移除视频…",role:.destructive){removeID=material.id;removing=true}.disabled(store.materialIsUsed(material.id))}}
+                    .contextMenu {Button("删除素材…",role:.destructive){removeID=material.id;removing=true}}
                 }
             }
             HStack {
@@ -143,22 +153,28 @@ struct WorkspaceReminderLibrary: View {
                 Spacer()
                 Button("停止桌面提醒") { store.dismissAllScreenReminders() }.buttonStyle(.plain).font(.system(size: 12))
             }
-            if let material=store.screenMaterials.first(where:{$0.id==selected}), material.filename != nil {
-                HStack {Button("重命名"){rename=material.name;renaming=true};Button("移除视频…",role:.destructive){removeID=material.id;removing=true}.disabled(store.materialIsUsed(material.id))}
-                if store.materialIsUsed(material.id) {Text("正在用于：" + store.materialUsage(material.id).joined(separator:"、") + "。换用其他效果后可移除。").font(.caption).foregroundStyle(.secondary)}
+            if let material=store.screenMaterials.first(where:{$0.id==selected}) {
+                HStack {
+                    if material.filename != nil {Button("重命名"){rename=material.name;renaming=true}}
+                    Button("删除“"+material.name+"”…",role:.destructive){removeID=material.id;removing=true}
+                }
             }
+            if hasRemovedBuiltins {Button("恢复内置素材"){store.restoreBuiltinScreenMaterials();if selected.isEmpty {selected=store.screenMaterials.first?.id ?? ""}}}
             if renaming {HStack {TextField("视频名称",text:$rename);Button("保存"){store.renameScreenMaterial(selected,name:rename);renaming=false};Button("取消"){renaming=false}}}
             if !importError.isEmpty { Text(importError).font(.system(size: 12)).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true) }
             Text("支持MP4、MOV，最长2分钟。透明视频直接呈现，普通视频保留原画面。素材只保存在这台Mac；此处播放不会触发桌面提醒。")
                 .font(.system(size: 12)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
         }.onDisappear { playing = false }
-        .confirmationDialog("从素材列表移除这个视频？原视频和本机副本均保留。",isPresented:$removing) {Button("移除",role:.destructive){if let removeID {store.removeScreenMaterial(removeID)}}}
-        .task(id: previewGeneration) {
-            guard playing, selected == "cat" else { return }
-            let duration = store.screenMaterials.first { $0.id == selected }?.durationSeconds ?? 8
-            do { try await Task.sleep(for: .seconds(duration)) } catch { return }
-            if !Task.isCancelled { playing = false }
-        }
+        .onChange(of:selected) {_,_ in playing=false;previewGeneration += 1}
+        .confirmationDialog("删除这个素材？",isPresented:$removing) {
+            Button("删除素材",role:.destructive){
+                if let removeID {
+                    let wasSelected=selected==removeID
+                    if store.removeScreenMaterial(removeID),wasSelected {selected=store.screenMaterials.first?.id ?? "";playing=false;previewGeneration += 1}
+                }
+            }
+            Button("取消",role:.cancel){}
+        } message: {Text(removalMessage)}
     }
     private func pickVideo() {
         let panel=NSOpenPanel(); panel.allowedContentTypes=[.mpeg4Movie,.quickTimeMovie,.movie]; panel.allowsMultipleSelection=false; panel.canChooseDirectories=false
@@ -177,7 +193,6 @@ struct WorkspaceReminderMediaPreview: NSViewRepresentable {
     static func dismantleNSView(_ view: NSView, coordinator: ()) {
         for child in view.subviews {
             (child as? ReminderVideoPreview)?.stop()
-            (child as? ScreenReminderCatView)?.stop()
         }
     }
     func updateNSView(_ view: NSView, context: Context) {
@@ -186,24 +201,10 @@ struct WorkspaceReminderMediaPreview: NSViewRepresentable {
         view.identifier = NSUserInterfaceItemIdentifier(identity)
         Self.dismantleNSView(view, coordinator: ())
         view.subviews.forEach { $0.removeFromSuperview() }
-        let child: NSView
-        if materialID == "cat" {
-            let cat = ScreenReminderCatView(frame: view.bounds)
-            if playing { cat.start() }
-            child = cat
-        } else {
-            let video = ReminderVideoPreview(frame: view.bounds)
-            let url: URL?
-            if materialID == "rick" {
-                let bundled = Bundle.main.url(forResource: "rick-portal", withExtension: "mov", subdirectory: "ScreenReminder")
-                let development = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Resources/ScreenReminder/rick-portal.mov")
-                url = bundled ?? (FileManager.default.fileExists(atPath: development.path) ? development : nil)
-            } else {
-                url = try? store.screenReminderRequest(style: .init(materialID: materialID, durationSeconds: 15), title: "预览").videoURL
-            }
-            video.load(url, playing: playing) { self.playing = false }
-            child = video
-        }
+        let video = ReminderVideoPreview(frame: view.bounds)
+        let url = try? store.screenReminderRequest(style: .init(materialID: materialID, durationSeconds: 15), title: "预览").videoURL
+        video.load(url, playing: playing) { self.playing = false }
+        let child:NSView=video
         child.autoresizingMask = [.width, .height]
         view.addSubview(child)
     }
