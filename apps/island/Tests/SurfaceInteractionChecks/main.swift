@@ -146,6 +146,7 @@ MainActor.assumeIsolated {
         check(bootState.isNookVisible && bootState.keepNookOpen, "complete startup preserves the locked island after settings close")
     }
     Task { @MainActor in
+        if CommandLine.arguments.contains("--hover-continuity-only") { await runHoverContinuityChecks(); exit(0) }
         if CommandLine.arguments.contains("--space-review") { await runSettingsSpaceChecks(output: output); return }
         if CommandLine.arguments.contains("--startup-only") {
             await checkCompleteStartup()
@@ -251,7 +252,11 @@ MainActor.assumeIsolated {
         await nook.expand(on: screen)
         let panel = nook.window as! NookPanel
         let originalOrigin = panel.frame.origin
+        let savedPointerLocation = nook.pointerLocation
+        var keyboardPointer = NSPoint.zero
+        nook.pointerLocation = { keyboardPointer }
         panel.setFrameOrigin(NSPoint(x: screen.visibleFrame.minX + 20, y: screen.visibleFrame.minY + 20))
+        keyboardPointer = NSPoint(x: panel.frame.midX, y: panel.frame.maxY - nook.physicalNotchHeight - 2)
         let field = NSTextField(frame: NSRect(x: 20, y: 20, width: 180, height: 24))
         panel.contentView!.addSubview(field)
         NSApp.activate(ignoringOtherApps: true)
@@ -270,15 +275,21 @@ MainActor.assumeIsolated {
         }
         check(panel.isKeyWindow && NookPanel.acceptsTyping(panel.firstResponder), "native text field actually owns keyboard focus")
         check(nook.state == .expanded, "typing fixture begins on an expanded panel")
+        keyboardPointer = NSPoint(x: panel.frame.maxX + 100, y: panel.frame.minY - 100)
         leave()
         try? await Task.sleep(for: .milliseconds(750))
         check(nook.state == .expanded, "editing text survives pointer exit without a presentation pin")
         panel.makeFirstResponder(nil)
-        try? await Task.sleep(for: .milliseconds(100))
+        let editingEnded = Date()
+        while nook.state != .compact && Date().timeIntervalSince(editingEnded) < 0.5 {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        measurements["typing-exit-seconds"] = String(format: "%.4f", Date().timeIntervalSince(editingEnded))
         check(nook.state == .compact, "ending native text editing collapses after the pointer left")
         field.removeFromSuperview()
         panel.orderOut(nil)
         panel.setFrameOrigin(originalOrigin)
+        nook.pointerLocation = savedPointerLocation
         } else {
             blockedChecks.append("Native keyboard focus, typing hold and ending-edit collapse require an unlocked Mac")
         }
@@ -575,7 +586,8 @@ MainActor.assumeIsolated {
         appearanceWindow.close()
         nook.window?.orderOut(nil)
         await checkCompleteStartup()
-        let report: [String: Any] = ["checks": checks, "frames": measurements, "blocked": blockedChecks, "passed": blockedChecks.isEmpty]
+        let upwardHoverChecks = await runHoverContinuityChecks()
+        let report: [String: Any] = ["checks": checks, "upwardHoverChecks": upwardHoverChecks, "frames": measurements, "blocked": blockedChecks, "passed": blockedChecks.isEmpty]
         try! JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
             .write(to: output.appendingPathComponent("result.json"))
         print("\(blockedChecks.isEmpty ? "PASS" : "PARTIAL"): \(checks.count) native surface checks; \(blockedChecks.count) keyboard scenarios blocked")

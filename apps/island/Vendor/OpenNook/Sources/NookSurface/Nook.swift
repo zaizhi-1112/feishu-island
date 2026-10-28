@@ -219,7 +219,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 shownTopInset: topInset, physicalNotchHeight: physicalNotchHeight)
             let local = NSPoint(x: point.x - (window.frame.midX - chromeFrameInWindow.width / 2),
                                 y: window.frame.maxY - point.y)
-            return layout.hitRects(width: chromeFrameInWindow.width,
+            return layout.hoverRects(width: chromeFrameInWindow.width,
                 bridgeWidth: compactHitWidth > 0 ? compactHitWidth : 160,
                 physicalNotchHeight: physicalNotchHeight).contains { $0.contains(local) } || containsChild(window)
         }

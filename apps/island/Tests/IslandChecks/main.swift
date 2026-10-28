@@ -107,6 +107,11 @@ expect(stableRegions.contains { $0.contains(CGPoint(x: 236, y: 34)) }, "original
 expect(!stableRegions.contains { $0.contains(CGPoint(x: 236, y: 15)) }, "floating island does not intercept menu bar above camera")
 expect(!stableRegions.contains { $0.contains(CGPoint(x: 20, y: 34)) }, "hover bridge never widens across menu bar apps")
 expect(stableRegions.contains { $0.contains(CGPoint(x: 20, y: 50)) }, "expanded content remains interactive below camera")
+let retainedHover = stableHover.hoverRects(width: 472, bridgeWidth: 150, physicalNotchHeight: 32)
+expect(retainedHover.contains { $0.contains(CGPoint(x: 236, y: 15)) }, "hover stays active over the hardware camera")
+expect(retainedHover.contains { $0.contains(CGPoint(x: 236, y: 0)) }, "hover stays active at the top screen edge")
+expect(!retainedHover.contains { $0.contains(CGPoint(x: 20, y: 15)) }, "hover retention excludes menu bar items beside the camera")
+
 
 MainActor.assumeIsolated {
     let host = IslandHost.configuration()

@@ -53,4 +53,13 @@ public struct NookEdgeDockLayout: Equatable, Sendable {
                 CGRect(x: (width - bridge) / 2, y: bridgeTop, width: bridge, height: max(0, contentOffset - bridgeTop))]
     }
 
+    /// A cursor that entered the island may continue upward over the hardware
+    /// camera. Retain that hover without adding a click target over the menu bar.
+    public func hoverRects(width: CGFloat, bridgeWidth: CGFloat, physicalNotchHeight: CGFloat) -> [CGRect] {
+        let regions = hitRects(width: width, bridgeWidth: bridgeWidth, physicalNotchHeight: physicalNotchHeight)
+        guard !isRetracted, physicalNotchHeight > 0 else { return regions }
+        let bridge = max(0, min(width, bridgeWidth))
+        return regions + [CGRect(x: (width - bridge) / 2, y: 0, width: bridge, height: physicalNotchHeight)]
+    }
+
 }
