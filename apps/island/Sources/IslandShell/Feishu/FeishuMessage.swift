@@ -29,19 +29,48 @@ public struct FeishuTargetRule: Codable, Equatable, Sendable, Identifiable {
 }
 
 public struct FeishuCustomRules: Codable, Equatable, Sendable {
+    /// Both private and group conversations use the stable chat ID.
+    public var conversations: [FeishuTargetRule] = []
     public var people: [FeishuTargetRule] = []
     public var groups: [FeishuTargetRule] = []
     public var blockedPeople: [FeishuRuleTarget] = []
     public var blockedGroups: [FeishuRuleTarget] = []
     public init() {}
+    private enum CodingKeys: String, CodingKey { case conversations, people, groups, blockedPeople, blockedGroups }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        conversations = try c.decodeIfPresent([FeishuTargetRule].self, forKey: .conversations) ?? []
+        people = try c.decodeIfPresent([FeishuTargetRule].self, forKey: .people) ?? []
+        groups = try c.decodeIfPresent([FeishuTargetRule].self, forKey: .groups) ?? []
+        blockedPeople = try c.decodeIfPresent([FeishuRuleTarget].self, forKey: .blockedPeople) ?? []
+        blockedGroups = try c.decodeIfPresent([FeishuRuleTarget].self, forKey: .blockedGroups) ?? []
+    }
+    /// Old blocked targets become quiet rules; their notification preference is not lost.
+    public mutating func consolidate(followed: Set<String>) {
+        for target in blockedPeople {
+            people.removeAll { $0.id == target.id }
+            people.append(.init(target: target, mode: .quiet))
+        }
+        for target in blockedGroups {
+            groups.removeAll { $0.id == target.id }
+            conversations.removeAll { $0.id == target.id }
+            conversations.append(.init(target: target, mode: .quiet))
+        }
+        blockedPeople.removeAll(); blockedGroups.removeAll()
+        for item in groups where !conversations.contains(where: { $0.id == item.id }) { conversations.append(item) }
+        groups.removeAll()
+        for id in followed.sorted() where !conversations.contains(where: { $0.id == id }) && id.hasPrefix("oc_") {
+            conversations.append(.init(target: .init(id: id, name: "原会话提醒", detail: "刷新会话列表后显示名称"), mode: .all))
+        }
+    }
     public func blocks(_ message: FeishuMessage) -> Bool {
         blockedGroups.contains { $0.id == message.chatID }
             || (!message.senderID.isEmpty && blockedPeople.contains { $0.id == message.senderID })
     }
     public var validationError: String? {
-        let buckets = [(people.map(\.target), "ou_"), (groups.map(\.target), "oc_"),
+        let buckets = [(conversations.map(\.target), "oc_"), (people.map(\.target), "ou_"), (groups.map(\.target), "oc_"),
                        (blockedPeople, "ou_"), (blockedGroups, "oc_")]
-        guard buckets.reduce(0, { $0 + $1.0.count }) <= 100 else { return "最多保存100项单独设置和屏蔽规则。" }
+        guard buckets.reduce(0, { $0 + $1.0.count }) <= 500 else { return "最多保存500项会话提醒设置。" }
         for (targets, prefix) in buckets {
             guard Set(targets.map(\.id)).count == targets.count else { return "同一对象存在重复规则。" }
             for target in targets {
@@ -117,9 +146,12 @@ public struct FeishuMessage: Identifiable, Equatable, Sendable {
         if reminded || remindAt != nil { return "稍后" }
         let person = senderID.isEmpty ? nil : custom.people.first { $0.id == senderID }
         let group = custom.groups.first { $0.id == chatID }
-        if let selected = person ?? group {
+        let conversation = custom.conversations.first { $0.id == chatID }
+        // Explicit quiet rules prevent an old blocked target from being re-enabled.
+        if person?.mode == .quiet || conversation?.mode == .quiet || group?.mode == .quiet { return nil }
+        if let selected = conversation ?? person ?? group {
             switch selected.mode {
-            case .all: return person != nil ? "联系人" : "群规则"
+            case .all: return conversation != nil ? "会话提醒" : person != nil ? "联系人" : "群规则"
             case .mentions: return mentionsMe ? "@我" : mentionsAll ? "@所有人" : nil
             case .quiet: return nil
             }
@@ -140,5 +172,11 @@ public struct FeishuMessage: Identifiable, Equatable, Sendable {
         return components.url
     }
     public var source: String { chatKind == "p2p" ? senderName : chatName }
+    var danmuText: String {
+        let chat = chatName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sender = senderName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let label = chatKind == "p2p" || chat == sender || chat.isEmpty ? sender : sender.isEmpty ? chat : "\(chat) · \(sender)"
+        return label.isEmpty ? text : "\(label)：\(text)"
+    }
     public var reason: String { importanceReason(followed: [chatID]) ?? "关注" }
 }

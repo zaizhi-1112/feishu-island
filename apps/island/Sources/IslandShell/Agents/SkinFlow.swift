@@ -118,7 +118,7 @@ struct IslandSkinBackdrop: View {
     @State private var completionPulse=false
     var body:some View {
         let skin=store.selectedSkin,palette=skin.palette(dark:dark)
-        let moving=store.preferences.effectsEnabled && !reduceMotion && active
+        let moving=store.preferences.effectsEnabled && !reduceMotion && active && !(compact && store.preferences.quotaDisplayEnabled)
         GeometryReader { geometry in
             ZStack {
                 LinearGradient(colors:[Color(skinHex:palette.surface),Color(skinHex:palette.bg)],startPoint:.topLeading,endPoint:.bottomTrailing)
@@ -137,7 +137,7 @@ struct IslandSkinBackdrop: View {
                     }
                 }
                 if completionPulse { Color(skinHex:palette.glow).opacity(0.08) }
-                if notched { LinearGradient(colors:[.black,.clear],startPoint:.top,endPoint:.bottom).frame(height:compact ? geometry.size.height:38).frame(maxHeight:.infinity,alignment:.top) }
+                if compact && notched { Color.black }
             }
             .onContinuousHover { phase in
                 switch phase {case .active(let p):pointer=CGPoint(x:p.x/max(1,geometry.size.width),y:p.y/max(1,geometry.size.width));case .ended:pointer=nil}

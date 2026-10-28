@@ -23,11 +23,19 @@ enum RuntimeVerification {
 
             coordinator.switchModule(to: IslandHost.todoID)
             checks["switchToTodos"] = await wait { coordinator.activeModuleID == IslandHost.todoID }
-            checks["onlyUsefulModules"] = Set(coordinator.moduleHost.descriptors.map(\.id)) == [IslandHost.feishuID, IslandHost.agentID, IslandHost.todoID]
+            coordinator.switchModule(to: IslandHost.platformID)
+            checks["switchToPlatform"] = await wait { coordinator.activeModuleID == IslandHost.platformID }
+            checks["onlyUsefulModules"] = Set(coordinator.moduleHost.descriptors.map(\.id)) == [IslandHost.feishuID, IslandHost.agentID, IslandHost.todoID, IslandHost.platformID]
             coordinator.switchModule(to: IslandHost.feishuID)
             checks["switchBackToFeishu"] = await wait { coordinator.activeModuleID == IslandHost.feishuID }
-            coordinator.showSettings()
-            checks["settings"] = await wait { coordinator.appState.viewMode == .settings }
+            UnifiedSettingsWindow.shared.open()
+            checks["settings"] = await wait { UnifiedSettingsWindow.shared.model.visible }
+            checks["noIslandSettingsPage"] = coordinator.appState.viewMode == .home
+            for section in UnifiedSettingsSection.allCases {
+                UnifiedSettingsWindow.shared.open(section: section)
+                checks["settings."+section.rawValue] = UnifiedSettingsWindow.shared.model.section == section
+            }
+            NSApp.windows.first { $0.identifier?.rawValue == "feibao.settings" }?.close()
             coordinator.showHome()
             // Exercise the actual screen/wake observer and window rebuild on the live display.
             NotificationCenter.default.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)

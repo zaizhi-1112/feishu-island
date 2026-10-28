@@ -42,6 +42,8 @@ final class AccountReader {
     private var gray: [String] = []
     private var hidden: [String] = []
     private let cli: URL
+    private let profile: String
+    private let localAccount: LocalFeishuAccount?
     private var pollDelay: TimeInterval
     private let pageDelay: TimeInterval
     private let concurrency: Int
@@ -62,7 +64,9 @@ final class AccountReader {
             self.post(token) { completion(unread) }
         }
     }
-    init(cli: URL? = nil, pollDelay: TimeInterval = 3, pageDelay: TimeInterval = 0.3, concurrency: Int = 3, catalogInterval: TimeInterval = 60, requestTimeout: TimeInterval = 8, clock: ServerClock = ServerClock()) {
+    init(cli: URL? = nil, profile: String = "", localAccount: LocalFeishuAccount? = nil, pollDelay: TimeInterval = 3, pageDelay: TimeInterval = 0.3, concurrency: Int = 3, catalogInterval: TimeInterval = 60, requestTimeout: TimeInterval = 8, clock: ServerClock = ServerClock()) {
+        self.profile = profile
+        self.localAccount = localAccount
         self.cli = cli ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".local/bin/lark-cli")
         self.pollDelay = pollDelay; self.pageDelay = pageDelay
         self.concurrency = max(2, concurrency); self.catalogInterval = catalogInterval
@@ -85,7 +89,8 @@ final class AccountReader {
         worker.async { [weak self] in
             guard let self else { return }
             do {
-                let auth = try self.call(["auth", "status", "--json"], token)
+                let auth = try self.call(["auth", "status", "--json"] + (self.localAccount == nil ? [] : ["--verify"]), token)
+                if let expected = self.localAccount { _ = try LocalFeishuAccount.verified(auth, expected: expected) }
                 guard let identities = auth["identities"] as? [String: Any], let user = identities["user"] as? [String: Any], user["available"] as? Bool == true, let id = user["openId"] as? String else { throw AccountFailure(detail: "账号未授权，请重新连接") }
                 self.post(token) { self.onAccount?(user["userName"] as? String ?? "已连接账号") }
                 try self.clock.refreshIfNeeded()
@@ -109,11 +114,16 @@ final class AccountReader {
     }
     private func reason(_ error: Error) -> String { (error as? AccountFailure)?.detail ?? "本机连接异常" }
     private func call(_ args: [String], _ token: Int) throws -> [String: Any] {
+        if let expected = localAccount, args.first != "auth" {
+            try LocalFeishuAccount.validateBinding(call(["auth", "status", "--json"], token), expected: expected)
+        }
         requestSlots.wait(); defer { requestSlots.signal() }
         guard alive(token) else { throw AccountFailure(detail: "接收已停止") }
+        guard profile != "company" else { throw AccountFailure(detail: "旧公司连接已停用，请连接本机飞书账号。") }
         let p = Process(); p.executableURL = cli
-        p.arguments = args
-        var env = ProcessInfo.processInfo.environment
+        p.arguments = (profile.isEmpty ? [] : ["--profile", profile]) + args
+        var env = LocalFeishuAccount.environment(ProcessInfo.processInfo.environment)
+        p.currentDirectoryURL = URL(fileURLWithPath: NSHomeDirectory())
         env["LARKSUITE_CLI_NO_UPDATE_NOTIFIER"] = "1"; env["LARKSUITE_CLI_NO_SKILLS_NOTIFIER"] = "1"
         p.environment = env; p.standardInput = FileHandle.nullDevice
         let pipe = Pipe(); let errors = Pipe(); p.standardOutput = pipe; p.standardError = errors
@@ -157,6 +167,7 @@ final class AccountReader {
     }
     private func data(_ args: [String], _ token: Int) throws -> [String: Any] {
         let result = try call(args + ["--as", "user", "--format", "json"], token)
+        if let expected = localAccount { try LocalFeishuAccount.validateBinding(call(["auth", "status", "--json"], token), expected: expected) }
         guard result["identity"] as? String == "user", let body = result["data"] as? [String: Any] else { throw AccountFailure(detail: "账号身份或接口结构异常") }
         return body
     }

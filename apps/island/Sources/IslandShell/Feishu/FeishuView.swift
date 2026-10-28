@@ -1,56 +1,80 @@
 import NookApp
 import SwiftUI
 
+struct FeishuEmptyStatePresentation {
+    let title: String
+    let detail: String
+    let symbol: String
+    init(enabled: Bool, connecting: Bool, status: String, showAll: Bool) {
+        if connecting {
+            title = "等待你完成飞书授权"; symbol = "arrow.triangle.2.circlepath"
+            detail = "在授权窗口确认后，Mac会自动核对连接。"
+        } else if !enabled {
+            title = "接收已停止"; symbol = "pause"
+            detail = "点右上角齿轮，在“飞书消息”中开启接收。"
+        } else if status.hasPrefix("账号接收中") || status.hasPrefix("演示模式") || status.hasPrefix("皮肤预览") {
+            title = showAll ? "等待新的消息" : "暂时没有重要消息"; symbol = showAll ? "tray" : "checkmark"
+            detail = "按你的规则筛选，继续遵守免打扰。"
+        } else {
+            let failed = ["失败", "异常", "过期", "未登录", "无法", "错误", "暂缓"].contains { status.contains($0) }
+            title = failed ? "连接需要检查" : "正在连接飞书"
+            symbol = failed ? "exclamationmark.circle" : "arrow.triangle.2.circlepath"
+            detail = status.isEmpty ? "正在核对连接，请稍候。" : status
+        }
+    }
+}
+
 struct FeishuView: View {
     @ObservedObject var store: FeishuStore
     @Environment(\.nookResolvedTheme) private var theme
     @State private var showAll = false
-    @State private var selectedID: String?
-    @State private var showConnection = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let id = selectedID, let message = store.visibleMessages.first(where: { $0.id == id }) {
-                ScrollView { detail(message) }
-            } else {
-                header
-                let list = showAll ? store.visibleMessages : store.important
-                if showConnection {
-                    ScrollView { connection }.frame(maxHeight: .infinity, alignment: .top)
-                } else if list.isEmpty {
-                    emptyState
+        Group {
+            VStack(alignment: .leading, spacing: 10) {
+                if let id = store.readingID, let message = store.visibleMessages.first(where: { $0.id == id }) {
+                    IslandContentScroll(height: IslandHost.panelHeight - 2 * IslandHost.panelPadding) {
+                        detail(message)
+                        errorBanner
+                    }
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 8) {
-                            ForEach(list) { message in
-                                Button {
-                                    selectedID = message.id
-                                    store.markViewed(message.id)
-                                } label: { row(message) }
-                                    .buttonStyle(.plain)
-                                    .accessibilityIdentifier("feishu.message.\(message.id)")
+                    header.frame(height: 28)
+                    let list = showAll ? store.visibleMessages : store.important
+                    Group {
+                        if list.isEmpty {
+                            emptyState
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else {
+                            IslandContentScroll(height: IslandHost.panelHeight - 2 * IslandHost.panelPadding - 28 - 24 - 20) {
+                            VStack(spacing: 8) {
+                                ForEach(list) { message in
+                                    Button { store.openReader(message.id) } label: { row(message) }
+                                        .buttonStyle(.plain)
+                                        .accessibilityIdentifier("feishu.message.\(message.id)")
+                                }
+                            }
+                            if !store.status.hasPrefix("账号接收中") && !store.status.hasPrefix("演示模式") {
+                                Text(store.status).font(.system(size: 12)).fixedSize(horizontal:false,vertical:true)
+                                    .foregroundStyle(store.status.contains("失败") || store.status.contains("异常") || store.status.contains("暂缓") ? theme.warning : theme.tertiaryLabel)
+                            }
+                            errorBanner
                             }
                         }
-                    }.frame(maxHeight: .infinity)
+                    }
+                    footer.frame(height: 24)
                 }
-                footer
-                if !store.status.hasPrefix("账号接收中") && !store.status.hasPrefix("演示模式") {
-                    Button { showConnection = true } label: {
-                        Text(store.status).font(.system(size: 10)).lineLimit(2)
-                            .foregroundStyle(store.status.contains("失败") || store.status.contains("异常") || store.status.contains("暂缓") ? theme.warning : theme.tertiaryLabel)
-                    }.buttonStyle(.plain)
-                }
-            }
-            if let error = store.actionError {
-                Text(error).font(.system(size: 11)).foregroundStyle(theme.warning)
-                    .onTapGesture { store.actionError = nil }
-            }
+            }.padding(IslandHost.panelPadding)
+                .frame(height: IslandHost.panelHeight, alignment: .top)
         }
-        .padding(.horizontal, 12).padding(.top, 7).padding(.bottom, 10)
         .accessibilityIdentifier("feishu.home")
-        .frame(height: IslandHost.panelHeight)
-        .modifier(IslandReadingModule(moduleID: IslandHost.feishuID))
-        
+        .modifier(IslandReadingModule(moduleID:IslandHost.feishuID))
+    }
+
+    @ViewBuilder private var errorBanner: some View {
+        if let error = store.actionError {
+            Text(error).font(.system(size: 11)).foregroundStyle(theme.warning)
+                .onTapGesture { store.actionError = nil }
+        }
     }
 
     private var header: some View {
@@ -63,12 +87,6 @@ struct FeishuView: View {
             }
             .padding(3).background(theme.subtleFill, in: RoundedRectangle(cornerRadius: 8))
             Spacer()
-            Button { showConnection.toggle() } label: {
-                Image(systemName: "ellipsis").font(.system(size: 13, weight: .medium))
-                    .frame(width: 28, height: 27)
-                    .foregroundStyle(showConnection ? theme.accent : theme.secondaryLabel)
-                    .background(showConnection ? theme.accent.opacity(0.1) : Color.clear, in: RoundedRectangle(cornerRadius: 7))
-            }.buttonStyle(.plain).help("连接与接收设置").accessibilityLabel("连接与接收设置")
         }
     }
 
@@ -89,34 +107,21 @@ struct FeishuView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 10) {
-            Image(systemName: !store.enabled ? "pause" : showAll ? "tray" : "checkmark")
+        let presentation = FeishuEmptyStatePresentation(enabled: store.enabled, connecting: store.connecting, status: store.status, showAll: showAll)
+        return VStack(spacing: 10) {
+            Image(systemName: presentation.symbol)
                 .font(.system(size: 19, weight: .regular)).foregroundStyle(theme.accent)
                 .frame(width: 40, height: 40)
                 .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 11))
-            Text(!store.enabled ? "接收已停止" : showAll ? "等待新的消息" : "暂时没有重要消息")
+            Text(presentation.title)
                 .font(.system(size: 13, weight: .medium)).foregroundStyle(theme.primaryLabel)
-            Text(!store.enabled ? "在连接设置中，可以重新开始接收。" : "按你的规则筛选，继续遵守免打扰。")
+            Text(presentation.detail)
                 .font(.system(size: 10)).foregroundStyle(theme.tertiaryLabel)
+                .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+            errorBanner
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity).modifier(IslandCard())
-    }
-
-    private var connection: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(spacing: 6) {
-                Circle().fill(store.enabled ? theme.accent : theme.tertiaryLabel).frame(width: 5, height: 5)
-                Text("\(store.account) · 本机连接").font(.system(size: 12, weight: .medium))
-            }
-            Text(store.status).font(.system(size: 10)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 8) {
-                Button(store.enabled ? "停止接收" : "开始接收") { store.toggleReceiving() }.buttonStyle(IslandButtonStyle())
-                if store.enabled { Button("重新连接") { store.reconnect() }.buttonStyle(IslandButtonStyle(prominent: true)) }
-            }
-            Text("使用本机已有飞书授权；授权失效时请在终端完成lark-cli auth login，再点重新连接。")
-                .font(.system(size: 10)).foregroundStyle(theme.tertiaryLabel)
-        }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
-            .foregroundStyle(theme.primaryLabel).modifier(IslandCard())
+        .frame(maxWidth: .infinity, maxHeight: .infinity).padding(16)
+        .accessibilityIdentifier("feishu.emptyState")
     }
 
     private func row(_ message: FeishuMessage) -> some View {
@@ -133,8 +138,8 @@ struct FeishuView: View {
                     Spacer(minLength: 2)
                     Text(message.created, style: .time).font(.system(size: 9)).foregroundStyle(theme.tertiaryLabel)
                 }
-                Text(message.text.replacingOccurrences(of: "\n", with: " "))
-                    .font(.system(size: 11)).foregroundStyle(theme.secondaryLabel).lineLimit(1)
+                Text(message.text)
+                    .font(.system(size: 14)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal:false,vertical:true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 5) {
                     if let reason = message.importanceReason(followed: store.followed, rules: store.rules, custom: store.customRules) {
@@ -161,46 +166,21 @@ struct FeishuView: View {
             }.buttonStyle(.plain).foregroundStyle(store.isMuted ? theme.accent : theme.secondaryLabel)
                 .accessibilityIdentifier("feishu.mute")
             Spacer()
-            Button { SettingsServer.shared.open() } label: { Label("设置面板", systemImage: "slider.horizontal.3") }
-                .buttonStyle(.plain).foregroundStyle(theme.secondaryLabel).accessibilityIdentifier("feishu.webSettings")
         }
         .font(.system(size: 10, weight: .medium)).padding(.top, 10)
         .overlay(alignment: .top) { Rectangle().fill(theme.subtleStroke).frame(height: 0.5) }
     }
 
     private func detail(_ message: FeishuMessage) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Button { selectedID = nil; store.actionError = nil } label: { Label("返回", systemImage: "chevron.left") }
-                    .buttonStyle(.plain).foregroundStyle(theme.secondaryLabel)
-                Spacer()
-                Button { store.toggleFollow(message.chatID) } label: {
-                    Image(systemName: store.followed.contains(message.chatID) ? "star.fill" : "star")
-                }.buttonStyle(.plain).foregroundStyle(theme.accent)
-                    .help("关注此会话的新消息").accessibilityLabel(store.followed.contains(message.chatID) ? "取消关注" : "关注会话")
-            }.font(.system(size: 11))
-            VStack(alignment: .leading, spacing: 7) {
-                Text(message.source).font(.system(size: 15, weight: .semibold)).foregroundStyle(theme.primaryLabel)
-                HStack(spacing: 7) {
-                    Text(message.senderName)
-                    Text("·")
-                    Text(message.created, style: .time)
-                }.font(.system(size: 10)).foregroundStyle(theme.tertiaryLabel)
-            }
-            ScrollView {
-                Text(message.text).font(.system(size: 12)).lineSpacing(6)
-                    .foregroundStyle(theme.primaryLabel).textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(12)
-            }.frame(height: 154).modifier(IslandCard())
-            HStack(spacing: 8) {
-                Button("10分钟后提醒") { store.remindLater(message.id); selectedID = nil }
-                    .buttonStyle(IslandButtonStyle())
-                Spacer()
-                Button("打开会话") { store.open(message) }.buttonStyle(IslandButtonStyle(prominent: true))
-                    .disabled(message.chatURL == nil).accessibilityIdentifier("feishu.openChat")
-            }
-            Text("岛内查看不改变飞书已读 · 稍后提醒仅本次运行有效")
-                .font(.system(size: 9)).foregroundStyle(theme.tertiaryLabel)
-        }
+        IslandMessageReader(message: message, followed: store.followed.contains(message.chatID),
+                            pending: store.readingQueue.count,
+                            onBack: { store.closeReader() },
+                            onFollow: { store.toggleFollow(message.chatID) },
+                            onDone: { store.finishReading() },
+                            onRemind: { store.remindLater(message.id); store.finishReading() },
+                            onOpen: { store.open(message) }, appearance: store.appearance,
+                            initialPage: store.readingPages[message.id] ?? 0,
+                            onPageChange: { store.rememberReadingPage($0, for: message.id) })
+            .id(message.id)
     }
 }

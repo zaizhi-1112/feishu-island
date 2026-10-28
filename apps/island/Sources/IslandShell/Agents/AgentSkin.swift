@@ -70,7 +70,7 @@ enum SkinResources {
     }()
     static let images: [String: NSImage] = {
         var result: [String: NSImage] = [:]
-        for name in ["pet-codex.png","pet-claude.png","pet-workbuddy.png","avatar-codex.png","avatar-claude.png","avatar-workbuddy.png","avatar-virxact.png","virxact-logo.png"] {
+        for name in ["pet-codex.png","pet-claude.png","pet-workbuddy.png","avatar-codex.png","avatar-claude.png","avatar-workbuddy.png","avatar-virxact.png","virxact-logo.png","agent-codex.png"] {
             if let url = SkinResources.url(name), let image = NSImage(contentsOf: url) { result[name] = image }
         }
         return result

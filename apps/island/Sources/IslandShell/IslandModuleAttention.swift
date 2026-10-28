@@ -10,12 +10,13 @@ final class IslandModuleAttention: ObservableObject {
     private weak var coordinator: AppCoordinator?
     private weak var feishu: FeishuStore?
     private let agents: AgentStore
-    private let todos: TodoStore
+    private let todos: TodoStore?
+    private let workspace: WorkspaceStore
     private var subscriptions = Set<AnyCancellable>()
     private var acknowledged: [String: Set<String>] = [:]
 
     init(agents: AgentStore? = nil, todos: TodoStore? = nil, feishu: FeishuStore? = nil) {
-        self.agents = agents ?? .shared; self.todos = todos ?? .shared
+        self.agents = agents ?? .shared; self.todos = todos; self.workspace = .shared
         self.feishu = feishu
     }
 
@@ -23,7 +24,7 @@ final class IslandModuleAttention: ObservableObject {
         guard self.coordinator == nil else { return }
         self.coordinator = coordinator
         feishu = (coordinator.moduleHost.registry.module(for: IslandHost.feishuID) as? FeishuModule)?.store
-        let publishers = [agents.objectWillChange, todos.objectWillChange] + (feishu.map { [$0.objectWillChange] } ?? [])
+        let publishers = [agents.objectWillChange, workspace.objectWillChange] + (todos.map { [$0.objectWillChange] } ?? []) + (feishu.map { [$0.objectWillChange] } ?? [])
         for publisher in publishers {
             publisher.sink { [weak self] _ in
                 // objectWillChange arrives before the new value is committed.
@@ -34,24 +35,35 @@ final class IslandModuleAttention: ObservableObject {
     }
 
     func refresh() {
-        let events = Self.events(feishu: feishu, agents: agents, todos: todos)
-        for moduleID in [IslandHost.feishuID, IslandHost.agentID, IslandHost.todoID] {
+        let events = currentEvents()
+        for moduleID in [IslandHost.feishuID, IslandHost.agentID, IslandHost.todoID, IslandHost.workspaceID] {
             acknowledged[moduleID, default: []].formIntersection(Set(events[moduleID, default: [:]].keys))
         }
-        let next = Self.hints(feishu: feishu, agents: agents, todos: todos, acknowledged: acknowledged)
+        let next = Self.makeHints(events: events, acknowledged: acknowledged)
         if hints != next { hints = next }
     }
 
     func acknowledge(_ moduleID: String) {
-        let events = Self.events(feishu: feishu, agents: agents, todos: todos)
+        let events = currentEvents()
         acknowledged[moduleID, default: []].formUnion(events[moduleID, default: [:]].keys)
         if moduleID == IslandHost.agentID { agents.acknowledgeCompletions() }
         refresh()
     }
 
+    private func currentEvents() -> [String:[String:String]] {
+        var result=Self.events(feishu:feishu,agents:agents,todos:todos)
+        for item in workspace.disk.items where item.archivedAt == nil && item.state != "done" {
+            if item.state == "succeeded" || (item.due.map{$0 <= Date()} ?? false) {
+                result[IslandHost.todoID,default:[:]][item.id.uuidString+":"+item.state]="任务待查看"
+            }
+        }
+        return result
+    }
     static func hints(feishu: FeishuStore?, agents: AgentStore, todos: TodoStore,
                       acknowledged: [String: Set<String>] = [:]) -> [String: String] {
-        let events = events(feishu: feishu, agents: agents, todos: todos)
+        makeHints(events:events(feishu:feishu,agents:agents,todos:todos),acknowledged:acknowledged)
+    }
+    private static func makeHints(events:[String:[String:String]], acknowledged:[String:Set<String>]) -> [String:String] {
         var result: [String: String] = [:]
         for (module, entries) in events {
             let pending = entries.filter { !(acknowledged[module] ?? []).contains($0.key) }
@@ -63,7 +75,7 @@ final class IslandModuleAttention: ObservableObject {
         return result
     }
 
-    private static func events(feishu: FeishuStore?, agents: AgentStore, todos: TodoStore) -> [String: [String: String]] {
+    private static func events(feishu: FeishuStore?, agents: AgentStore, todos: TodoStore?) -> [String: [String: String]] {
         var result: [String: [String: String]] = [:]
         if let feishu, feishu.enabled {
             for message in feishu.important where !message.viewed && message.remindAt == nil {
@@ -77,7 +89,7 @@ final class IslandModuleAttention: ObservableObject {
                 result[IslandHost.agentID, default: [:]]["completion:\(profile.id)"] = "\(profile.name)有已完成任务待查看"
             }
         }
-        for item in todos.pending where item.dueAt.map({ $0 <= Date() }) == true {
+        for item in todos?.pending ?? [] where item.dueAt.map({ $0 <= Date() }) == true {
             result[IslandHost.todoID, default: [:]][item.id + ":\(item.dueAt!.timeIntervalSince1970)"] = "待办已到期"
         }
         return result

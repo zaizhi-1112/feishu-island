@@ -6,6 +6,7 @@ actor CodexReader {
         var tail = Data()
         var session: AgentSession?
         var turnID: String?
+        var pendingAsyncInput:String?
     }
     private var cursors: [String: Cursor] = [:]
     private var lastDiscovery = Date.distantPast
@@ -51,22 +52,50 @@ actor CodexReader {
             }
             while let newline = cursor.tail.firstIndex(of: 10) {
                 let line = Data(cursor.tail[..<newline]); cursor.tail.removeSubrange(...newline)
-                guard let record = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
-                      record["type"] as? String == "event_msg", let payload = record["payload"] as? [String: Any],
-                      let event = payload["type"] as? String, let stamp = record["timestamp"] as? String,
-                      let time = dateParser.date(from: stamp)?.timeIntervalSince1970 else { continue }
-                let turnID = payload["turn_id"] as? String
-                if event == "task_started" {
-                    cursor.turnID = turnID
-                    cursor.session = AgentSession(id: file.lastPathComponent, state: .working, updatedAt: time)
-                } else if ["task_complete", "turn_aborted"].contains(event) {
-                    if let known = cursor.turnID, let turnID, known != turnID { continue }
-                    cursor.session = AgentSession(id: file.lastPathComponent, state: event == "task_complete" ? .completed : .failed, updatedAt: time, completionID: event == "task_complete" ? (turnID ?? stamp) : nil)
-                } else if cursor.session?.state == .working { cursor.session?.updatedAt = time }
+                consume(line,id:file.lastPathComponent,cursor:&cursor)
             }
             cursors[file.path] = cursor
         }
         return cursors.values.compactMap(\.session)
+    }
+    /// Only lifecycle metadata is retained. Never store prompts, tool arguments or responses.
+    private func consume(_ line:Data,id:String,cursor:inout Cursor) {
+        guard let record=try? JSONSerialization.jsonObject(with:line) as? [String:Any],
+              let payload=record["payload"] as? [String:Any],let event=payload["type"] as? String,
+              let stamp=record["timestamp"] as? String,let time=dateParser.date(from:stamp)?.timeIntervalSince1970 else { return }
+        let kind=record["type"] as? String
+        if kind == "response_item" {
+            let call=payload["call_id"] as? String
+            let name=(payload["name"] as? String ?? "").components(separatedBy:".").last ?? ""
+            if event == "function_call",name == "request_user_input_async" {
+                cursor.pendingAsyncInput=call ?? stamp
+            } else if event == "function_call",name == "request_user_input",cursor.session?.state == .working {
+                cursor.session?.state = .waiting;cursor.session?.updatedAt=time
+                cursor.session?.attentionID=call ?? stamp;cursor.session?.attentionReason="input"
+            } else if ["function_call_output","custom_tool_call_output"].contains(event),call != nil,call==cursor.session?.attentionID {
+                cursor.session?.state = .working;cursor.session?.updatedAt=time
+                cursor.session?.attentionID=nil;cursor.session?.attentionReason=nil
+            }
+            return
+        }
+        guard kind == "event_msg" else { return }
+        let turn=payload["turn_id"] as? String
+        if event == "task_started" {
+            cursor.pendingAsyncInput=nil
+            cursor.turnID=turn;cursor.session=AgentSession(id:id,state:.working,updatedAt:time)
+            return
+        }
+        if let known=cursor.turnID,let turn,known != turn { return }
+        if event == "task_complete",let pending=cursor.pendingAsyncInput {
+            cursor.session=AgentSession(id:id,state:.waiting,updatedAt:time,attentionID:pending,attentionReason:"input")
+        } else if ["task_complete","turn_aborted"].contains(event) {
+            cursor.pendingAsyncInput=nil
+            cursor.session=AgentSession(id:id,state:event == "task_complete" ? .completed:.failed,updatedAt:time,completionID:event == "task_complete" ? (turn ?? stamp):nil)
+        } else if ["request_user_input","exec_approval_request","apply_patch_approval_request","request_permissions","elicitation_request"].contains(event) {
+            cursor.session=AgentSession(id:id,state:.waiting,updatedAt:time,attentionID:(payload["call_id"] as? String) ?? (payload["id"] as? String) ?? stamp,attentionReason:event == "request_user_input" ? "input":"approval")
+        } else if ["exec_command_begin","patch_apply_begin","user_message","elicitation_abandoned"].contains(event),cursor.session?.state == .waiting {
+            cursor.session?.state = .working;cursor.session?.updatedAt=time;cursor.session?.attentionID=nil;cursor.session?.attentionReason=nil
+        } else if cursor.session?.state == .working || cursor.session?.state == .waiting { cursor.session?.updatedAt=time }
     }
     private func seedCursor(handle: FileHandle, size: UInt64, id: String) -> Cursor {
         // Search backwards for an explicit lifecycle record; long turns can exceed the normal tail size.
@@ -83,10 +112,10 @@ actor CodexReader {
                 guard line.range(of: Data("\"event_msg\"".utf8)) != nil,
                       let value = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any], value["type"] as? String == "event_msg",
                       let event = value["payload"] as? [String: Any], let type = event["type"] as? String,
-                      ["task_started", "task_complete", "turn_aborted"].contains(type),
+                      ["task_started", "task_complete", "turn_aborted", "request_user_input", "exec_approval_request", "apply_patch_approval_request", "request_permissions", "exec_command_begin", "patch_apply_begin"].contains(type),
                       let stamp = value["timestamp"] as? String, let date = dateParser.date(from: stamp) else { continue }
-                cursor.turnID = event["turn_id"] as? String
-                cursor.session = AgentSession(id: id, state: type == "task_started" ? .working : type == "task_complete" ? .completed : .failed, updatedAt: date.timeIntervalSince1970, completionID: type == "task_complete" ? (cursor.turnID ?? stamp) : nil)
+                consume(Data(line),id:id,cursor:&cursor)
+                if cursor.session == nil { cursor.session=AgentSession(id:id,state:.working,updatedAt:date.timeIntervalSince1970) }
                 return cursor
             }
             end = start

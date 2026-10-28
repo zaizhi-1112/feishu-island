@@ -12,7 +12,7 @@ struct IslandSettingsView: View {
                 IslandSkinSettings(store: .shared)
                     .padding(12).modifier(IslandCard(radius: 16))
                 NookSettingsGroup("待办设置", isInitiallyExpanded: false) {
-                    TodoSettingsView(store: .shared)
+                    Text("待办与提醒在工作台统一管理。")
                 }
                 NookSettingsGroup("外观与材质", isInitiallyExpanded: false) {
                     NookAppearanceSettingsSection(appState: appState)
@@ -34,7 +34,7 @@ struct IslandSettingsView: View {
             }.padding(.horizontal, 10).padding(.vertical, 8)
         }.frame(maxHeight: 400)
             .foregroundStyle(theme.primaryLabel)
-            
+
             .accessibilityIdentifier("island.settings")
     }
 }
