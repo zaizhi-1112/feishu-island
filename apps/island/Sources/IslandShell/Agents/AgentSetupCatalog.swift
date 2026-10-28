@@ -7,14 +7,14 @@ struct AgentSetupOption: Identifiable {
     let name:String
     let website:String
     let appNames:[String]
-    var native:Bool { ["codex","claude","workbuddy"].contains(id) }
+    var native:Bool { ["codex","claude","workbuddy","deepseek"].contains(id) }
     static let all:[Self]=[
         .init(id:"codex",name:"Codex",website:"https://chatgpt.com/codex",appNames:["Codex"]),
         .init(id:"claude",name:"Claude Code",website:"https://claude.ai",appNames:["Claude"]),
         .init(id:"workbuddy",name:"WorkBuddy",website:"https://www.codebuddy.cn",appNames:["WorkBuddy"]),
         .init(id:"doubao",name:"豆包工作",website:"https://www.doubao.com/chat/",appNames:["豆包","Doubao"]),
         .init(id:"kimi",name:"Kimi",website:"https://www.kimi.com",appNames:["Kimi","Kimi Work"]),
-        .init(id:"deepseek",name:"DeepSeek",website:"https://chat.deepseek.com",appNames:["DeepSeek"]),
+        .init(id:"deepseek",name:"DeepSeek Harness",website:"https://www.deepseek.com/harness/",appNames:["DeepSeek Harness"]),
         .init(id:"zhipu",name:"智谱 · GLM",website:"https://chat.z.ai",appNames:["智谱清言"]),
         .init(id:"grok",name:"Grok",website:"https://grok.com",appNames:["Grok"]),
         .init(id:"gemini",name:"Google Gemini",website:"https://gemini.google.com",appNames:["Gemini"]),
@@ -57,9 +57,9 @@ struct AgentSetupSheet:View {
             } else if let choice {
                 Button("返回工具列表") { self.choice=nil;error="" }.buttonStyle(.plain)
                 if choice.native {
-                    Text("读取本机已有的任务状态。Codex和WorkBuddy还可读取当前账号额度；Claude Code不提供额度时显示未知。")
+                    Text(choice.id == "deepseek" ? "沿用 DeepSeek Harness 的登录，显示账户余额与赠送余额。" : "读取本机已有的任务状态。Codex和WorkBuddy还可读取当前账号额度；Claude Code不提供额度时显示未知。")
                     Text("请先打开工具并登录，再启用状态读取。已有设置和数据会保留。").foregroundStyle(.secondary)
-                    Button("启用状态读取") { enable(choice.id) }.buttonStyle(.borderedProminent)
+                    Button(choice.id == "deepseek" ? "连接余额" : "启用状态读取") { enable(choice.id) }.buttonStyle(.borderedProminent)
                 } else {
                     TextField("工具名称",text:$name).textFieldStyle(.roundedBorder)
                     Picker("使用方式",selection:$method) { Text("桌面客户端").tag("desktop");Text("网页版").tag("web") }.pickerStyle(.segmented)

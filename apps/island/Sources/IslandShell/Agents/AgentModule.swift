@@ -87,7 +87,7 @@ struct AgentPanel: View {
                             .font(.system(size: 11)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
                         HStack(spacing: 6) {
                             Circle().fill(state.color).frame(width: 8, height: 8)
-                            Text(monitoring ? state.label : "监测已暂停").font(.system(size: 10)).foregroundStyle(theme.secondaryLabel)
+                            Text(profile.id == "deepseek" ? (snapshot.metrics.isEmpty ? "等待余额" : "账户余额") : monitoring ? state.label : "监测已暂停").font(.system(size: 10)).foregroundStyle(theme.secondaryLabel)
                         }
                     }
                     Spacer()
@@ -127,7 +127,7 @@ private struct AgentMetricRow: View {
         HStack(alignment:.firstTextBaseline) {
             Text(metric.label).font(.system(size:11)).foregroundStyle(theme.secondaryLabel)
             Spacer()
-            Text(metric.value,format:.number.precision(.fractionLength(0...2)))
+            Text(metric.displayNumber)
                 .font(.system(size:23,weight:.medium,design:.rounded)).lineLimit(1).minimumScaleFactor(0.6)
             Text(metric.unit).font(.system(size:11)).foregroundStyle(theme.secondaryLabel)
             if !fresh { Text("上次记录").font(.system(size:10)).foregroundStyle(theme.secondaryLabel) }

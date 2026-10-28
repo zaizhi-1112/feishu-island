@@ -25,8 +25,8 @@ struct AgentToolCard:View {
                 VStack(alignment:.leading,spacing:6) {
                     Text(profile.name).font(.system(size:15,weight:.semibold)).lineLimit(1).minimumScaleFactor(0.8)
                     HStack(spacing:5) {
-                        Circle().fill(state.color).frame(width:6,height:6)
-                        Text(profile.kind=="launcher" ? "等待接入" : mode=="off" ? "任务读取已暂停":state.label)
+                        Circle().fill(profile.id == "deepseek" && !snapshot.metrics.isEmpty ? accent : state.color).frame(width:6,height:6)
+                        Text(profile.id == "deepseek" ? (mode == "off" ? "余额读取已暂停" : snapshot.metrics.isEmpty ? "等待余额" : "余额已连接") : profile.kind=="launcher" ? "等待接入" : mode=="off" ? "任务读取已暂停":state.label)
                             .font(.system(size:11)).foregroundStyle(theme.secondaryLabel)
                     }
                 }
@@ -43,8 +43,8 @@ struct AgentToolCard:View {
             } else {
                 VStack(alignment:.leading,spacing:14) {
                     if snapshot.quotas.isEmpty && snapshot.metrics.isEmpty {
-                        Text("额度未知").font(.system(size:24,weight:.semibold,design:.rounded))
-                        Text("此来源尚未提供额度数据").font(.system(size:11)).foregroundStyle(theme.secondaryLabel)
+                        Text(profile.id == "deepseek" ? "—" : "额度未知").font(.system(size:24,weight:.semibold,design:.rounded))
+                        Text(profile.id == "deepseek" ? (mode == "off" ? "连接后显示账户余额" : "等待刷新账户余额") : "此来源尚未提供额度数据").font(.system(size:11)).foregroundStyle(theme.secondaryLabel)
                     }
                     LazyVGrid(columns:Array(repeating:GridItem(.flexible(),alignment:.top),count:snapshot.quotas.count>1 ? 2:1),alignment:.leading,spacing:14) {
                         ForEach(snapshot.quotas) { quota in AgentToolQuota(quota:quota,accent:accent) }
@@ -53,7 +53,7 @@ struct AgentToolCard:View {
                         VStack(alignment:.leading,spacing:5) {
                             Text(metric.label).font(.system(size:11)).foregroundStyle(theme.secondaryLabel)
                             HStack(alignment:.firstTextBaseline,spacing:4) {
-                                Text(metric.value,format:.number.precision(.fractionLength(0...2))).font(.system(size:25,weight:.semibold,design:.rounded)).monospacedDigit()
+                                Text(metric.displayNumber).font(.system(size:25,weight:.semibold,design:.rounded)).monospacedDigit()
                                 Text(metric.unit).font(.system(size:11)).foregroundStyle(theme.secondaryLabel)
                             }
                             if !metric.isFresh(now:Date().timeIntervalSince1970) {Text("上次记录 · 待刷新").font(.system(size:10)).foregroundStyle(theme.secondaryLabel)}
@@ -64,13 +64,14 @@ struct AgentToolCard:View {
                     .overlay(RoundedRectangle(cornerRadius:12).strokeBorder(theme.subtleStroke.opacity(0.5)))
                 HStack(spacing:3) {
                     modeButton("show","岛上显示","rectangle.topthird.inset.filled")
-                    modeButton("alerts","仅提醒","bell")
+                    modeButton("alerts",profile.id == "deepseek" ? "仅设置页" : "仅提醒",profile.id == "deepseek" ? "rectangle" : "bell")
                     modeButton("off","不使用","minus.circle")
                 }.padding(4).background(theme.subtleFill,in:RoundedRectangle(cornerRadius:11))
                 if !snapshot.detail.isEmpty {
                     Text(snapshot.detail).font(.system(size:10)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal:false,vertical:true)
                 }
                 if profile.kind=="file" {Button("更改接入设置",action:setup).font(.caption)}
+                if profile.id == "deepseek" { Button("打开 DeepSeek Harness") { _ = store.openAgent(profile.id) }.font(.caption) }
             }
         }
         .padding(15).frame(maxWidth:.infinity,alignment:.topLeading)

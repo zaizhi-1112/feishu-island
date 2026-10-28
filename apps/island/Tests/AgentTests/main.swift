@@ -257,6 +257,7 @@ final class AgentTests {
     }
     func testDisplayPreferencesMigrationAndSelection() throws {
         var original = AgentPreferences()
+        original.profiles.removeAll { $0.id == "deepseek" }
         original.revision = 17; original.primaryID = "workbuddy"; original.completionAlerts = false
         var legacy = try JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as! [String: Any]
         legacy.removeValue(forKey: "visibleIDs")
@@ -265,7 +266,7 @@ final class AgentTests {
         XCTAssertEqual(migrated.primaryID,"workbuddy")
         XCTAssertEqual(migrated.revision,17); XCTAssertFalse(migrated.completionAlerts)
         migrated.setVisibleIDs(["codex"])
-        XCTAssertEqual(migrated.primaryID,"codex"); XCTAssertEqual(migrated.profiles.count,3)
+        XCTAssertEqual(migrated.primaryID,"codex"); XCTAssertEqual(migrated.profiles.count,4)
         XCTAssertEqual(migrated.visibleProfiles.map(\.id),["codex"]); XCTAssertNil(migrated.validationError)
         migrated.setVisibleIDs(["codex","workbuddy"])
         XCTAssertEqual(migrated.visibleProfiles.count,2)
@@ -305,8 +306,8 @@ final class AgentTests {
             XCTAssertEqual(restored.primaryID,"workbuddy")
             XCTAssertFalse(skin.definition.source.isEmpty)
         }
-        XCTAssertEqual(SkinManifest.shared.skins.count,4)
-        for id in ["codex","claude","workbuddy"] {
+        XCTAssertEqual(SkinManifest.shared.skins.count,5)
+        for id in ["codex","claude","workbuddy","deepseek"] {
             let art = SkinManifest.shared.agents[id]!
             XCTAssertNotNil(SkinResources.images[art.portrait]); XCTAssertNotNil(SkinResources.images[art.avatar])
         }

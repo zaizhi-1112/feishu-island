@@ -57,6 +57,7 @@ cp "$ROOT/SettingsWeb/dist/"* "$APP/Contents/Resources/SettingsWeb/"
 mkdir -p "$APP/Contents/Resources/LOLPing"
 cp "$ROOT/Resources/LOLPing/"* "$APP/Contents/Resources/LOLPing/"
 cp "$ROOT/Distribution/开始使用.html" "$APP/Contents/Resources/开始使用.html"
+cp "$ROOT/Resources/deepseek-balance.cjs" "$APP/Contents/Resources/deepseek-balance.cjs"
 mkdir -p "$APP/Contents/Resources/ScreenReminder"
 for asset in rick-portal.mov SOURCE.txt; do
     cp "$ROOT/Resources/ScreenReminder/$asset" "$APP/Contents/Resources/ScreenReminder/"

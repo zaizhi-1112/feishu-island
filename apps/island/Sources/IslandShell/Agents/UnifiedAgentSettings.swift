@@ -49,7 +49,7 @@ struct UnifiedAgentSettings:View {
                     if store.preferences.visibleIDs.isEmpty { Text("还没有选择显示在岛上的工具").foregroundStyle(.secondary) }
                 }
                 Toggle("收起时显示主用Agent的额度",isOn:setting(\.quotaDisplayEnabled))
-                Text("点击上方工具或岛内工具切换主用Agent。Codex显示剩余比例，WorkBuddy显示积分；没有数据时显示未知。查看额度可独立于任务状态读取。").font(.caption).foregroundStyle(.secondary)
+                Text("点击上方工具或岛内工具切换主用Agent。Codex显示剩余比例，WorkBuddy显示积分，DeepSeek Harness显示余额。查看额度可独立于任务状态读取。").font(.caption).foregroundStyle(.secondary)
             }
             IslandSettingsCard("什么时候提醒我") {
                 Toggle("需要我确认或补充信息",isOn:setting(\.attentionAlerts))
@@ -104,8 +104,8 @@ struct UnifiedAgentSnapshotView:View {
         let snapshot=store.snapshots[profile.id] ?? AgentSnapshot()
         VStack(alignment:.leading,spacing:14) {
             HStack { AgentIdentityIcon(id:profile.id,size:28); Text(profile.name).font(.system(size:20,weight:.semibold)); Spacer(); Button("刷新") {store.refreshQuotas();Task{await store.poll()}} }
-            Text(store.preferences.isMonitoring(profile.id) ? snapshot.state(now:Date().timeIntervalSince1970).label : "监测已暂停").foregroundStyle(.secondary)
-            if snapshot.quotas.isEmpty { Text("此来源尚未提供额度数据").font(.system(size:13)).foregroundStyle(.secondary) }
+            Text(profile.id == "deepseek" ? (snapshot.metrics.isEmpty ? "等待余额" : "余额已连接") : store.preferences.isMonitoring(profile.id) ? snapshot.state(now:Date().timeIntervalSince1970).label : "监测已暂停").foregroundStyle(.secondary)
+            if snapshot.quotas.isEmpty && snapshot.metrics.isEmpty { Text(profile.id == "deepseek" ? "等待账户余额" : "此来源尚未提供额度数据").font(.system(size:13)).foregroundStyle(.secondary) }
             ForEach(snapshot.quotas) { quota in
                 HStack {
                     Text(quota.label); Spacer()
@@ -117,7 +117,7 @@ struct UnifiedAgentSnapshotView:View {
                 }
             }
             ForEach(snapshot.metrics) { metric in
-                HStack { Text(metric.label); Spacer(); Text(String(format:"%.2f",metric.value)+" "+metric.unit+(metric.isFresh(now:Date().timeIntervalSince1970) ? "":" · 上次记录")).monospacedDigit() }
+                HStack { Text(metric.label); Spacer(); Text(metric.displayNumber+" "+metric.unit+(metric.isFresh(now:Date().timeIntervalSince1970) ? "":" · 上次记录")).monospacedDigit() }
             }
             Text(snapshot.detail).font(.system(size:12)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
         }

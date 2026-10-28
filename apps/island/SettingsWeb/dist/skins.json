@@ -160,6 +160,46 @@
         "onAccent": "#FFFFFF",
         "glow": "#778493"
       }
+    },
+    {
+      "id": "deepseek",
+      "title": "DeepSeek · 深蓝",
+      "subtitle": "DeepSeek 官方蓝与鲸鱼图标。",
+      "mood": "DEEPSEEK BLUE",
+      "pet": "deepseek",
+      "source": "https://www.deepseek.com/",
+      "dark": {
+        "bg": "#10172B",
+        "surface": "#17223D",
+        "sidebar": "#0D1426",
+        "well": "#101A31",
+        "ink": "#F3F6FF",
+        "secondary": "#B1C0E7",
+        "muted": "#92A4CD",
+        "border": "#FFFFFF18",
+        "line": "#FFFFFF0D",
+        "accent": "#4D6BFE",
+        "accentInk": "#ADC0FF",
+        "accentSoft": "#4D6BFE22",
+        "onAccent": "#FFFFFF",
+        "glow": "#4D6BFE"
+      },
+      "light": {
+        "bg": "#F4F7FF",
+        "surface": "#FFFFFF",
+        "sidebar": "#EDF2FF",
+        "well": "#EAF0FF",
+        "ink": "#19243E",
+        "secondary": "#485B88",
+        "muted": "#697BA2",
+        "border": "#D9DEE6",
+        "line": "#E4E8EF",
+        "accent": "#4D6BFE",
+        "accentInk": "#304BD2",
+        "accentSoft": "#4D6BFE14",
+        "onAccent": "#FFFFFF",
+        "glow": "#4D6BFE"
+      }
     }
   ],
   "agents": {
@@ -182,6 +222,11 @@
       "portrait": "pet-workbuddy.png",
       "avatar": "avatar-workbuddy.png",
       "source": "https://download.codebuddy.cn/web/website/a5b2fb510f0e7b156f19d072fae0cd12ae1f2f19/assets/buddy-worker-woRTGfZH.png"
+    },
+    "deepseek": {
+      "portrait": "deepseek-icon.ico",
+      "avatar": "deepseek-icon.ico",
+      "source": "https://www.deepseek.com/favicon.ico"
     }
   }
 }

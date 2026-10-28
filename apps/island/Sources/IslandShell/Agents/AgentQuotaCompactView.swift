@@ -32,7 +32,7 @@ struct AgentQuotaCompactSummary {
             let short=name.replacingOccurrences(of:"额度",with:"").replacingOccurrences(of:"小时",with:"h").replacingOccurrences(of:"分钟",with:"分")
             return runningPrefix+short+" "+String(format:"%.0f%%",quota.remainingPercent)
         }
-        if !leading, let metric=metrics.first { return metric.isFresh(now:now) ? runningPrefix+metric.label+" "+Self.number(metric.value)+metric.unit : runningPrefix+"待刷新" }
+        if !leading, let metric=metrics.first { return metric.isFresh(now:now) ? runningPrefix+metric.label+" "+metric.displayNumber+metric.unit : runningPrefix+"待刷新" }
         return leading ? name : isRunning ? "正在运行" : refreshing ? "读取中" : "额度未知"
     }
     static func number(_ value:Double)->String { value.formatted(.number.precision(.fractionLength(0...2))) }

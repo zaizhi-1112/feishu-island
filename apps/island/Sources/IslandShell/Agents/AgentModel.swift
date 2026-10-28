@@ -58,6 +58,18 @@ public struct AgentMetric: Codable, Equatable, Identifiable, Sendable {
     public func isFresh(now: Double) -> Bool {
         value.isFinite && AgentTimestamp.isValid(updatedAt) && updatedAt <= now+60 && now-updatedAt < 900
     }
+    public var displayNumber: String {
+        guard id.hasPrefix("balance-") || id.hasPrefix("bonus-") else { return value.formatted(.number.precision(.fractionLength(0...2))) }
+        guard value.isFinite else { return "—" }
+        if value > 0 && value < 0.01 { return "<0.01" }
+        if value < 0 && value > -0.01 { return "-0.01" }
+        guard var amount = Decimal(string: String(value), locale: Locale(identifier: "en_US_POSIX")) else { return "—" }
+        var cents = Decimal()
+        NSDecimalRound(&cents, &amount, 2, value < 0 ? .plain : .down)
+        let format = NumberFormatter(); format.numberStyle = .decimal
+        format.minimumFractionDigits = 2; format.maximumFractionDigits = 2
+        return format.string(from: NSDecimalNumber(decimal: cents)) ?? "—"
+    }
 }
 
 enum AgentTimestamp {
@@ -130,7 +142,7 @@ public struct AgentPreferences: Codable, Sendable {
     public var skinID = "auto"
     public var effectsEnabled = true
     public var visibleIDs = ["codex", "claude", "workbuddy"]
-    public var profiles = [AgentProfile(id: "codex", name: "Codex", kind: "codex"), AgentProfile(id: "claude", name: "Claude Code", kind: "claude"), AgentProfile(id: "workbuddy", name: "WorkBuddy", kind: "workbuddy")]
+    public var profiles = [AgentProfile(id: "codex", name: "Codex", kind: "codex"), AgentProfile(id: "claude", name: "Claude Code", kind: "claude"), AgentProfile(id: "workbuddy", name: "WorkBuddy", kind: "workbuddy"), AgentProfile(id: "deepseek", name: "DeepSeek Harness", kind: "deepseek")]
     public init() {}
     enum CodingKeys: String, CodingKey { case revision, enabled, quotaDisplayEnabled, startAlerts, attentionAlerts, completionAlerts, quotaAlerts, monitoredIDs, completionScreenMaterialID, primaryID, skinID, effectsEnabled, visibleIDs, profiles }
     public init(from decoder: Decoder) throws {
@@ -150,6 +162,11 @@ public struct AgentPreferences: Codable, Sendable {
         profiles = try values.decode([AgentProfile].self, forKey: .profiles)
         // Existing installations retain all three until the user chooses a display set.
         visibleIDs = try values.decodeIfPresent([String].self, forKey: .visibleIDs) ?? profiles.map(\.id)
+        // Add the supported tool without silently enabling account reads or
+        // replacing any of the user's three visible tools.
+        if !profiles.contains(where: { $0.id == "deepseek" }) {
+            profiles.append(AgentProfile(id: "deepseek", name: "DeepSeek Harness", kind: "deepseek"))
+        }
     }
     public var visibleProfiles: [AgentProfile] { visibleIDs.compactMap { id in profiles.first { $0.id == id } } }
     public var activeMonitorIDs: [String] { monitoredIDs ?? visibleIDs }
@@ -163,14 +180,14 @@ public struct AgentPreferences: Codable, Sendable {
         if !ids.contains(primaryID), let first = visibleProfiles.first { primaryID = first.id }
     }
     public var validationError: String? {
-        guard ["auto", "codex", "claude", "workbuddy", "virxact"].contains(skinID) else { return "请选择可用的皮肤。" }
+        guard ["auto", "codex", "claude", "workbuddy", "virxact", "deepseek"].contains(skinID) else { return "请选择可用的皮肤。" }
         let builtins = Set(["codex", "claude", "workbuddy"])
         let allIDs = Set(profiles.map(\.id))
         guard (3...20).contains(profiles.count), builtins.isSubset(of:allIDs), allIDs.count == profiles.count,
               profiles.contains(where:{$0.id==primaryID}),
               profiles.allSatisfy({ profile in
                   AgentBridge.validID(profile.id) && !profile.name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && profile.name.count<=40 &&
-                  (builtins.contains(profile.id) ? profile.kind==profile.id && profile.dataPath.isEmpty : ((profile.kind=="file" && profile.dataPath.hasPrefix("/") && profile.dataPath.hasSuffix(".json")) || (profile.kind=="launcher" && profile.dataPath.isEmpty)))
+                  ((builtins.contains(profile.id) || profile.id == "deepseek") ? profile.kind==profile.id && profile.dataPath.isEmpty : ((profile.kind=="file" && profile.dataPath.hasPrefix("/") && profile.dataPath.hasSuffix(".json")) || (profile.kind=="launcher" && profile.dataPath.isEmpty)))
                   && (profile.applicationPath.map { $0.hasPrefix("/") && $0.hasSuffix(".app") } ?? true)
                   && (profile.launchURL.map { value in guard let url=URLComponents(string:value) else{return false};return url.scheme=="https" && !(url.host ?? "").isEmpty && url.user==nil && url.password==nil && url.query==nil && url.fragment==nil } ?? true)
               }) else { return "保留内置接入；自定义 Agent 需要名称和你选定的本机 JSON 状态文件，最多20个。" }

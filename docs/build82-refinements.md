@@ -110,3 +110,20 @@
 本次仅修改轮盘交互与说明。一次展示只执行一次打开；关闭后旧事件失效；屏幕边缘初始落点与细小抖动不触发打开；鼠标拖动不会同时触发快捷键选择。未成功打开时仍可选择其他入口。仅轮盘显示期间监听鼠标移动，不保存位置。
 
 验证：PlatformChecks 148 项通过，含 75 项新增手势检查、透明圆角和设置窄宽布局；另 2 项真实 Carbon 快捷键注册/卸载检查通过，共 150 项。0.10.4 build86 已安装并运行，三个 helper 字节不变，快捷入口和快捷键配置逐字节保留。旧版、工作区和 10 份相关偏好备份在 `apps/island/.build/local-install-backups/build86-20261029-033433`。工作数据仅发生正常日程同步更新。原生快捷键自动化没有触发可观察的轮盘窗口，且操作期间用户更改了设置页；尚未宣称真人滑动手感验收通过。
+
+
+## build87：DeepSeek Harness 余额与主题
+
+按本人要求加入默认 DeepSeek Harness 工具，只显示账户钱包金额；不创造额度百分比或任务状态。官方蓝色为 `#4D6BFE`，鲸鱼图标取自 `https://www.deepseek.com/favicon.ico`（SHA-256 `30a4420e6e4dcb17fd7de560c5004346c2bc8cd971d2d5f5ee15326603e51321`）。官方来源：`https://www.deepseek.com/` 与 `https://www.deepseek.com/harness/`。图标与商标归 DeepSeek，用于标识对应客户端。
+
+针对已安装的 Harness 0.2.1-rc.3，定向只读检查包内 `dsh-deepseek-account-platform`、`dsh-credentials-local`、`dsh-api-account-controller` 和账户 UI。完整 REA 包分析因规模过大主动停止，未宣称完成全包分析。采用客户端的钱包口径：normal_wallets 为账户余额，bonus_wallets 单独显示。固定 GET `https://platform.deepseek.com/api/v0/users/get_user_summary`；这属于当前客户端使用的接口，不能与公开 API Key 的 `/user/balance` 混用。
+
+`Resources/deepseek-balance.cjs` 用已安装 Harness 自带运行时和 YAML 解析器，仅读本人 `~/.dsh/.credentials.yaml` 中的现有 Platform grant；要求普通文件、本人所有、0600，无符号链接。凭据只在短时子进程内存和原站请求头中，不复制、不输出、不写入一切在岛。拒绝重定向与不匹配 issuer；请求前后核对登录是否变化。响应限64 KiB、网络请求限10秒、子进程超时兜底。只返回金额、币种、更新时间。锁屏及停用守卫沿用原 AgentStore；失败清空该来源指标并给出通用提示。
+
+默认入口随偏好解码补齐，但其他用户不会被自动启用读取，也不会改变原来的三个岛上位置、主用工具和主题。本人本次已明确授权接入，本机安装将单独启用“仅设置页”。每3分钟刷新，也可手动刷新。新旧偏好兼容、金额与百分比区分、正负/零/不足一分、失效登录、错误响应、账户变更和凭据不外泄均有合成验证；真实只读余额接口已返回成功，未把真实金额写入仓库。
+
+最终验证：Node 余额接口10项；AgentChecks 721项；UnifiedProductChecks 450项；最后新增负值显示用例后，DeepSeek 专项20项通过；PlatformChecks 150项。明暗主题和窄列原生离屏渲染通过；真实安装版设置页已显示“DeepSeek Harness 余额已连接”与账户金额，默认“仅设置页”。已保存偏好回读确认原主用工具、原主题、三个显示位置和原有工具配置均未变。
+
+0.10.5 build87 已安装并启动，签名、包内说明和三个 helper 原样复用校验通过。旧版、工作区、10份相关偏好及启用前 Agent JSON 备份在 `apps/island/.build/local-install-backups/build87-20261029-040215`。工作区仅发生正常日程同步状态更新。没有部署服务或修改 main。
+
+本人安装后确认：轮盘“滑动和松键都正常”。这完成了本轮轮盘使用手势的真实验收；快捷入口设置页的拖放换位仍是不同操作，不将此次反馈记作它的验收。

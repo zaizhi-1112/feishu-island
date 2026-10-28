@@ -18,3 +18,5 @@
 - build85 按本人要求在独立中台 helper 中增加只读 `list_home_applications`，用于快捷入口选择；应用目录只在内存，不复制其他客户端凭据。首次更新 helper 如出现钥匙串系统确认，由本人处理，不操作 SecurityAgent。
 
 - 用户本次授权创建仓库并上传双方源码，允许一次 main 初始化导入；之后的功能改动遵循分支与 PR 流程。
+
+- build87 的 DeepSeek Harness 只读余额通过 `Resources/deepseek-balance.cjs` 和 `DeepSeekReader.swift` 接入。仅复用本人 Harness 的既有 Platform 登录，固定钱包 GET、拒绝重定向，不取 API Key，不读取对话、不发送任务；凭据不持久化到本应用，不输出原始响应。其他用户默认未启用，新入口不替换现有岛上位置。验证 `node --test Tests/deepseek-balance.test.cjs`、`AgentChecks` 与 `UnifiedProductChecks`；接口随 Harness 升级可能变化，禁止猜测金额或用0代替未知。

@@ -117,6 +117,7 @@ final class AgentStore: ObservableObject {
         let previousQuotaDisplay = preferences.quotaDisplayEnabled
         let previousMonitored=Set(preferences.activeMonitorIDs)
         let nextMonitored=Set(next.activeMonitorIDs)
+        if nextMonitored.contains("deepseek") && !previousMonitored.contains("deepseek") { lastQuotaAttempt = .distantPast }
         preferences = next; preferences.revision += 1
         unviewedCompletionProfiles.formIntersection(next.enabled && (next.completionAlerts || next.attentionAlerts) ? nextMonitored : [])
         for id in previousMonitored.symmetricDifference(nextMonitored) {
@@ -125,6 +126,7 @@ final class AgentStore: ObservableObject {
             if !nextMonitored.contains(id) { snapshots[id]?.sessions=[] }
         }
         snapshots=snapshots.filter { id,_ in next.profiles.contains { $0.id==id } }
+        if !(next.enabled && nextMonitored.contains("deepseek")) && !(next.quotaDisplayEnabled && next.primaryID == "deepseek") { snapshots["deepseek"] = nil }
         defaults.set(try JSONEncoder().encode(preferences), forKey: "preferences")
         saveStatusPolicy()
         themeSource.replace(selectedSkin.theme)
@@ -261,11 +263,20 @@ final class AgentStore: ObservableObject {
         refreshing = true; lastQuotaAttempt = Date()
         let codexEnabled = (preferences.quotaDisplayEnabled && preferences.primaryID == "codex") || (preferences.enabled && preferences.activeMonitorIDs.contains("codex"))
         let workEnabled = (preferences.quotaDisplayEnabled && preferences.primaryID == "workbuddy") || (preferences.enabled && preferences.activeMonitorIDs.contains("workbuddy"))
+        let deepSeekEnabled = (preferences.quotaDisplayEnabled && preferences.primaryID == "deepseek") || (preferences.enabled && preferences.activeMonitorIDs.contains("deepseek"))
         let revision = preferences.revision
         let fileProfile = preferences.quotaDisplayEnabled ? preferences.profiles.first{$0.id==preferences.primaryID && $0.kind=="file"}:nil
         Task {
             async let codexResult: Result<[AgentQuota], Error> = Self.readCodexQuota(enabled: codexEnabled)
             async let workResult: Result<[AgentQuota], Error> = Task.detached { Result { workEnabled ? try WorkBuddyReader.quotas(now: Date().timeIntervalSince1970) : [] } }.value
+            async let deepSeekResult: Result<AgentSnapshot, Error> = Task.detached { Result { deepSeekEnabled ? try DeepSeekReader.snapshot() : AgentSnapshot() } }.value
+            let balance = await deepSeekResult
+            if deepSeekEnabled, !sessionIsLocked(), preferences.revision == revision {
+                switch balance {
+                case .success(let snapshot): snapshots["deepseek"] = snapshot
+                case .failure(let error): snapshots["deepseek"] = AgentSnapshot(source: "DeepSeek Harness 账户余额", detail: error.localizedDescription)
+                }
+            }
             let results = await [("codex", codexResult), ("workbuddy", workResult)]
             defer { refreshing = false }
             guard !sessionIsLocked(), preferences.enabled || preferences.quotaDisplayEnabled, preferences.revision == revision else { return }
@@ -404,6 +415,7 @@ final class AgentStore: ObservableObject {
         snapshot.quotas = quotas; snapshots[profileID] = snapshot
     }
     @discardableResult func openAgent(_ id: String) -> Bool {
+        if id == "deepseek", let app = DeepSeekReader.application { return NSWorkspace.shared.open(app) }
         guard ["codex","claude","workbuddy"].contains(id) else { return false }
         let candidates = id == "claude" ? ["/Applications/Claude.app"] : id == "workbuddy" ? ["/Applications/WorkBuddy.app"] : ["/Applications/ChatGPT.app", "/Applications/Codex.app"]
         if let path = candidates.first(where: FileManager.default.fileExists(atPath:)) { return NSWorkspace.shared.open(URL(fileURLWithPath: path)) }

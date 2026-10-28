@@ -46,7 +46,7 @@ struct SkinManifest: Decodable {
     let agents: [String: AgentArtwork]
     static let shared: SkinManifest = {
         guard let url = SkinResources.url("skins.json"), let data = try? Data(contentsOf: url),
-              let manifest = try? JSONDecoder().decode(SkinManifest.self, from: data), manifest.skins.count == 4 else {
+              let manifest = try? JSONDecoder().decode(SkinManifest.self, from: data), Set(manifest.skins.map(\.id)) == Set(AgentSkin.allCases.map(\.rawValue)) else {
             preconditionFailure("The bundled skins.json is missing or invalid")
         }
         return manifest
@@ -70,7 +70,7 @@ enum SkinResources {
     }()
     static let images: [String: NSImage] = {
         var result: [String: NSImage] = [:]
-        for name in ["pet-codex.png","pet-claude.png","pet-workbuddy.png","avatar-codex.png","avatar-claude.png","avatar-workbuddy.png","avatar-virxact.png","virxact-logo.png","agent-codex.png"] {
+        for name in ["pet-codex.png","pet-claude.png","pet-workbuddy.png","avatar-codex.png","avatar-claude.png","avatar-workbuddy.png","avatar-virxact.png","virxact-logo.png","agent-codex.png","deepseek-icon.ico"] {
             if let url = SkinResources.url(name), let image = NSImage(contentsOf: url) { result[name] = image }
         }
         return result
@@ -78,7 +78,7 @@ enum SkinResources {
 }
 
 enum AgentSkin: String, CaseIterable {
-    case codex, claude, workbuddy, virxact
+    case codex, claude, workbuddy, virxact, deepseek
     init(agentID: String) { self = Self(rawValue: agentID) ?? .codex }
     var definition: SkinDefinition { SkinManifest.shared.skins.first { $0.id == rawValue }! }
     var title: String { definition.title }
@@ -143,7 +143,7 @@ struct AgentPortrait: View {
     }
     @ViewBuilder
     private var portrait: some View {
-        let name = id == "virxact" ? "avatar-virxact.png" : (avatar ? "avatar-\(id).png" : "pet-\(id).png")
+        let name = id == "deepseek" ? "deepseek-icon.ico" : id == "virxact" ? "avatar-virxact.png" : (avatar ? "avatar-\(id).png" : "pet-\(id).png")
         Group {
             if let image = SkinResources.images[name] {
                 if id == "virxact" {
