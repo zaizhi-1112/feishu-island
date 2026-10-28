@@ -5,7 +5,6 @@ const SCOPES='auth:user.id:read im:message:readonly im:message.group_msg:get_as_
 const demoText='桌面弹幕试播';
 function createApp({preview=false,binary=process.env.LARK_BINARY||'/opt/lark/lark-cli',makeCLI=(profile)=>new CLI(binary,profile),makeReader=cli=>new Reader(cli),dataDir=process.env.DANMU_DATA_DIR||'/data'}={}){
  const sessions=new Map();
- const panel=require('./collab/server.cjs').createPanel({dir:path.join(dataDir||'/tmp','collab'),preview:preview&&process.env.COLLAB_PREVIEW==='1'});
  function session(uid){
   if(sessions.has(uid)){const s=sessions.get(uid);s.touched=Date.now();return s;}
   if(sessions.size>=8)throw new Error('会话数达到上限，请稍后再试');
@@ -25,9 +24,6 @@ function createApp({preview=false,binary=process.env.LARK_BINARY||'/opt/lark/lar
    const uid=preview?'local-preview':req.headers['x-auth-user-id'];
    if(typeof uid!=='string'||!uid.trim()||uid.length>256)return json(res,401,{error:'请先通过虚实中台登录'});
    const url=new URL(req.url,'http://localhost');
-   if(url.pathname.startsWith('/collab')){await panel.handle(req,res,url,uid);return;}
-   // Sharing the collaboration page never shares the owner's existing danmu entry.
-   if(process.env.DANMU_OWNER_ID&&uid!==process.env.DANMU_OWNER_ID)return json(res,403,{error:'弹幕入口仅本人可用；协作请打开 /collab/'});
    if(url.pathname.startsWith('/api/')){
     if(!['GET','POST'].includes(req.method))return json(res,405,{error:'请求方式不支持'});
     if(req.method==='POST'){

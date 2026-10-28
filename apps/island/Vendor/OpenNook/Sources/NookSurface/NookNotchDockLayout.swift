@@ -12,7 +12,7 @@ public struct NookNotchDockLayout: Equatable, Sendable {
 
     public init(state: NookState, hovering: Bool, peeking: Bool = false, notchSize: CGSize) {
         isRetracted = state == .compact && !hovering && !peeking
-        frameWidth = isRetracted ? max(0, notchSize.width) + 8 : nil
-        frameHeight = isRetracted ? max(0, notchSize.height) + 4 : nil
+        frameWidth = isRetracted ? max(0, notchSize.width) : nil
+        frameHeight = isRetracted ? max(0, notchSize.height) : nil
     }
 }

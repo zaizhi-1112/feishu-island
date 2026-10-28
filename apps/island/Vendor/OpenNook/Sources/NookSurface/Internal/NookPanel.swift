@@ -151,18 +151,14 @@ final class NookDragInterceptingView: NSView {
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
         guard dragDestination?.nookPanelAcceptsDrag(at: sender.draggingLocation) == true else {
-            dragDestination?.nookPanelDraggingExited()
-            return []
+            dragDestination?.nookPanelDraggingExited(); return []
         }
         guard let payload = NookDropPayload.read(from: sender.draggingPasteboard) else { return [] }
-        return dragDestination?.nookPanelDraggingEntered(payload) ?? []
+        let operation = dragDestination?.nookPanelDraggingEntered(payload) ?? []
+        if !operation.isEmpty { hideSourcePreview(sender) }
+        return operation
     }
-
-    /// Forward updates as `entered` again - `Nook` is idempotent on enter - so the
-    /// returned drag operation stays accurate as the cursor moves within the view.
-    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        draggingEntered(sender)
-    }
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { draggingEntered(sender) }
 
     override func draggingExited(_ sender: NSDraggingInfo?) {
         dragDestination?.nookPanelDraggingExited()
@@ -184,7 +180,20 @@ final class NookDragInterceptingView: NSView {
         return dragDestination?.nookPanelPerformDrop(payload) ?? false
     }
 
+    private func hideSourcePreview(_ sender: NSDraggingInfo) {
+        // Destination-only image changes are reverted by AppKit on leaving the region.
+        // The host shows the portal; no source thumbnail or filename needs to cover it.
+        sender.enumerateDraggingItems(options:[],for:self,classes:[NSURL.self],searchOptions:[:]) { item,_,_ in
+            item.imageComponentsProvider = nil
+        }
+    }
 
+    private func readFileURLs(from pasteboard: NSPasteboard) -> [URL] {
+        guard let items = pasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] else {
+            return []
+        }
+        return items
+    }
 }
 
 /// SwiftUI tap gestures must receive the first mouse-down even when another app is active.

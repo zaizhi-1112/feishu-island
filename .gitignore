@@ -29,9 +29,3 @@ auth.json
 *.zip
 *.dmg
 *.tgz
-
-/verification/
-/deliverables/
-/work/
-**/--skin-preview/
-*.crdownload

@@ -19,4 +19,3 @@ jobs:
         with:
           node-version: '24'
       - run: bash scripts/check.sh web
-      - run: node --test scripts/collab-runner.test.cjs

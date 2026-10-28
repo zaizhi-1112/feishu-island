@@ -171,7 +171,7 @@ public final class HotkeyController {
                 nil,
                 &hotKeyID
             )
-            guard status == noErr else { return noErr }
+            guard status == noErr, hotKeyID.signature == OSType(0x4E4F4F4B) else { return OSStatus(eventNotHandledErr) }
 
             let controller = Unmanaged<HotkeyController>.fromOpaque(userData).takeUnretainedValue()
             let carbonID = hotKeyID.id

@@ -24,6 +24,14 @@ public enum NookPresentation: String, Codable, Sendable, CaseIterable, Equatable
     case notch
     case floating
 
+    /// Edge-docked expanded content has one screen-relative geometry in every mode.
+    public func resolvedForm(state: NookState, edgeDocked: Bool, screenHasNotch: Bool,
+                             revealed: Bool = false) -> NookChromeForm {
+        // Legacy saved choices still decode, but the island only uses floating chrome.
+        if edgeDocked { return .floating }
+        return isFloating(screenHasNotch: screenHasNotch) ? .floating : .notch
+    }
+
     /// Resolve this presentation against a concrete screen: should the chrome use the
     /// floating layout there?
     public func isFloating(screenHasNotch: Bool) -> Bool {

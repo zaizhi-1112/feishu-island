@@ -11,10 +11,15 @@ import SwiftUI
 /// Only the exposed lip is interactive while retracted. Once revealed, the
 /// rectangle includes the gap above the pill so pointer movement cannot flicker it.
 private struct EdgeDockHitShape: Shape {
-    var top: CGFloat
-    var height: CGFloat
+    let layout: NookEdgeDockLayout
+    let bridgeWidth: CGFloat
+    let physicalNotchHeight: CGFloat
     func path(in rect: CGRect) -> Path {
-        Path(CGRect(x: 0, y: top, width: rect.width, height: height))
+        var path = Path()
+        for region in layout.hitRects(width: rect.width, bridgeWidth: bridgeWidth, physicalNotchHeight: physicalNotchHeight) {
+            path.addRect(region)
+        }
+        return path
     }
 }
 
@@ -47,11 +52,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// `true` when the surface should render the free-floating panel instead of the
     /// notch-fused shape - a display with no notch, or a forced `.floating` presentation.
     private var isFloating: Bool {
-        nook.layoutForm == .floating || (nook.edgeDocked && !fusesWithHardwareNotch && nook.state != .expanded)
-    }
-
-    private var fusesWithHardwareNotch: Bool {
-        nook.edgeDocked && nook.layoutForm == .notch && nook.physicalNotchHeight > 0
+        nook.layoutForm == .floating
     }
 
     /// Residual safe-area insets the host's expanded view can read via
@@ -107,8 +108,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// compact (radius = half the pill height) unless the style says otherwise. No notch
     /// ears to fuse, so by default the same radius applies to all four corners.
     private var floatingExpandedRadii: (top: CGFloat, bottom: CGFloat) { nook.style.resolvedFloatingExpandedRadii }
+    private var compactHeight: CGFloat { nook.edgeDocked && isFloating ? 30 : nook.notchSize.height }
     private var floatingCompactRadius: CGFloat {
-        nook.style.resolvedFloatingCompactRadius(pillHeight: nook.notchSize.height)
+        nook.style.resolvedFloatingCompactRadius(pillHeight: compactHeight)
     }
 
     /// Edge-docked floating states share a top anchor, so expansion grows downwards
@@ -136,7 +138,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
     private var bottomCornerRadius: CGFloat {
         // A peeking pill rounds its grown bottom the same way in both forms.
-        if nook.state == .compact, nook.isPeeking { return nook.style.peekBottomCornerRadius }
+        if nook.state == .compact, nook.isPeeking, !nook.edgeDocked { return nook.style.peekBottomCornerRadius }
         if isFloating {
             return nook.state == .expanded ? floatingExpandedRadii.bottom : floatingCompactRadius
         }
@@ -175,25 +177,29 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// clipped chrome, where it can spill past the edge.
     private var chrome: some View {
         notchContent()
+            // Retraction leaves a 4pt shell, never the bottom of an avatar or status dot.
+            .opacity(nook.edgeDocked && edgeLayout.isRetracted ? 0 : 1)
             .background { NookBackdropFill(backdrop: nook.backdrop, shape: notchShape) }
             .overlay { rimLine() }
             .overlay { feedbackOverlay() }
             .compositingGroup()
             .clipShape(notchShape)
             .background { rimHalo() }
-            .background { chromeShadow() }
+            .background { if !nook.edgeDocked { chromeShadow() } }
             .environment(\.nookSurfaceAnimationActive, nook.state != .hidden && (!nook.edgeDocked || nook.state == .expanded || nook.isHovering || nook.isPeeking || nook.compactRevealActive))
             .onGeometryChange(for: CGSize.self, of: \.size) {
                 measuredChromeHeight = $0.height
+                if nook.state == .compact { nook.compactHitWidth = $0.width }
                 nook.dragTargetSize = $0
                 nook.noteChromeExtent($0.height + max(nook.physicalNotchHeight, nook.menubarHeight) + 8)
             }
+            .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { nook.chromeFrameInWindow = $0 }
     }
 
     private var edgeLayout: NookEdgeDockLayout {
         NookEdgeDockLayout(
             state: nook.state, hovering: nook.isHovering || nook.compactRevealActive, peeking: nook.isPeeking,
-            contentHeight: max(measuredChromeHeight, nook.notchSize.height),
+            contentHeight: nook.state == .expanded ? max(measuredChromeHeight, compactHeight) : compactHeight,
             shownTopInset: floatingTopInset,
             physicalNotchHeight: nook.physicalNotchHeight
         )
@@ -201,51 +207,34 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
     @ViewBuilder
     private var positionedChrome: some View {
-        if fusesWithHardwareNotch {
-            let layout = NookNotchDockLayout(
-                state: nook.state, hovering: nook.isHovering || nook.compactRevealActive, peeking: nook.isPeeking,
-                notchSize: nook.notchSize
-            )
-            chrome
-                .fixedSize()
-                .overlay { companionLayer() }
-                .offset(x: layout.isRetracted ? 0 : xOffset)
-                .opacity(layout.isRetracted ? 0 : 1)
-                .frame(width: layout.frameWidth, height: layout.frameHeight, alignment: .top)
-                .clipped()
-                .background {
-                    if layout.isRetracted {
-                        // AppKit skips fully transparent pointer targets. This is a
-                        // near-transparent hit area, not an additional black lip.
-                        Color.black.opacity(0.01)
-                    }
-                }
-                .contentShape(Rectangle())
-                .onHover(perform: nook.updateChromeHoverState)
-                .gesture(
-                    TapGesture().onEnded { nook.handleChromeClick() },
-                    including: nook.opensOnClick ? .all : .subviews
-                )
-                .accessibilityElement(children: layout.isRetracted ? .ignore : .contain)
-                .accessibilityLabel(layout.isRetracted ? "刘海感应区，移入露出状态" : "灵动岛")
-                .accessibilityValue(layout.isRetracted ? "已融入刘海" : (nook.state == .compact ? "就绪，点击展开" : "已展开"))
-                .accessibilityIdentifier("island.edgeDock")
-        } else if nook.edgeDocked && (isFloating || nook.state != .expanded) {
+        if nook.edgeDocked {
             let layout = edgeLayout
             chrome
                 .overlay { companionLayer() }
-                .offset(x: xOffset, y: layout.contentOffset)
+                .offset(y: layout.contentOffset)
                 .frame(height: layout.containerHeight, alignment: .top)
                 .background(alignment: .top) {
                     // A fully transparent gap can stop receiving AppKit pointer events.
                     // Paint only the narrow bridge, and only while the chrome is exposed.
                     Color.black.opacity(0.01)
-                        .frame(height: layout.isRetracted ? 0 : layout.contentOffset)
+                        .frame(width: nook.compactHitWidth > 0 ? nook.compactHitWidth : 160,
+                               height: layout.isRetracted ? 0 : max(0, layout.contentOffset - nook.physicalNotchHeight))
+                        .offset(y: nook.physicalNotchHeight)
                 }
                 .mask(alignment: .top) {
-                    Rectangle().frame(height: layout.visibleHeight).offset(y: layout.visibleTop)
+                    // One mask identity prevents an outgoing tall rectangle from
+                    // cross-fading underneath the retracted shell.
+                    // This outer mask also animates its extent. A square mask
+                    // cuts the in-flight floating shell's corners until it catches up.
+                    let floatingMask = isFloating && !layout.isRetracted
+                    NookShape(form: floatingMask ? .floating : .notch,
+                              topCornerRadius: floatingMask ? topCornerRadius : (layout.isRetracted ? 2 : 0),
+                              bottomCornerRadius: floatingMask ? bottomCornerRadius : (layout.isRetracted ? 2 : 0))
+                        .frame(height: layout.visibleHeight).offset(y: layout.visibleTop)
                 }
-                .contentShape(EdgeDockHitShape(top: layout.visibleTop, height: layout.visibleHeight))
+                .offset(x: xOffset)
+                .contentShape(EdgeDockHitShape(layout: layout, bridgeWidth: nook.compactHitWidth > 0 ? nook.compactHitWidth : 160,
+                                               physicalNotchHeight: nook.physicalNotchHeight))
                 .onHover(perform: nook.updateChromeHoverState)
                 .gesture(
                     TapGesture().onEnded { nook.handleChromeClick() },
@@ -253,7 +242,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 )
                 .accessibilityElement(children: layout.isRetracted ? .ignore : .contain)
                 .accessibilityLabel(layout.isRetracted ? "灵动岛顶边，移入露出胶囊" : "灵动岛")
-                .accessibilityValue(layout.isRetracted ? "已缩回顶边" : (nook.state == .compact ? "就绪，点击展开" : "已展开"))
+                .accessibilityValue(layout.isRetracted ? "已缩回顶边" : (nook.state == .compact ? (nook.hoverIntent.action == .expand ? "就绪，悬停展开" : "就绪，点击展开") : "已展开"))
                 .accessibilityIdentifier("island.edgeDock")
         } else {
             chrome
@@ -269,6 +258,12 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         }
     }
 
+    private var revealAnimation: Animation? {
+        guard !reduceMotion else { return nil }
+        return nook.edgeDocked && nook.state == .compact && nook.hoverIntent.action != .expand
+            ? .smooth(duration: 0.68) : nook.effectiveConversionAnimation
+    }
+
     var body: some View {
         positionedChrome
             // Read above the companion overlay, so compact, expanded, and companion content
@@ -277,13 +272,17 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 withAnimation(Self.rimAnimation) { rimColor = color }
             }
             .animation(nook.effectiveConversionAnimation, value: nook.state)
-            .animation(nook.effectivePeekAnimation, value: nook.isPeeking)
-            .animation(reduceMotion ? nil : nook.effectiveConversionAnimation, value: nook.compactRevealActive)
-            .animation(nook.effectiveConversionAnimation, value: nook.isHovering)
+            .animation(nook.edgeDocked ? revealAnimation : nook.effectivePeekAnimation, value: nook.isPeeking)
+            .animation(revealAnimation, value: nook.compactRevealActive)
+            .animation(revealAnimation, value: nook.isHovering)
             .animation(nook.effectiveConversionAnimation, value: [compactLeadingWidth, compactTrailingWidth])
+            .animation(nook.effectiveConversionAnimation, value: measuredChromeHeight)
             .environment(\.nookHasKeyboardFocus, nook.hasKeyboardFocus)
             .onChange(of: reduceMotion, initial: true) { _, reduceMotion in
                 nook.sharedElements.systemReduceMotion = reduceMotion
+            }
+            .transaction { transaction in
+                if reduceMotion { transaction.animation = nil; transaction.disablesAnimations = true }
             }
     }
 
@@ -429,7 +428,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     }
 
     private func notchContent() -> some View {
-        ZStack {
+        // A docked surface grows downwards. Centering the full-height content in the
+        // still-small shell reveals its middle before the navigation can arrive.
+        ZStack(alignment: nook.edgeDocked ? .top : .center) {
             VStack(spacing: 0) {
                 compactContent()
                     .fixedSize()
@@ -438,22 +439,24 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                         // Notch mode reserves the notch width while expanded so the
                         // collapsed slots line up; a floating pill is content-driven.
                         width: (nook.state == .compact || isFloating) ? nil : nook.notchSize.width,
-                        height: (nook.state == .compact && nook.isHovering) ? nook.menubarHeight : nook.notchSize.height
+                        height: compactHeight
                     )
                 peekRegion()
             }
 
             expandedContent()
+                .geometryGroup()
                 .fixedSize()
                 .frame(
                     maxWidth: nook.state == .expanded ? nil : 0,
-                    maxHeight: nook.state == .expanded ? nil : 0
+                    maxHeight: nook.state == .expanded ? nil : 0,
+                    alignment: nook.edgeDocked ? .top : .center
                 )
                 .offset(x: nook.state == .compact ? -compactXOffset : 0)
         }
         .padding(.horizontal, topCornerRadius)
         .fixedSize()
-        .frame(minWidth: minWidth, minHeight: nook.notchSize.height)
+        .frame(minWidth: minWidth, minHeight: compactHeight, alignment: nook.edgeDocked ? .top : .center)
         .environment(\.nookChromeBackdrop, nook.backdrop)
         .environment(\.nookChromeShape, notchShape)
         .environment(\.nookSharedElements, nook.sharedElements)
@@ -490,7 +493,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// of the time, so a pill that never peeks lays out exactly as before.
     @ViewBuilder
     private func peekRegion() -> some View {
-        if nook.state == .compact, nook.isPeeking, let content = nook.peekContent {
+        if nook.state == .compact, nook.isPeeking, !nook.edgeDocked, let content = nook.peekContent {
             let insets = nook.style.peekContentInsets
             content
                 .frame(maxHeight: max(nook.style.peekMaxHeight, 0), alignment: .top)
@@ -509,7 +512,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         let configuration = nook.transitionConfiguration
         return .plan(
             insertion: configuration.expandedContentTransition,
-            removal: configuration.expandedContentRemoval,
+            removal: configuration.expandedContentRemoval ?? (nook.edgeDocked
+                ? NookContentTransition(blurRadius: 0, scale: 1, animation: .easeOut(duration: 0.08))
+                : nil),
             surfaceAnimation: nook.effectiveConversionAnimation
         )
     }
@@ -519,8 +524,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             if nook.state == .compact, !nook.disableCompactLeading {
                 nook.compactLeadingContent
                     .safeAreaInset(edge: .leading, spacing: 0) { Color.clear.frame(width: 8) }
-                    .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 4) }
-                    .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 8) }
+                    .padding(.vertical, 2)
+
                     .onGeometryChange(for: CGFloat.self, of: \.size.width) { compactLeadingWidth = $0 }
                     .transition(compactTransition.anyTransition(axis: .horizontal, anchor: .trailing))
             }
@@ -534,13 +539,13 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             if nook.state == .compact, !nook.disableCompactTrailing {
                 nook.compactTrailingContent
                     .safeAreaInset(edge: .trailing, spacing: 0) { Color.clear.frame(width: 8) }
-                    .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 4) }
-                    .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 8) }
+                    .padding(.vertical, 2)
+
                     .onGeometryChange(for: CGFloat.self, of: \.size.width) { compactTrailingWidth = $0 }
                     .transition(compactTransition.anyTransition(axis: .horizontal, anchor: .leading))
             }
         }
-        .frame(height: nook.notchSize.height)
+        .frame(height: compactHeight)
         .environment(\.nookSharedElementRegion, .compact)
         // `disableCompactLeading/Trailing` are construction-time `let`s on `Nook` -
         // they cannot change at runtime, so no `.onChange` reconciliation is needed.

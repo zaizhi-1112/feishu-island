@@ -101,8 +101,14 @@ public final class AppCoordinator: ObservableObject {
                 return surface.isPeeking
             },
             endPeek: { [weak self] in await self?.surface.endPeek() },
-            compact: { [weak self] in await self?.surface.compact(on: nil) },
-            hide: { [weak self] in await self?.surface.hide() },
+            compact: { [weak self] in
+                guard let self, !self.appState.keepNookOpen else { return }
+                await self.surface.compact(on: nil)
+            },
+            hide: { [weak self] in
+                guard let self, !self.appState.keepNookOpen else { return }
+                await self.surface.hide()
+            },
             topClaimChanged: { [weak self] in self?.surfaceClaimChanged() }
         )
     }()
@@ -662,7 +668,7 @@ public final class AppCoordinator: ObservableObject {
     /// surface, and comes back after the last one ends (once the surface has collapsed, so it
     /// never flashes) if the module on screen still offers it.
     private func surfaceClaimChanged() {
-        surface.compactRevealActive = arbiter.topPresentation == .compact
+        surface.compactRevealActive = arbiter.topPresentation == .compact || liveActivities.activities.contains { $0.activity.keepsCompactVisible }
         if arbiter.isPresenting {
             appState.setSettingsAside(for: .claim)
         } else {
@@ -837,7 +843,13 @@ public final class AppCoordinator: ObservableObject {
         surface.edgeDocked = moduleHost.chromeBehavior.edgeDocked
         let fixed = moduleHost.chromeBehavior.hoverIntent
         if appState.hostFixesHoverIntent != (fixed != nil) { appState.hostFixesHoverIntent = fixed != nil }
-        surface.hoverIntent = fixed ?? appState.appearancePreferences.hoverIntent
+        var intent = fixed ?? appState.appearancePreferences.hoverIntent
+        if fixed == nil, surface.edgeDocked, intent.action == .expand {
+            // Full expansion is one motion; the compact reveal must not wait on dwell.
+            intent.delay = .zero
+            intent.externalDisplayDelay = nil
+        }
+        surface.hoverIntent = intent
     }
 
     /// Wraps each companion in ``NookCompanionHost`` and hands the result to the surface.
@@ -1302,7 +1314,7 @@ public final class AppCoordinator: ObservableObject {
         // Project the chrome-layout preference onto the surface. `Nook.presentation`
         // rebuilds a visible window in place when this changes, so flipping the
         // Layout picker re-places the chrome immediately.
-        surface.presentation = appState.appearancePreferences.presentation
+        surface.presentation = moduleHost.chromeBehavior.edgeDocked ? .floating : appState.appearancePreferences.presentation
 
         // Pin the window appearance first: the backdrop's visual-effect material resolves
         // against it, so a forced light/dark theme needs both to agree. A theme that pins the
@@ -1618,6 +1630,7 @@ extension AppCoordinator: NookSurfacePresenting {
     /// be granted at that exact moment and yank the surface from under the popover.
     public var isUserEngaged: Bool {
         userInitiatedOpen
+            || appState.keepNookOpen
             || surface.isHovering
             || presentationPinning.isPinned
             || surface.isLayoutGraceActive
@@ -1641,6 +1654,8 @@ extension AppCoordinator: NookSurfacePresenting {
                 surface.isLayoutGraceActivePublisher
             )
             .map { $0 || $1 || $2 || $3 }
+            .combineLatest(appState.$appearancePreferences.map(\.keepNookOpen))
+            .map { $0 || $1 }
             .removeDuplicates()
             .eraseToAnyPublisher()
     }

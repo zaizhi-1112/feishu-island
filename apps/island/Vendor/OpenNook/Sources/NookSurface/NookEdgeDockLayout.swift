@@ -44,4 +44,13 @@ public struct NookEdgeDockLayout: Equatable, Sendable {
     public func hitRect(width: CGFloat) -> CGRect {
         CGRect(x: 0, y: visibleTop, width: max(width, 0), height: visibleHeight)
     }
+    /// Keep the entry bridge narrow and below the camera/menu bar.
+    public func hitRects(width: CGFloat, bridgeWidth: CGFloat, physicalNotchHeight: CGFloat) -> [CGRect] {
+        if isRetracted { return [hitRect(width: width)] }
+        let bridge = max(0, min(width, bridgeWidth))
+        let bridgeTop = max(0, physicalNotchHeight)
+        return [CGRect(x: 0, y: contentOffset, width: max(0, width), height: max(0, containerHeight - contentOffset)),
+                CGRect(x: (width - bridge) / 2, y: bridgeTop, width: bridge, height: max(0, contentOffset - bridgeTop))]
+    }
+
 }

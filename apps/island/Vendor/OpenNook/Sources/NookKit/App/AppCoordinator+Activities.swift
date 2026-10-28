@@ -42,9 +42,12 @@ extension AppCoordinator {
                 MainActor.assumeIsolated { self?.breadcrumbWillChange(to: breadcrumb) }
             }
             .store(in: &liveActivitySubscriptions)
+        // Resident modules may publish before this subscription is installed.
+        surface.compactRevealActive = arbiter.topPresentation == .compact || liveActivities.activities.contains { $0.activity.keepsCompactVisible }
     }
 
     private func liveActivitiesChanged(_ entries: [NookActivityCenter.Entry]) {
+        surface.compactRevealActive = arbiter.topPresentation == .compact || entries.contains { $0.activity.keepsCompactVisible }
         let configuration = moduleHost.displayedConfiguration
         let source = configuration.companionSource?.companions ?? []
         projectCompanions(
