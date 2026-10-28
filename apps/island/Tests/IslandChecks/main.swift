@@ -1,3 +1,4 @@
+import SwiftUI
 import AppKit
 @testable import IslandShell
 import NookApp
@@ -30,6 +31,24 @@ expect(selected(.specific("external"), [other, laptop, monitor]) == 2, "pinned s
 expect(selected(.builtIn, [monitor]) == 0, "built-in preference in clamshell")
 expect(NookPresentation.auto.isFloating(screenHasNotch: false), "non-notch floating layout")
 expect(!NookPresentation.auto.isFloating(screenHasNotch: true), "notched built-in layout")
+for hasNotch in [true, false] {
+    let forms = NookPresentation.allCases.map { $0.resolvedForm(state: .expanded, edgeDocked: true, screenHasNotch: hasNotch) }
+    expect(forms.allSatisfy { $0 == .floating }, "all expanded modes use the floating capsule geometry")
+}
+expect(NookPresentation.floating.resolvedForm(state: .compact, edgeDocked: true, screenHasNotch: true) == .floating,
+       "hovered capsule retains floating compact form")
+expect(NookPresentation.floating.resolvedForm(state: .expanded, edgeDocked: false, screenHasNotch: true) == .floating,
+       "non-docked clients preserve floating behavior")
+for presentation in NookPresentation.allCases {
+    for notch in [true, false] {
+        expect(presentation.resolvedForm(state: .compact, edgeDocked: true, screenHasNotch: notch, revealed: true) == .floating,
+               "second-stage capsule is shared across all presentations and screens")
+    }
+    expect(presentation.resolvedForm(state: .compact, edgeDocked: true, screenHasNotch: false) == .floating,
+           "external screens never invent a hardware notch")
+}
+expect(NookPresentation.notch.resolvedForm(state: .compact, edgeDocked: true, screenHasNotch: true) == .floating,
+       "legacy notch preference now uses floating chrome on physical notches")
 let encoded = try JSONEncoder().encode(NookDisplayPreference.automatic)
 let decoded = try JSONDecoder().decode(NookDisplayPreference.self, from: encoded)
 expect(decoded == .automatic, "automatic preference persistence")
@@ -59,41 +78,61 @@ let activity = NookEdgeDockLayout(state: .compact, hovering: false, peeking: tru
                                  shownTopInset: 4, physicalNotchHeight: 0)
 expect(!activity.isRetracted, "explicit activity peek stays visible")
 
+var quotaActivity = NookLiveActivity(id:"quota-fixture",accessibilityLabel:"Synthetic quota") { Text("Codex") } compactTrailing: { Text("93%") } minimal: { Text("C") }
+expect(!quotaActivity.keepsCompactVisible,"ordinary activities retain edge retraction")
+quotaActivity.keepsCompactVisible=true
+let quotaDock=NookNotchDockLayout(state:.compact,hovering:quotaActivity.keepsCompactVisible,notchSize:CGSize(width:179,height:32))
+expect(!quotaDock.isRetracted,"quota activity reveals camera side slots without expanding")
+quotaActivity.keepsCompactVisible=false
+let hiddenQuotaDock=NookNotchDockLayout(state:.compact,hovering:quotaActivity.keepsCompactVisible,notchSize:CGSize(width:179,height:32))
+expect(hiddenQuotaDock.isRetracted,"turning off quota restores retraction")
+
 let hardware = CGSize(width: 179, height: 32)
 let notchRest = NookNotchDockLayout(state: .compact, hovering: false, notchSize: hardware)
-expect(notchRest.isRetracted && notchRest.frameWidth == 187 && notchRest.frameHeight == 36,
+expect(notchRest.isRetracted && notchRest.frameWidth == 179 && notchRest.frameHeight == 32,
        "notch standby reserves only its invisible pointer target")
 let notchReady = NookNotchDockLayout(state: .compact, hovering: true, notchSize: hardware)
 expect(!notchReady.isRetracted && notchReady.frameHeight == nil && notchReady.frameWidth == nil,
        "notch ready state reveals natural side slots")
 let notchPanel = NookNotchDockLayout(state: .expanded, hovering: false, notchSize: hardware)
 expect(!notchPanel.isRetracted && notchPanel.frameHeight == nil,
-       "notch expanded panel cannot be clipped to the 36-point trigger")
+       "notch expanded panel cannot be clipped to the 32-point trigger")
 let notchActivity = NookNotchDockLayout(state: .compact, hovering: false, peeking: true, notchSize: hardware)
 expect(!notchActivity.isRetracted && notchActivity.frameHeight == nil,
        "notch activity peek retains its full content height")
 
+let stableHover = NookEdgeDockLayout(state: .expanded, hovering: true, contentHeight: 459, shownTopInset: 36, physicalNotchHeight: 32)
+let stableRegions = stableHover.hitRects(width: 472, bridgeWidth: 150, physicalNotchHeight: 32)
+expect(stableRegions.contains { $0.contains(CGPoint(x: 236, y: 34)) }, "original entry lip remains in the expanded hover bridge")
+expect(!stableRegions.contains { $0.contains(CGPoint(x: 236, y: 15)) }, "floating island does not intercept menu bar above camera")
+expect(!stableRegions.contains { $0.contains(CGPoint(x: 20, y: 34)) }, "hover bridge never widens across menu bar apps")
+expect(stableRegions.contains { $0.contains(CGPoint(x: 20, y: 50)) }, "expanded content remains interactive below camera")
+
 MainActor.assumeIsolated {
     let host = IslandHost.configuration()
     expect(host.preferenceDefaults.display == .automatic, "host automatic display default")
-    expect(host.preferenceDefaults.appearance.presentation == .auto, "host automatic layout default")
+    expect(host.preferenceDefaults.appearance.presentation == .floating, "host floating-only layout default")
     expect(host.chromeBehavior.edgeDocked, "host enables three-stage edge interaction")
-    expect(host.chromeBehavior.hoverIntent?.action == .some(.none), "hover cannot open the full panel")
+    expect(host.chromeBehavior.hoverIntent == nil && host.preferenceDefaults.appearance.openOnHover == .immediately, "hover behavior follows persistent user preference")
     let registry = host.makeRegistry()
-    expect(Set(registry.descriptors.map(\.id)) == [IslandHost.feishuID, IslandHost.agentID, IslandHost.todoID], "Feishu Agent and Todo modules registered")
-    expect(registry.context(for: "local.youzi.island.home") == nil, "removed home has no entry or context")
-    expect(registry.context(for: "local.youzi.island.sample") == nil, "removed sample has no entry or context")
-    let feishu = registry.context(for: IslandHost.feishuID)!
-    let agent = registry.context(for: IslandHost.agentID)!
-    expect(feishu.containerURL != agent.containerURL, "module files isolated")
-    expect(feishu.defaults !== agent.defaults, "module preferences isolated")
-    let switcher = NookModuleSwitcher(modules: registry.descriptors, activeID: IslandHost.feishuID, attentionIDs: [], switchTo: { _ in })
-    expect(switcher.directTarget == nil && switcher.modules.count == 3, "three destinations use host fixed icons")
-    let reverse = NookModuleSwitcher(modules: Array(registry.descriptors.prefix(2)), activeID: IslandHost.agentID, attentionIDs: [], switchTo: { _ in })
-    expect(reverse.directTarget?.id == IslandHost.feishuID, "two-module legacy switch remains compatible")
-    expect(IslandHost.baseConfiguration(title: "待办", symbol: "checklist").topBar.content != nil, "host provides fixed-icon top bar")
-    expect(NookModuleSwitcher(modules: [registry.descriptors[0]], activeID: IslandHost.feishuID, attentionIDs: [], switchTo: { _ in }).directTarget == nil, "one module has no toggle target")
-
+    expect(registry.descriptors.count == 6, "four product modules and two isolated test modules")
+    expect(registry.module(for: IslandHost.workspaceID) == nil, "legacy AI workspace is not registered")
+    expect(registry.module(for: IslandHost.feishuID)?.makeConfiguration().onFileDrop == nil, "message module does not accept legacy materials")
+    expect(!registry.isLoaded(IslandHost.sampleID), "sample module is lazy")
+    let home = registry.context(for: IslandHost.homeID)!
+    let sample = registry.context(for: IslandHost.sampleID)!
+    expect(home.containerURL != sample.containerURL, "module files isolated")
+    expect(home.defaults !== sample.defaults, "module preferences isolated")
+    registry.unload(IslandHost.sampleID)
+    expect(!registry.isLoaded(IslandHost.sampleID), "module unload")
+    expect(registry.module(for: IslandHost.sampleID) != nil, "module reload")
+    let suite = "local.youzi.island.check.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let state = SampleState(defaults: defaults)
+    state.increment()
+    state.increment()
+    expect(SampleState(defaults: defaults).count == 2, "module data survives object reconstruction")
 }
 func fixture(_ id: String, kind: String = "group", mentions: [[String: Any]] = [], text: String = "hello", senderID: String = "ou_other", chatID: String = "oc_123") -> FeishuMessage {
     FeishuMessage(raw: ["message_id": id, "msg_type": "text", "sender": ["id": senderID, "id_type":"open_id", "sender_name": "同事"],
@@ -173,7 +212,7 @@ expect(ordinary.importanceReason(followed: [], custom: custom) == "群规则", "
 custom.groups[0].mode = .quiet
 expect(!mine.isImportant(followed: ["oc_123"], custom: custom), "group quiet overrides mentions and followed default")
 custom.people = [.init(target: colleague, mode: .all)]
-expect(ordinary.importanceReason(followed: [], custom: custom) == "联系人", "person all overrides group quiet")
+expect(ordinary.importanceReason(followed: [], custom: custom) == nil, "explicit quiet keeps migrated conversation muted")
 custom.groups[0].mode = .all; custom.people[0].mode = .quiet
 expect(!mine.isImportant(followed: [], custom: custom), "person quiet overrides group all")
 custom.people[0].mode = .mentions

@@ -8,10 +8,18 @@ enum SkinVerification {
     private static var started = false
     static func startIfRequested(coordinator: AppCoordinator) {
         let args = ProcessInfo.processInfo.arguments
-        guard IslandRuntime.isSkinPreview, !started else { return }
+        guard IslandRuntime.isSkinPreview, !args.contains("--self-test"), !started else { return }
         started = true
         coordinator.appState.keepNookOpen = true
         coordinator.showNook()
+        if let index = args.firstIndex(of: "--skin-settings"), args.indices.contains(index + 1),
+           let section = UnifiedSettingsSection(rawValue: args[index + 1]) {
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(500))
+                UnifiedSettingsWindow.shared.open(section: section)
+            }
+            return
+        }
         if let index = args.firstIndex(of: "--skin-notification-test"), args.indices.contains(index+1) {
             notificationCheck(coordinator, folder:URL(fileURLWithPath:args[index+1],isDirectory:true)); return
         }

@@ -1,3 +1,4 @@
+@testable import IslandLegacyFixtures
 import AppKit
 import NookApp
 @testable import NookKit
@@ -73,7 +74,8 @@ Task { @MainActor in
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(suite)
     defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root) }
     let feishu = FeishuStore(defaults: defaults)
-    let agents = AgentStore(defaults: defaults)
+    let agents = AgentStore(defaults: defaults, allowsLiveReads: false, sessionIsLocked: { false })
+    var monitoring = agents.preferences; monitoring.enabled = true; try! agents.update(monitoring)
     let todos = TodoStore(directory: root)
     @MainActor func hints() -> [String: String] { IslandModuleAttention.hints(feishu: feishu, agents: agents, todos: todos) }
     check(hints().isEmpty, "no spurious initial badges")
@@ -104,7 +106,7 @@ Task { @MainActor in
     agents.previewQuotas([quota(10)], profileID: "workbuddy")
     check(hints()[modules[1]] != nil, "nonprimary visible Agent also warns")
     var prefs = agents.preferences; prefs.setVisibleIDs(["codex"]); try! agents.update(prefs)
-    check(hints()[modules[1]] == nil, "hidden Agent no longer warns")
+    check(hints()[modules[1]]?.contains("WorkBuddy") == true, "hidden Agent remains monitored and may warn")
     agents.previewQuotas([quota(9)])
     prefs = agents.preferences; prefs.quotaAlerts = false; try! agents.update(prefs)
     check(hints()[modules[1]] == nil, "warning preference respected")

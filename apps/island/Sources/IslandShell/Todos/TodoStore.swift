@@ -20,7 +20,7 @@ struct TodoItem: Codable, Equatable, Identifiable, Sendable {
     var notifiedAt: Date?
     var archivedAt: Date?
 
-    var archiveExpiresAt: Date? { archivedAt?.addingTimeInterval(30 * 24 * 60 * 60) }
+    var archiveExpiresAt: Date? { nil }
 }
 
 struct TodoPreferences: Codable, Equatable, Sendable {
@@ -205,43 +205,13 @@ final class TodoStore: ObservableObject {
     @discardableResult
     func unarchive(_ id: String) -> Bool {
         purgeExpiredArchives()
-        guard let expiry = item(id)?.archiveExpiresAt, expiry > now() else { return false }
+        guard item(id)?.archivedAt != nil else { return false }
         return mutate(id, includingArchived: true) { $0.archivedAt = nil }
     }
 
-    /// At 30 elapsed days the record is removed atomically. Only its owned copies are deleted.
-    func purgeExpiredArchives() {
-        guard !loadFailed else { return }
-        let date = now()
-        let expired = document.items.filter { $0.archiveExpiresAt.map { $0 <= date } ?? false }
-        if !expired.isEmpty {
-            let ids = Set(expired.map(\.id))
-            var next = document
-            next.items.removeAll { ids.contains($0.id) }
-            next.attachmentCleanupIDs = Array(Set(next.attachmentCleanupIDs ?? []).union(ids)).sorted()
-            do {
-                try commit(next)
-                if let id = selectedID, ids.contains(id) { selectedID = nil }
-                if let id = savedID, ids.contains(id) { savedID = nil }
-            } catch { self.error = "到期归档未能清理，将稍后重试：\(error.localizedDescription)"; return }
-        }
-        guard let ids = document.attachmentCleanupIDs, !ids.isEmpty,
-              nextAttachmentCleanup.map({ $0 <= date }) ?? true else { return }
-        nextAttachmentCleanup = date.addingTimeInterval(60)
-        do {
-            for id in ids {
-                guard UUID(uuidString: id) != nil, item(id) == nil else {
-                    throw TodoFailure.invalid("待清理附件的记录标识无效。")
-                }
-                let folder = directory.appendingPathComponent("attachments/\(id)")
-                if FileManager.default.fileExists(atPath: folder.path) { try FileManager.default.removeItem(at: folder) }
-            }
-            var next = document; next.attachmentCleanupIDs = nil
-            try commit(next)
-            nextAttachmentCleanup = nil
-            if error?.hasPrefix("到期归档") == true { error = nil }
-        } catch { self.error = "到期归档附件未能清理，将稍后重试：\(error.localizedDescription)" }
-    }
+    /// Compatibility entry point. Unified todo history is retained indefinitely.
+    /// Old cleanup receipts are left untouched; this version never deletes archives.
+    func purgeExpiredArchives() {}
 
     func complete(_ id: String) { _ = mutate(id) { $0.completedAt = now() } }
     func restore(_ id: String) { _ = mutate(id) { $0.completedAt = nil } }
