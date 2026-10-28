@@ -57,7 +57,8 @@ public final class DanmuPlayback {
         // existing paged reader; never silently discard it at an arbitrary length.
         overlay.preferStatic = false
         overlay.allowsCards = true
-        overlay.backdrop = bubble != "none"
+        overlay.backdrop = bubble != "none" && appearance["backgroundEnabled"] as? Bool != false
+        if bubble == "none" || appearance["borderEnabled"] as? Bool == false { overlay.skinBorder = nil }
     }
     static func isShortMessage(_ message: FeishuMessage) -> Bool {
         let body = message.text.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -168,7 +168,8 @@ public struct FeishuMessage: Identifiable, Equatable, Sendable {
     public var chatURL: URL? {
         guard chatID.hasPrefix("oc_"), chatID.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_") }) else { return nil }
         var components = URLComponents(string: "https://applink.feishu.cn/client/chat/open")!
-        components.queryItems = [URLQueryItem(name: "chatId", value: chatID)]
+        // im/v1 supplies the oc_ Open Chat ID, not the client's numeric chatId.
+        components.queryItems = [URLQueryItem(name: "openChatId", value: chatID)]
         return components.url
     }
     public var source: String { chatKind == "p2p" ? senderName : chatName }

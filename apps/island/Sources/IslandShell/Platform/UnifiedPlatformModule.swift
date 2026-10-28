@@ -47,12 +47,12 @@ struct UnifiedPlatformPanel: View {
                     ForEach(workspace.visibleCards) { card in
                         DisclosureGroup(isExpanded: Binding(get: { !closedCards.contains(card.id) }, set: { if $0 { closedCards.remove(card.id) } else { closedCards.insert(card.id) } })) {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text(HubCardPresentation.displayText(card.text)).font(.system(size: 16)).lineSpacing(5).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                                Text(HubCardPresentation.text(card)).font(.system(size: 16)).lineSpacing(5).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                                 if let url = card.href.flatMap(HubPingGeometry.safeURL) {
                                     Button("打开中台原页") { _ = launcher.activate(.init(id: 0, title: card.title, url: url)) }.buttonStyle(IslandButtonStyle())
                                 }
                             }.padding(.top, 8)
-                        } label: { Text(card.title).font(.system(size: 17, weight: .semibold)) }
+                        } label: { Text(HubCardPresentation.title(card)).font(.system(size: 17, weight: .semibold)) }
                         .padding(13).modifier(IslandCard(radius: 12))
                     }
                 }
@@ -77,8 +77,6 @@ struct UnifiedPlatformSettings: View {
     @ObservedObject var launcher: UnifiedPlatformStore = .shared
     @Environment(\.nookResolvedTheme) private var theme
     @State private var tab = "cards"
-    @State private var selectedSlot = 0
-    private let directions = ["↑ 上", "↗ 右上", "→ 右", "↘ 右下", "↓ 下", "↙ 左下", "← 左", "↖ 左上"]
     private var orderedCards: [HubCard] {
         workspace.visibleCards + workspace.hub.cards.filter { !workspace.disk.selectedCards.contains($0.id) }
     }
@@ -113,21 +111,7 @@ struct UnifiedPlatformSettings: View {
                     }
                 }
             } else if tab == "shortcuts" {
-                IslandSettingsCard("快捷轮盘") {
-                    HubShortcutRecorder(store: launcher)
-                    Toggle("打开入口时播放信号音效", isOn: Binding(get: { launcher.preferences.soundEnabled }, set: { _ = launcher.setSound($0) }))
-                    Text("选一个方向，再绑定卡片或HTTPS链接。中台首页、数据、应用和Skill页面都可以作为入口。Esc或再次按快捷键关闭轮盘。")
-                        .font(.system(size: 12)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 8) {
-                        ForEach(0..<8, id: \.self) { index in
-                            Button(directions[index]) { selectedSlot = index }
-                                .buttonStyle(IslandButtonStyle(prominent: selectedSlot == index))
-                                .accessibilityAddTraits(selectedSlot == index ? .isSelected : [])
-                        }
-                    }
-                    HubPingSlotEditor(index: selectedSlot, launcher: launcher, cards: workspace.hub.cards).id(selectedSlot)
-                    Button("试开轮盘") { HubPingLauncher.shared.show() }.buttonStyle(IslandButtonStyle())
-                }
+                HubShortcutSettings(workspace: workspace, launcher: launcher)
             } else {
                 IslandSettingsCard("本人中台连接") {
                     Label(workspace.hub.connected ? "已连接本人中台" : "尚未连接中台", systemImage: workspace.hub.connected ? "checkmark.circle.fill" : "link")
@@ -148,55 +132,5 @@ struct UnifiedPlatformSettings: View {
             }
             if !launcher.error.isEmpty { Text(launcher.error).font(.system(size: 12)).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true) }
         }.foregroundStyle(theme.primaryLabel).accessibilityIdentifier("island.platform.settings")
-    }
-}
-
-@MainActor
-private struct HubPingSlotEditor: View {
-    let index: Int
-    @ObservedObject var launcher: UnifiedPlatformStore
-    let cards: [HubCard]
-    @State private var editingCustom = false
-    @State private var title = ""
-    @State private var address = ""
-    private var saved: HubPingShortcut { launcher.preferences.slots[index] }
-    private var selection: String {
-        switch saved.source {
-        case .automatic: return "automatic"
-        case .empty: return "empty"
-        case .custom: return "custom"
-        case .card: return "card:" + saved.cardID
-        }
-    }
-    var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(spacing: 12) {
-                Text(["上", "右上", "右", "右下", "下", "左下", "左", "左上"][index]).font(.system(size: 12, weight: .semibold)).frame(width: 36, alignment: .leading)
-                Picker("第\(index + 1)个入口", selection: Binding(get: { editingCustom ? "custom" : selection }, set: { choose($0) })) {
-                    Text("自动分配").tag("automatic")
-                    Text("留空").tag("empty")
-                    Text("自定义入口").tag("custom")
-                    if saved.source == .card, !cards.contains(where: { $0.id == saved.cardID }) { Text("已保存的卡片（暂不可用）").tag("card:" + saved.cardID) }
-                    ForEach(cards.filter { $0.href.flatMap(HubPingGeometry.safeURL) != nil }) { card in Text(card.title).tag("card:" + card.id) }
-                }.labelsHidden().frame(maxWidth: .infinity)
-            }
-            if editingCustom || saved.source == .custom {
-                HStack {
-                    TextField("入口名称", text: $title).frame(width: 135)
-                    TextField("https://…", text: $address)
-                    Button("保存") {
-                        if launcher.setSlot(index, .init(source: .custom, title: title.trimmingCharacters(in: .whitespacesAndNewlines), address: address.trimmingCharacters(in: .whitespacesAndNewlines))) { editingCustom = false }
-                    }.buttonStyle(IslandButtonStyle())
-                }.textFieldStyle(.roundedBorder)
-            }
-        }.padding(12).modifier(IslandCard(radius: 12))
-        .onAppear { title = saved.title; address = saved.address }
-    }
-    private func choose(_ value: String) {
-        if value == "custom" { editingCustom = true; title = saved.title; address = saved.address; return }
-        editingCustom = false
-        if value == "automatic" { _ = launcher.setSlot(index, .init()) }
-        else if value == "empty" { _ = launcher.setSlot(index, .init(source: .empty)) }
-        else if value.hasPrefix("card:") { _ = launcher.setSlot(index, .init(source: .card, cardID: String(value.dropFirst(5)))) }
     }
 }

@@ -13,6 +13,7 @@ import NookApp
         return FeishuMessage(raw: ["message_id":id,"sender":["id":"ou_synthetic","sender_name":"合成同事"],"msg_type":"text","body":["content":content]], chatID: "oc_synthetic", chatName: "合成同事", chatKind: "p2p", ownID: "ou_self")
     }
     let first = try message("open-background", "只用于合成回调")
+    check(first.chatURL?.query == "openChatId=oc_synthetic", "open conversation uses oc_ Open Chat ID instead of numeric client chatId")
     store.receive(first)
     store.launchConversation = { _, complete in DispatchQueue.global().async { complete(nil) } }
     store.open(first)
@@ -60,6 +61,27 @@ import NookApp
     check(workspace.todoHistory.count==70 && workspace.todoHistory.allSatisfy{$0.completedAt==now},"folding retains full dated completion history")
     check(HubCardPresentation.displayText("创建人：合成人\n创建时间：2026-10-29\n周计划\n1.完成材料。2.跟进2027年1月2日。") == "周计划\n1.完成材料。\n\n2.跟进2027年1月2日。", "card metadata hidden while planned dates and details remain")
     check(DanmuPaletteEditor.hex("aabbcc\n")=="#AABBCC" && DanmuPaletteEditor.hex("#AB")==nil,"copied colors normalize without accepting incomplete codes")
+    let plan = HubCard(id:"plan",title:"工作计划 · 最新周报",kind:"report",text:"工作周报\n\n下周工作计划\n1.完成材料。2.跟进2027年1月2日。",href:nil)
+    check(HubCardPresentation.title(plan) == "工作计划" && HubCardPresentation.text(plan) == "1.完成材料。\n\n2.跟进2027年1月2日。", "work plan has one heading while all plan text and dates remain")
+    check(plan.text.hasPrefix("工作周报") && plan.title.hasSuffix("最新周报"), "display simplification never mutates the source report")
+    for background in [false, true] {
+        for border in [false, true] {
+            let style: [String:Any] = ["bubble":"custom","foreground":"#FFFFFF","background":"#15171C","border":"#FFAA22","backgroundEnabled":background,"borderEnabled":border]
+            check(AppearanceMCP.validate(style) != nil, "independent background/border choice validates \(background)/\(border)")
+            let preview = FeishuDanmuPreviewView(frame:NSRect(x:0,y:0,width:600,height:100))
+            preview.configure(style,playing:false,started:Date())
+            check(preview.text.backdrop == background && (preview.text.borderColor != nil) == border, "native preview renders both visibility switches \(background)/\(border)")
+            store.updateAppearance(style)
+            store.playback.configure(.init(enabled:true),appearance:style)
+            _ = store.playback.enqueue(try message("appearance-\(background)-\(border)","合成弹幕"),demo:true)
+            store.playback.overlay?.tick(); store.playback.overlay?.tick()
+            let flying = store.playback.overlay?.flying.first
+            check(flying?.backdrop == background && (flying?.borderColor != nil) == border, "actual desktop renderer matches preview \(background)/\(border)")
+            store.playback.clear()
+        }
+    }
+    check(AppearanceMCP.validate(["backgroundEnabled":1]) == nil, "appearance flags reject numeric substitutes")
+    check(AppearanceMCP.validate(["bubble":"custom","background":"#FFFFFF","foreground":"#FFFFFF"]) == nil, "visible backgrounds retain contrast validation")
     var hover=NookAppearancePreferences();hover.openOnHover = .immediately;hover.hoverDelay=1;hover.externalDisplayHoverDelay=2
     check(hover.hoverIntent.delay == .zero && hover.hoverIntent.externalDisplayDelay == nil,"complete expansion has no intentional hover delay on either display")
     hover.openOnHover = .peekFirst

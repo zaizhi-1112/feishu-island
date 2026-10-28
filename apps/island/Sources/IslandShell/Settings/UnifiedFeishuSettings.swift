@@ -373,7 +373,7 @@ struct UnifiedFeishuSettingsContent: View {
     private func setBubble(_ value: String) {
         colorDraft = nil; customColors = false
         let light = value == "light"
-        saveAppearance(["bubble": value, "foreground": light ? "#18202A" : "#FFFFFF", "background": light ? "#FFFFFF" : "#15171C", "border": light ? "#D9DEE5" : "#414753"])
+        saveAppearance(["bubble": value, "backgroundEnabled": value != "none", "borderEnabled": value != "none", "foreground": light ? "#18202A" : "#FFFFFF", "background": light ? "#FFFFFF" : "#15171C", "border": light ? "#D9DEE5" : "#414753"])
         playPreview()
     }
     private func saveAppearance(_ patch: [String: Any], announce: Bool = true) {

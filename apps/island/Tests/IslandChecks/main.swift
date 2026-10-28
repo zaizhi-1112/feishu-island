@@ -166,7 +166,7 @@ expect(everyone.importanceReason(followed: ["oc_123"], rules: quietRules) == "å…
 quietRules.mentionsMe = false; quietRules.directMessages = false; quietRules.followedChats = false
 expect(!mine.isImportant(followed: [], rules: quietRules) && !fixture("quiet_dm", kind:"p2p").isImportant(followed: [], rules: quietRules), "each default rule is independently configurable")
 expect(everyone.isImportant(followed: ["oc_123"]), "follow stable chat ID")
-expect(mine.chatURL?.query == "chatId=oc_123", "official chat AppLink carries chat ID")
+expect(mine.chatURL?.query == "openChatId=oc_123", "official chat AppLink uses Open Chat ID parameter")
 MainActor.assumeIsolated {
     let suite = "local.youzi.island.feishu.check.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suite)!

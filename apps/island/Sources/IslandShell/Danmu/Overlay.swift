@@ -23,8 +23,8 @@ final class FlyingText: NSView {
         if backdrop {
             (fillColor ?? NSColor.black.withAlphaComponent(0.76)).setFill()
             NSBezierPath(roundedRect: bounds, xRadius: corner, yRadius: corner).fill()
-            if let borderColor { borderColor.setStroke(); let edge = NSBezierPath(roundedRect:bounds.insetBy(dx:0.5,dy:0.5),xRadius:corner,yRadius:corner);edge.lineWidth=1;edge.stroke() }
         }
+        if let borderColor { borderColor.setStroke(); let edge = NSBezierPath(roundedRect:bounds.insetBy(dx:0.5,dy:0.5),xRadius:corner,yRadius:corner);edge.lineWidth=1;edge.stroke() }
         if card {
             content.draw(in: NSRect(x: 20, y: 78, width: bounds.width - 40, height: bounds.height - 100))
             let label = "\(pageIndex + 1) / \(pages.count) 页 · 完整正文"
@@ -232,7 +232,7 @@ final class Overlay: NSObject {
         view.content = NSAttributedString(string: text, attributes: attributes)
         view.backdrop = backdrop
         if long {
-            view.card = true; view.backdrop = true
+            view.card = true
             let cardWidth = min(640, max(280, window.frame.width * 0.43))
             let cardHeight = min(500, max(180, window.frame.height * 0.55))
             let available = NSSize(width: cardWidth - 40, height: cardHeight - 100)

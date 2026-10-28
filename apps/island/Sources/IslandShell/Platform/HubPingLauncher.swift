@@ -56,11 +56,12 @@ private final class HubPingPanel: NSPanel {
         guard !ScreenReminderSession.isLocked else {return}
         close()
         let launcher=UnifiedPlatformStore.shared,workspace=WorkspaceStore.shared
-        let view=HubPingWheel(destinations:launcher.destinations(cards:workspace.hub.cards,selectedIDs:workspace.disk.selectedCards),diameter:340) { [weak self] destination in
+        let diameter: CGFloat = 400
+        let view=HubPingWheel(destinations:launcher.destinations(cards:workspace.hub.cards,selectedIDs:workspace.disk.selectedCards,applications:workspace.hub.applications ?? []),diameter:diameter,activate: { [weak self] destination in
             let opened=launcher.activate(destination);if opened {self?.close()};return opened
-        }.padding(12).background(Color.black.opacity(0.94),in:RoundedRectangle(cornerRadius:24)).preferredColorScheme(.dark)
-        let p=panel ?? HubPingPanel(contentRect:.init(x:0,y:0,width:364,height:400),styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
-        p.isReleasedWhenClosed=false;p.isOpaque=false;p.backgroundColor = .clear;p.hasShadow=true
+        }, cancel: { [weak self] in self?.close() }).preferredColorScheme(.dark)
+        let p=panel ?? HubPingPanel(contentRect:.init(x:0,y:0,width:diameter,height:diameter),styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
+        p.isReleasedWhenClosed=false;p.isOpaque=false;p.backgroundColor = .clear;p.hasShadow=false
         p.hidesOnDeactivate = false
         p.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 9)
         p.title = "中台快捷轮盘"
@@ -68,7 +69,7 @@ private final class HubPingPanel: NSPanel {
         p.collectionBehavior=[.canJoinAllSpaces,.fullScreenAuxiliary];p.contentView=NSHostingView(rootView:view)
         let pointer=NSEvent.mouseLocation
         let bounds=(NSScreen.screens.first{$0.frame.contains(pointer)} ?? NSScreen.main)?.visibleFrame ?? .init(x:0,y:0,width:1024,height:768)
-        p.setFrameOrigin(.init(x:min(max(pointer.x-182,bounds.minX+8),bounds.maxX-372),y:min(max(pointer.y-200,bounds.minY+8),bounds.maxY-408)))
+        p.setFrame(.init(x:min(max(pointer.x-diameter/2,bounds.minX+8),bounds.maxX-diameter-8),y:min(max(pointer.y-diameter/2,bounds.minY+8),bounds.maxY-diameter-8),width:diameter,height:diameter),display:false)
         panel=p;p.makeKeyAndOrderFront(nil)
         outside=NSEvent.addGlobalMonitorForEvents(matching:[.leftMouseDown,.rightMouseDown]) { [weak self] _ in Task { @MainActor in self?.close() } }
         keys=NSEvent.addLocalMonitorForEvents(matching:.keyDown) { [weak self] event in

@@ -133,7 +133,7 @@ actor HubBackend {
         return result
     }
     private func tool(_ name: String, _ args: [String:Any], token: String) async throws -> [String:Any] {
-        guard ["get_page","get_spec"].contains(name) else { throw WorkError.message("本机仅允许读取个人卡片。") }
+        guard ["get_page","get_spec","list_home_applications"].contains(name) else { throw WorkError.message("本机仅允许读取个人卡片和应用入口。") }
         let result = try await rpc("tools/call",params:["name":name,"arguments":args],token:token)
         guard result["isError"] as? Bool != true, let content = result["content"] as? [[String:Any]], let text = content.first(where:{$0["type"] as? String == "text"})?["text"] as? String,
               let value = try? JSONSerialization.jsonObject(with:Data(text.utf8)) as? [String:Any] else { throw WorkError.message("中台数据未读到，请在飞书检查本人权限。") }
@@ -174,6 +174,11 @@ actor HubBackend {
                 snapshot.cards.append(HubCard(id:"\(kind):\(title):\(index)",title:title,kind:result["type"] as? String ?? "",text:Self.readable(result),href:page["view"] as? String))
             }
         }
+        do {
+            let apps = try await tool("list_home_applications", [:], token: token)
+            guard apps["auth"] == nil, apps["error"] == nil, apps["forbidden"] == nil else { throw WorkError.message("常用应用未读到，请检查中台连接。") }
+            snapshot.applications = HubHomeApplication.decode(apps)
+        } catch { snapshot.applicationsError = "常用应用暂未读到，请刷新重试。" }
         guard generation == epoch else { throw WorkError.message("连接已改变，请重新刷新。") }
         snapshot.readAt = Date(); return snapshot
     }

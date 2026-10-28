@@ -35,10 +35,10 @@ final class FeishuDanmuPreviewView: NSView {
         }
         let fontSize = CGFloat((appearance["fontSize"] as? NSNumber)?.doubleValue ?? 28)
         let bubble = appearance["bubble"] as? String ?? "none"
-        text.backdrop = bubble != "none"
+        text.backdrop = bubble != "none" && appearance["backgroundEnabled"] as? Bool != false
         text.textColor = color("foreground", fallback: bubble == "light" ? NSColor(srgbRed: 0.1, green: 0.12, blue: 0.15, alpha: 1) : .white)!
         text.fillColor = color("background", fallback: bubble == "light" ? .white.withAlphaComponent(0.94) : nil)
-        text.borderColor = color("border", fallback: nil)
+        text.borderColor = bubble != "none" && appearance["borderEnabled"] as? Bool != false ? color("border", fallback: nil) : nil
         text.corner = CGFloat((appearance["corner"] as? NSNumber)?.doubleValue ?? 12)
         var attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: fontSize, weight: .medium), .foregroundColor: text.textColor]
         if !text.backdrop { attrs[.strokeColor] = NSColor.black; attrs[.strokeWidth] = -1.5 }

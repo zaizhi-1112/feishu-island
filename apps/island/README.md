@@ -1,4 +1,4 @@
-# 一切在岛 0.10.2 build84
+# 一切在岛 0.10.3 build85
 
 macOS桌面APP：飞书消息、Agent状态、待办与提醒、中台入口和原生设置。当前只使用悬浮模式。
 
@@ -35,3 +35,6 @@ python3 scripts/package-pilot.py dist/一切在岛.app --output releases
 当前事实、验收边界与安装结果见 ../../docs/build82-refinements.md；面向用户的离线说明为 Distribution/开始使用.html。SOURCE-MANIFEST.sha256 是 build82 导入快照，不能用作修改后源码的校验清单。
 
 build84 修复完整展开时向上移入硬件刘海导致误收回的问题；点击区域不覆盖两侧菜单栏。新增向上移动、停在顶边、侧向离开和快速重复进出的原生回归检查。
+
+
+build85 使用 openChatId 打开飞书会话。快捷轮盘为透明圆盘，默认首页、OKR、资料、数据、异常项、应用、Skill、审批；设置中拖动入口分配方向，支持本人中台常用应用和本机设置。计划卡片只保留一个“工作计划”标题；弹幕支持直接选色以及独立的背景、边线开关。中台 helper 新增只读 list_home_applications，应用入口仅在内存缓存，凭据仍由原独立 helper 服务持有。

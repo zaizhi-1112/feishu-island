@@ -5,7 +5,7 @@ import Carbon
 import NookApp
 
 struct HubPingShortcut: Codable, Equatable {
-    enum Source: String, Codable, CaseIterable { case automatic, card, custom, empty }
+    enum Source: String, Codable, CaseIterable { case automatic, builtin, application, settings, card, custom, empty }
     var source: Source = .automatic
     var cardID = ""
     var title = ""
@@ -24,7 +24,8 @@ struct HubPingDestination: Identifiable, Equatable {
     let id: Int
     let title: String
     let url: URL?
-    var available: Bool { url != nil }
+    var opensSettings = false
+    var available: Bool { url != nil || opensSettings }
 }
 
 enum HubPingGeometry {
@@ -65,6 +66,7 @@ final class UnifiedPlatformStore: ObservableObject {
     private let root: URL
     private var writable = true
     var openURL: (URL) -> Bool = { NSWorkspace.shared.open($0) }
+    var openSettings: () -> Void = { UnifiedSettingsWindow.shared.open(section: .appearance) }
     var playSound: () -> Void = {
         guard let file = Bundle.main.resourceURL?.appendingPathComponent("LOLPing/Base.wav"),
               let sound = NSSound(contentsOf: file, byReference: true) else { return }
@@ -121,30 +123,44 @@ final class UnifiedPlatformStore: ObservableObject {
         var next = preferences; next.slots[index] = shortcut; return persist(next)
     }
 
-    func destinations(cards: [HubCard], selectedIDs: [String]) -> [HubPingDestination] {
-        let ordered = selectedIDs.compactMap { id in cards.first { $0.id == id } } + cards.filter { !selectedIDs.contains($0.id) }
-        let linked = ordered.filter { $0.href.flatMap(HubPingGeometry.safeURL) != nil }
-        return preferences.slots.enumerated().map { index, shortcut in
+    func destinations(cards: [HubCard], selectedIDs: [String], applications: [HubHomeApplication] = []) -> [HubPingDestination] {
+        preferences.slots.enumerated().map { index, shortcut in
             switch shortcut.source {
             case .automatic:
-                if index == 0 { return .init(id: index, title: "中台首页", url: URL(string: "https://virxact.net/")) }
-                guard linked.indices.contains(index - 1) else { return .init(id: index, title: "待设置", url: nil) }
-                let card = linked[index - 1]
-                return .init(id: index, title: card.title, url: card.href.flatMap(HubPingGeometry.safeURL))
+                let entry = HubBuiltinDestination.allCases[index]
+                return .init(id: index, title: entry.title, url: entry.url)
+            case .builtin:
+                guard let entry = HubBuiltinDestination(rawValue: shortcut.cardID) else { return .init(id:index,title:"入口暂不可用",url:nil) }
+                return .init(id:index,title:entry.title,url:entry.url)
+            case .application:
+                guard let app = applications.first(where: { $0.id == shortcut.cardID }) else { return .init(id:index,title:"应用暂不可用",url:nil) }
+                return .init(id:index,title:app.name,url:HubPingGeometry.safeURL(app.url))
+            case .settings: return .init(id:index,title:"灵动岛设置",url:nil,opensSettings:true)
             case .card:
-                guard let card = cards.first(where: { $0.id == shortcut.cardID }) else {
-                    return .init(id: index, title: "卡片暂不可用", url: nil)
-                }
-                return .init(id: index, title: card.title, url: card.href.flatMap(HubPingGeometry.safeURL))
-            case .custom:
-                return .init(id: index, title: shortcut.title, url: HubPingGeometry.safeURL(shortcut.address))
-            case .empty:
-                return .init(id: index, title: "空位", url: nil)
+                guard let card = cards.first(where: { $0.id == shortcut.cardID }) else { return .init(id:index,title:"卡片暂不可用",url:nil) }
+                return .init(id:index,title:HubCardPresentation.title(card),url:card.href.flatMap(HubPingGeometry.safeURL))
+            case .custom: return .init(id:index,title:shortcut.title,url:HubPingGeometry.safeURL(shortcut.address))
+            case .empty: return .init(id:index,title:"空位",url:nil)
             }
         }
     }
 
+    @discardableResult func swapSlots(_ from: Int, _ to: Int) -> Bool {
+        guard preferences.slots.indices.contains(from), preferences.slots.indices.contains(to) else { return false }
+        var next = preferences
+        // Resolve automatic slots before moving, so the displayed destinations swap too.
+        for i in [from, to] where next.slots[i].source == .automatic {
+            next.slots[i] = .init(source:.builtin,cardID:HubBuiltinDestination.allCases[i].rawValue)
+        }
+        next.slots.swapAt(from,to); return persist(next)
+    }
+
     @discardableResult func activate(_ destination: HubPingDestination) -> Bool {
+        if destination.opensSettings {
+            openSettings(); error = ""; lastOpened = destination.title
+            if preferences.soundEnabled { playSound() }
+            return true
+        }
         guard let url = destination.url, HubPingGeometry.safeURL(url.absoluteString) != nil else {
             error = "这个位置尚无可打开的链接，请在中台设置中选择卡片或填写入口。"; return false
         }
@@ -159,8 +175,9 @@ final class UnifiedPlatformStore: ObservableObject {
               !value.title.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { return false }
         switch value.source {
         case .custom: return !value.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && HubPingGeometry.safeURL(value.address) != nil
-        case .card: return !value.cardID.isEmpty && value.address.isEmpty
-        case .automatic, .empty: return value.address.isEmpty && value.cardID.isEmpty
+        case .card, .application: return !value.cardID.isEmpty && value.address.isEmpty
+        case .builtin: return HubBuiltinDestination(rawValue: value.cardID) != nil && value.address.isEmpty
+        case .automatic, .settings, .empty: return value.address.isEmpty && value.cardID.isEmpty
         }
     }
 

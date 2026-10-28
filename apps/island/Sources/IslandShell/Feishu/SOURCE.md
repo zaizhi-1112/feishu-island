@@ -9,6 +9,8 @@
 打开会话按飞书官方AppLink：
 https://open.feishu.cn/document/uAjLw4CM/uYjL24iN/applink-protocol/supported-protocol/open-a-chat-page
 
-使用`https://applink.feishu.cn/client/chat/open?chatId=...`，交给本机飞书应用；不承诺定位到单条消息。
+使用`https://applink.feishu.cn/client/chat/open?openChatId=oc_...`，交给本机飞书应用；`oc_` 是 Open Chat ID，不能放进客户端数字编号 `chatId` 参数。不承诺定位到单条消息。
+
+参数区分同时核对官方 CLI 的 [AppLink 说明](https://github.com/larksuite/cli/blob/main/skills/lark-im/SKILL.md)，2026-10-29。
 
 交接包未授予公开再分发许可；本次仅为用户个人项目融合，未发布源码或应用到公共平台。

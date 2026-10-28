@@ -13,6 +13,30 @@ struct HubSnapshot: Codable, Sendable {
     var cards: [HubCard] = []
     var readAt: Date?
     var error = ""
+    var applications: [HubHomeApplication]?
+    var applicationsError: String?
+}
+
+struct HubHomeApplication: Identifiable, Codable, Equatable, Sendable {
+    var id: String
+    var name: String
+    var url: String
+    var frequent: Bool
+
+    static func decode(_ value: [String: Any]) -> [Self] {
+        let top = value["top"] as? [[String: Any]] ?? []
+        let all = value["all"] as? [[String: Any]] ?? []
+        let favorites = Set(top.compactMap { $0["key"] as? String })
+        var seen = Set<String>()
+        return (top + all).compactMap { row in
+            guard let id = row["key"] as? String, !id.isEmpty, id.count <= 512,
+                  let name = row["name"] as? String, !name.isEmpty, name.count <= 100,
+                  let raw = row["url"] as? String, raw.count <= 2048,
+                  let url = URLComponents(string: raw), url.scheme == "https", url.host != nil,
+                  url.user == nil, url.password == nil, seen.insert(id).inserted else { return nil }
+            return Self(id: id, name: name, url: raw, frequent: favorites.contains(id))
+        }
+    }
 }
 enum HubReadable {
     /// Readable safe text; keep all rows, no clipping disguised as a complete result.

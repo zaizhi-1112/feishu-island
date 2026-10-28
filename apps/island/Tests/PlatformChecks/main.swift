@@ -42,9 +42,9 @@ Task { @MainActor in
     var destinations = store.destinations(cards: cards, selectedIDs: ["two"])
     check(destinations.count == 8, "exactly eight slots")
     check(destinations[0].url?.host == "virxact.net", "home is explicit URL")
-    check(destinations[1].title == "日程", "selected cards first")
-    check(destinations[2].title == "周报", "remaining linked cards follow")
-    check(!destinations[3].available, "missing link remains unavailable")
+    check(destinations.map(\.title) == ["首页", "OKR", "资料", "数据", "异常项", "应用", "Skill", "审批"], "defaults match eight hub destinations")
+    check(destinations[7].url?.host == "applink.feishu.cn", "approval follows the real hub link")
+    check(destinations.allSatisfy(\.available), "default wheel works without a connected card account")
     check(store.setSlot(3, .init(source: .custom, title: "我的入口", address: "https://example.com/tools")), "save custom slot")
     check(store.setSlot(4, .init(source: .card, cardID: "two")), "save fixed card")
     check(store.setSlot(5, .init(source: .empty)), "save explicit empty slot")
@@ -61,6 +61,22 @@ Task { @MainActor in
     check(destinations[4].title == "日程", "fixed card ignores new automatic order")
     check(!restored.destinations(cards: [], selectedIDs: [])[4].available, "missing saved card never guesses another URL")
     check(!destinations[5].available, "empty slot has no action")
+    let apps = HubHomeApplication.decode(["top":[["key":"favorite","name":"合成常用应用","url":"https://example.com/favorite"]],"all":[["key":"favorite","name":"重复应用","url":"https://example.com/duplicate"],["key":"other","name":"其他应用","url":"https://example.com/other"],["key":"unsafe","name":"不安全链接","url":"javascript:alert(1)"]]])
+    check(apps.count == 2 && apps[0].frequent && !apps[1].frequent && apps[0].url.hasSuffix("favorite"), "home applications preserve favorite order, deduplicate, and reject unsafe URLs")
+    check(restored.setSlot(1,.init(source:.application,cardID:"favorite")), "bind a homepage application")
+    check(restored.destinations(cards:cards,selectedIDs:[],applications:apps)[1].title == "合成常用应用", "application resolves from current personal catalog")
+    check(!restored.destinations(cards:cards,selectedIDs:[],applications:[])[1].available, "missing app never silently substitutes another destination")
+    check(restored.swapSlots(0,2), "dragging slots swaps entries")
+    let swapped = restored.destinations(cards:cards,selectedIDs:[])
+    check(swapped[0].title == "资料" && swapped[2].title == "首页", "automatic defaults resolve before swapping positions")
+    var settingsOpened = 0
+    restored.openSettings = { settingsOpened += 1 }
+    check(restored.setSlot(6,.init(source:.settings)), "native settings can be bound")
+    check(restored.activate(restored.destinations(cards:[],selectedIDs:[])[6]) && settingsOpened == 1, "settings destination invokes native settings exactly once")
+    check(!restored.setSlot(1,.init(source:.builtin,cardID:"unknown")), "unknown built-in destination rejected")
+    check(UnifiedPlatformStore(root:root).preferences.slots == restored.preferences.slots, "new application and settings bindings survive restart")
+    let legacySnapshot = try! JSONDecoder().decode(HubSnapshot.self,from:Data("{\"connected\":true,\"name\":\"合成\",\"cards\":[],\"error\":\"\"}".utf8))
+    check(legacySnapshot.connected && legacySnapshot.applications == nil, "older helper snapshots remain decodable")
     var opened: [URL] = []; var sounds = 0
     restored.openURL = { opened.append($0); return true }
     restored.playSound = { sounds += 1 }
@@ -83,15 +99,18 @@ Task { @MainActor in
     if let index = CommandLine.arguments.firstIndex(of: "--render"), CommandLine.arguments.indices.contains(index + 1) {
         let output = URL(fileURLWithPath: CommandLine.arguments[index + 1])
         let app = NSApplication.shared; app.setActivationPolicy(.accessory)
-        let view = NSHostingView(rootView: HubPingWheel(destinations: destinations, diameter: 344, activate: { _ in true })
-            .padding(24).frame(width: 392, height: 426).background(Color.black).preferredColorScheme(.dark))
-        let window = NSWindow(contentRect: NSRect(x: -2000, y: -2000, width: 392, height: 426), styleMask: [.borderless], backing: .buffered, defer: false)
+        let previewDefaults = UnifiedPlatformStore(root: root.appendingPathComponent("default-preview"))
+        let view = NSHostingView(rootView: HubPingWheel(destinations: previewDefaults.destinations(cards:[],selectedIDs:[]), diameter: 400, activate: { _ in true })
+            .frame(width: 400, height: 400).preferredColorScheme(.dark))
+        let window = NSWindow(contentRect: NSRect(x: -2000, y: -2000, width: 400, height: 400), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isOpaque = false; window.backgroundColor = .clear; window.hasShadow = false
         window.contentView = view
         view.layoutSubtreeIfNeeded()
         guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("render bitmap unavailable") }
         view.cacheDisplay(in: view.bounds, to: bitmap)
         try! bitmap.representation(using: .png, properties: [:])!.write(to: output)
         check(!window.isVisible, "render window never displayed")
+        check((bitmap.colorAt(x: 0, y: 0)?.alphaComponent ?? 1) == 0, "wheel corners are genuinely transparent")
         let workspace = WorkspaceStore(root: root.appendingPathComponent("render-workspace"), startTimers: false)
         workspace.hub = HubSnapshot(connected: true, name: "合成中台", cards: cards)
         workspace.toggleCard("one")
@@ -107,6 +126,17 @@ Task { @MainActor in
         let panelOutput = output.deletingPathExtension().appendingPathExtension("panel.png")
         try! panelBitmap.representation(using: .png, properties: [:])!.write(to: panelOutput)
         check(!panelWindow.isVisible, "panel window never displayed")
+        workspace.hub.applications = apps
+        let board = NSHostingView(rootView:HubShortcutSettings(workspace:workspace,launcher:previewDefaults).frame(width:680).padding(20).background(Color.white).preferredColorScheme(.light))
+        let boardWindow = NSWindow(contentRect:NSRect(x:-2000,y:-2000,width:720,height:700),styleMask:[.borderless],backing:.buffered,defer:false)
+        boardWindow.contentView = board; board.layoutSubtreeIfNeeded()
+        check(board.fittingSize.width <= 725 && board.fittingSize.height <= 710, "shortcut board fits narrow settings without horizontal overflow")
+        if let bitmap = board.bitmapImageRepForCachingDisplay(in:board.bounds) {
+            board.cacheDisplay(in:board.bounds,to:bitmap)
+            try! bitmap.representation(using:.png,properties:[:])!.write(to:output.deletingPathExtension().appendingPathExtension("settings.png"))
+        }
+        check(!boardWindow.isVisible, "shortcut settings fixture never displays a desktop window")
+
     }
     if CommandLine.arguments.contains("--register-shortcut-check") {
         precondition(IslandRuntime.isSkinPreview && CommandLine.arguments.contains("--shortcut-preview"))
