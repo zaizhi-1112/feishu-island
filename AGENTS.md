@@ -20,3 +20,5 @@
 - 用户本次授权创建仓库并上传双方源码，允许一次 main 初始化导入；之后的功能改动遵循分支与 PR 流程。
 
 - build87 的 DeepSeek Harness 只读余额通过 `Resources/deepseek-balance.cjs` 和 `DeepSeekReader.swift` 接入。仅复用本人 Harness 的既有 Platform 登录，固定钱包 GET、拒绝重定向，不取 API Key，不读取对话、不发送任务；凭据不持久化到本应用，不输出原始响应。其他用户默认未启用，新入口不替换现有岛上位置。验证 `node --test Tests/deepseek-balance.test.cjs`、`AgentChecks` 与 `UnifiedProductChecks`；接口随 Harness 升级可能变化，禁止猜测金额或用0代替未知。
+
+- build90 产品网页维护说明见 `docs/product-web-build90.md`。网页交互只用合成数据；原生设置与引导预览来自隔离的离屏渲染，来源校验见 `apps/island/Distribution/native-preview-manifest.json`。反馈入口为发往 `zaizhi@virxact.com` 的邮件草稿唤起，不得声称网页已发送或邮箱已收件。网页更新不等于安装包发布或 main 合并。

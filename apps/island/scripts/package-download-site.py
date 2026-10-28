@@ -10,7 +10,8 @@ import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = {'index.html', 'install.js', 'install.css', 'landing.css', 'agent-guide.html',
-          'icon.png', 'mascot.png', 'virxact-ui.css', 'virxact-story.css', 'vx.js'}
+          'icon.png', 'mascot.png', 'virxact-ui.css', 'virxact-story.css', 'vx.js',
+          'native-agent-codex.png', 'native-agent-workbuddy.png', 'native-agent-deepseek.png', 'native-guide-1.jpg', 'native-guide-1-dark.jpg', 'native-guide-2.jpg', 'native-guide-2-dark.jpg', 'native-guide-3.jpg', 'native-guide-3-dark.jpg', 'native-guide-4.jpg', 'native-guide-4-dark.jpg', 'native-guide-5.jpg', 'native-guide-5-dark.jpg', 'native-guide-6.jpg', 'native-guide-6-dark.jpg', 'native-messages.jpg', 'native-messages-dark.jpg', 'native-agents.jpg', 'native-agents-dark.jpg', 'native-todos.jpg', 'native-todos-dark.jpg', 'native-platform.jpg', 'native-platform-dark.jpg', 'native-rest.jpg', 'native-rest-dark.jpg', 'native-appearance.jpg', 'native-appearance-dark.jpg'}
 MAX_DMG_BYTES = 48_000_000  # Reserve room within the backend's 50 MB upload limit.
 SERVICE = {'server.cjs', 'core.cjs', 'desktop.cjs', 'package.json', 'package-lock.json', 'virxact.json'}
 

@@ -113,7 +113,7 @@ test('every asset referenced by the real landing and guide pages is served with 
  const html=content.join('\n');
  const assets=[...new Set([...html.matchAll(/<(?:link|script|img)\b[^>]*(?:href|src)="([^"]+)"/g)].map(match=>match[1]).filter(asset=>!asset.startsWith('data:image/')))];
  assert(assets.length>0);assert(assets.includes('virxact-ui.css'));
- const types={'.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png'};
+ const types={'.jpg':'image/jpeg','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png'};
  for(const asset of assets){
   assert.equal(path.basename(asset),asset,'homepage resources must be named local assets');
   const bytes=await fs.readFile(path.join(source,asset));await fs.writeFile(path.join(root,asset),bytes);
@@ -144,5 +144,25 @@ test('release aliases cannot expose private files, symlinks or external URLs',as
  for(const target of ['../.env','https://example.com/file.dmg',symlink,old]){
   await fs.writeFile(path.join(root,'download-aliases.json'),JSON.stringify({[old]:target}));
   const r=await fetch(base+'/'+old,{headers:owner});assert.equal(r.status,404);assert(!(await r.text()).includes('private'));
+ }
+});
+
+test('all native previews and product portraits are served exactly, without broadening file access',async t=>{
+ const root=process.env.ISLAND_DOWNLOAD_SITE||path.join(__dirname,'../Distribution/site');
+ const manifest=JSON.parse(await fs.readFile(path.join(__dirname,'../Distribution/native-preview-manifest.json'),'utf8'));
+ const server=createServer({broker:{},root});await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>server.close());
+ const base='http://127.0.0.1:'+server.address().port;
+ const crypto=require('node:crypto');
+ for(const asset of manifest.assets){
+  const denied=await fetch(base+'/'+asset.file);assert.equal(denied.status,401);
+  const response=await fetch(base+'/'+asset.file,{headers:owner});assert.equal(response.status,200,asset.file);
+  assert.equal(response.headers.get('content-type'),'image/jpeg');
+  const bytes=Buffer.from(await response.arrayBuffer());assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),asset.sha256,asset.file);
+ }
+ for(const id of ['codex','workbuddy','deepseek']){
+  const response=await fetch(base+'/native-agent-'+id+'.png',{headers:owner});assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'image/png');
+ }
+ for(const privatePath of ['native-private.jpg','native-preview-manifest.json','../../workspace.json']){
+  assert.equal((await raw(base,'/'+privatePath)).status,404);
  }
 });

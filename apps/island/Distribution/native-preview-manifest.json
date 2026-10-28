@@ -1,0 +1,179 @@
+{
+  "productVersion": "0.11.1",
+  "build": "90",
+  "sourceCommit": "ba590a7",
+  "generator": "UnifiedProductChecks --skin-preview --virxact-review --render",
+  "source": "Native SwiftUI settings views with isolated synthetic stores; no windows shown and no real account reads",
+  "webEncoding": "Settings JPEG 1530 px / quality 87; onboarding JPEG 1275 px / quality 85; no UI content changed",
+  "assets": [
+    {
+      "file": "native-messages.jpg",
+      "sourceRender": "messages.png",
+      "sourceSHA256": "0390ae7034bb6f7cc2e570154e45ec76525dcd71781a7a5394fd5924faab185e",
+      "sha256": "7700b7e6f39da9f9a1d4785d3e70ee3aaf217e76c076d2b413a753b4aa1c8108",
+      "bytes": 200635
+    },
+    {
+      "file": "native-messages-dark.jpg",
+      "sourceRender": "messages-dark.png",
+      "sourceSHA256": "dec5859c1eec4550aa9b09d371d5637782af46d0f27573867d64d5ff456b93a2",
+      "sha256": "2d11d6d384ddb8cbf52ab2fb2ab20e8680d4b8cbd7780d991a6839844e2bd99a",
+      "bytes": 206523
+    },
+    {
+      "file": "native-agents.jpg",
+      "sourceRender": "agents.png",
+      "sourceSHA256": "e0d948d62a00f00c198f0d411ef549277c2340e184995631e248a6e0cc80fac8",
+      "sha256": "dac56ea4166ce42bf5983264cd05ba228ffc1d684df542d06861ebdb4fd7b5c6",
+      "bytes": 219838
+    },
+    {
+      "file": "native-agents-dark.jpg",
+      "sourceRender": "agents-dark.png",
+      "sourceSHA256": "7004605d47f7692bbda68e0dc9a2723b3e630a89abc4a536bcc49f6c6b135570",
+      "sha256": "7a65fc943b550d31674633e1a26913501fcf8beb68d963b415b9f558eb8747e2",
+      "bytes": 222038
+    },
+    {
+      "file": "native-todos.jpg",
+      "sourceRender": "todos.png",
+      "sourceSHA256": "af0ef14123dd930c1f975181e62b8856b210d55b9bfebec6f2398f96c96b80c3",
+      "sha256": "0ac1d9db24cff70cd1aa475145b5ce6af8e84f4f28b4942abb8970bb40ae91f8",
+      "bytes": 166129
+    },
+    {
+      "file": "native-todos-dark.jpg",
+      "sourceRender": "todos-dark.png",
+      "sourceSHA256": "34c1f51063ef50faaf7a74fe6db275f6bd1b326881020eb4d9040ea2b08c9814",
+      "sha256": "03aea3c385d21db23dc7fee065170c20e6ca2ca5182ac82b9471fd4ec6d2b9b4",
+      "bytes": 172050
+    },
+    {
+      "file": "native-platform.jpg",
+      "sourceRender": "platform.png",
+      "sourceSHA256": "52d8ae7916b342a0528229a4858ed4074116b88f88d237d5d47119f8158c6c0b",
+      "sha256": "9041f2623f8804ef8d1f9f1dc7359ffa216a8c2e35308711f79feca7f07330c9",
+      "bytes": 137533
+    },
+    {
+      "file": "native-platform-dark.jpg",
+      "sourceRender": "platform-dark.png",
+      "sourceSHA256": "b17e078dadb77e930568b3d6f0a6aa59fc62c63c0dfa858fadb1dd4bc26b6aa2",
+      "sha256": "1691602c7270b344e3b250171a750f2374fe53fbb9f9a637bc093e7efee222bf",
+      "bytes": 149673
+    },
+    {
+      "file": "native-rest.jpg",
+      "sourceRender": "rest.png",
+      "sourceSHA256": "55f8303882270062ab180f9df9c10ee152aa8e20218d0ed706c96e9a40a07ab8",
+      "sha256": "1e94688a7e15c6fe2608e7c0d2419e678aa564a2756f68717af0bdf08fe60c70",
+      "bytes": 144297
+    },
+    {
+      "file": "native-rest-dark.jpg",
+      "sourceRender": "rest-dark.png",
+      "sourceSHA256": "36282b1bc6c78ff7db4f00cea8afc65c1e23d036952a6e8d37261b33b6b74e69",
+      "sha256": "0e803bbea56c7adc67b1de0a3707c5e58b022a12bde2d01603f853d88f14064f",
+      "bytes": 152856
+    },
+    {
+      "file": "native-appearance.jpg",
+      "sourceRender": "appearance.png",
+      "sourceSHA256": "af20ce652bc079d307804ac7ed8c942dec7a02239e34dc8a986303b0829e8697",
+      "sha256": "f0cec6d3199844f137d254d07e710ce576cd97d9a03dbd6f1afd4dbcbfde968d",
+      "bytes": 228041
+    },
+    {
+      "file": "native-appearance-dark.jpg",
+      "sourceRender": "appearance-dark.png",
+      "sourceSHA256": "b55998c6fd61f627e56683108440323ec0f5a02eab124b974d27b4425ff2eca4",
+      "sha256": "f23dd04261cf2d96bd274aa2885a085c477e58fd11d48d10575b149f99dfff89",
+      "bytes": 243562
+    },
+    {
+      "file": "native-guide-1.jpg",
+      "sourceRender": "onboarding/step-1-light.png",
+      "sourceSHA256": "8d7ec1f9c8b2ce43701f6a4de14e7947cf574e14a8af3fe98a4e165282e32124",
+      "sha256": "04f5888f3c62c0295ecf40f1af6dc1a1deac210d350b57a0e09e446d4967c304",
+      "bytes": 87198
+    },
+    {
+      "file": "native-guide-1-dark.jpg",
+      "sourceRender": "onboarding/step-1-dark.png",
+      "sourceSHA256": "5bee463855ffdb477d64ac8904392b9684b2f4fb537d689c57e188b27a8a9dfa",
+      "sha256": "e312301a1cba2d5265c0f66af554c0c1cc0963b87e97e81e01e0120f0ab4ace0",
+      "bytes": 87119
+    },
+    {
+      "file": "native-guide-2.jpg",
+      "sourceRender": "onboarding/step-2-light.png",
+      "sourceSHA256": "66758e8c92fc7c157d15f6905a9b007e6f92df57615d7af296cc04f681ddb247",
+      "sha256": "c66ae85575295798e4a5c08d0828802d6f8d4abd8b3b28cd39c3603928ed0976",
+      "bytes": 95295
+    },
+    {
+      "file": "native-guide-2-dark.jpg",
+      "sourceRender": "onboarding/step-2-dark.png",
+      "sourceSHA256": "d959c7733f28ec8021b09898566b4441d4016ca4795cddad11d65dd02dadd8a4",
+      "sha256": "d27efb4a31b0cdfbc2d61fa840e585e131c75aa10db1f08faafb77c222367fa7",
+      "bytes": 92539
+    },
+    {
+      "file": "native-guide-3.jpg",
+      "sourceRender": "onboarding/step-3-light.png",
+      "sourceSHA256": "61f2c80a6b230b5dde70d998ac17d5ce0ed43e87974088d93250b2fcb96744cd",
+      "sha256": "68578f62bbce077dba3de6572c1f6996c2072245e5e22a78aa54fc57ed54eb36",
+      "bytes": 87739
+    },
+    {
+      "file": "native-guide-3-dark.jpg",
+      "sourceRender": "onboarding/step-3-dark.png",
+      "sourceSHA256": "e677a3c9d44787dff5dfec4ac912d11343571d3c844fddcfdf816897442f79c7",
+      "sha256": "f5e548b2e60de651879bb1ecf979278544976824105fc64f163325b717ad7e41",
+      "bytes": 88559
+    },
+    {
+      "file": "native-guide-4.jpg",
+      "sourceRender": "onboarding/step-4-light.png",
+      "sourceSHA256": "244ca97ba0397bd8087abc9d65d7fbd6b9e7e40bfc9ddcd0954037b4a03738b3",
+      "sha256": "1c27630ae20b1f27b9538b4c4e18d0296e5010f88c599e2770c7110fb0d03552",
+      "bytes": 92335
+    },
+    {
+      "file": "native-guide-4-dark.jpg",
+      "sourceRender": "onboarding/step-4-dark.png",
+      "sourceSHA256": "0ac59c51aa8dcb68ca716ab219ffe10bbfa974c14f89d1908cc86e4e51414f99",
+      "sha256": "0e56f6d290d472fee8b44ff02d7c4d9ae56906238536888e1b29d638f6b7ebdd",
+      "bytes": 91677
+    },
+    {
+      "file": "native-guide-5.jpg",
+      "sourceRender": "onboarding/step-5-light.png",
+      "sourceSHA256": "ee3b880e610dfe997e2b379064b82650603ac9459e7ce25fd7a955f7ab1de130",
+      "sha256": "6147bfe39f33e0be322ba4879769df71399ed589e44cd9e7c6f3e1f53b86cca9",
+      "bytes": 114905
+    },
+    {
+      "file": "native-guide-5-dark.jpg",
+      "sourceRender": "onboarding/step-5-dark.png",
+      "sourceSHA256": "50d855b9adbe34208ee4cb7210d17472d177882f315ceb61f16446a687a91517",
+      "sha256": "1aef4f147e7f23c91d4e82f3cb6ab9ea4931b5e7aeeeed24b5c2a38ac6a299e8",
+      "bytes": 113835
+    },
+    {
+      "file": "native-guide-6.jpg",
+      "sourceRender": "onboarding/step-6-light.png",
+      "sourceSHA256": "f1ef3aace3c69796efad3b7dcc662cf40864121a99e064e796bb91f5a5c71b9e",
+      "sha256": "f56a128b33fc147b2ec64abc05f288a124b023b337759687b4f0e027e3027c1e",
+      "bytes": 105766
+    },
+    {
+      "file": "native-guide-6-dark.jpg",
+      "sourceRender": "onboarding/step-6-dark.png",
+      "sourceSHA256": "fb898fac0681e181f1f4531b4ae50cfbfd25fde850bab04e285cb2badb9b6079",
+      "sha256": "40daf1aa92bc239f9fbac030b39717f234d23ca308aacb04761ea0c83d3fc718",
+      "bytes": 105727
+    }
+  ],
+  "onboardingGenerator": "UnifiedProductChecks --skin-preview --onboarding-only --render"
+}
