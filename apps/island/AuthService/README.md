@@ -5,7 +5,7 @@
 ## 运行和校验
 
 Node 22+，无第三方依赖；`node --test apps/island/AuthService/*.test.cjs`。
-通过 `scripts/package-auth-service.py` 把审计后的下载目录与服务源码合成独立发布目录；只包含 server.cjs、core.cjs、desktop.cjs、package.json、package-lock.json、virxact.json 和 public。
+发布目录只包含 server.cjs、core.cjs、desktop.cjs、package.json、package-lock.json、virxact.json 和 public。本轮从现有服务的完整发布目录复制，保留原 public 下载资源，仅替换 core.cjs。可通过 `ISLAND_DOWNLOAD_SITE=/absolute/path/to/staging/public node --test AuthService/*.test.cjs` 核对待发布的真实资源；不要用本目录的连接页覆盖现有下载页。
 
 环境变量通过 virxact set_app_env 配置：FEISHU_RECEIVE_SECRET、FEISHU_ARCHIVE_SECRET、AUTH_VAULT_KEY（32 字节随机值的 base64）。不得再次生成并覆盖现有 AUTH_VAULT_KEY，否则现有加密记录无法读取。凭据按中台稳定用户 ID 与用途分开，加密写入 /data/auth；不保存消息正文或材料。不记录请求或上游原始响应。
 
@@ -27,4 +27,4 @@ Mac 内置公司登录窗口与同事本人设备尚待真实验收。build83 �
 
 新客户端的日历按钮使用 `schedule` 用途，仅请求身份、日历和日程读取及续期；旧 `calendar` 用途保留供旧客户端使用，两个用途的加密记录独立。服务必须核对实际返回 scope；旧的较宽授权须经官方续期接口收窄后才可返回，不能仅修改 scope 标签。
 
-本轮获得授权的发布仅替换现有服务 core.cjs，下载页与 18 个公开资源逐文件相同。线上部署编号和本机验收更新于 ../../docs/build82-refinements.md。
+本轮获得授权的发布仅替换现有服务 core.cjs，下载页与 18 个公开资源逐文件相同。线上部署编号和本机验收更新于 ../../../docs/build82-refinements.md。
