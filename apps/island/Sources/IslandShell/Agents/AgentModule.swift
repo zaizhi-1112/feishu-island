@@ -171,8 +171,10 @@ private struct AgentQuotaRow: View {
                 } else if let reset = quota.resetsAt {
                     Text("重置：\(Date(timeIntervalSince1970: reset).formatted(date: .abbreviated, time: .shortened))")
                 }
+                if quota.resetsAt == nil && quota.remainingUnits == nil {
+                    Text("重置时间暂未提供")
+                }
                 Spacer()
-                Text(fresh ? "更新于\(Date(timeIntervalSince1970: quota.updatedAt).formatted(date: .omitted, time: .shortened))" : "数据已过期")
             }.islandFont(size: 9).foregroundStyle(theme.secondaryLabel)
         }
     }

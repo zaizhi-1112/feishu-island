@@ -89,3 +89,5 @@ The edge-dock reveal mask uses floating corners while the floating chrome is exp
 The host supplies a main-actor presentationAllowed closure, applied before compact, expand or peek creates a surface. First-run setup controls this gate. Retracted edge chrome is fully invisible; its hit region ends at the physical camera area (4pt transparent fallback on notchless screens). Existing licenses and pointer handling remain in effect.
 
 2026-10-29: The host runs as a regular macOS application so its Dock icon remains available during onboarding and settings; the status item uses the bundled product icon when present.
+
+2026-10-30: NookPanel explicitly remains visible on app deactivation and joins application spaces, retaining its status-bar-above window level for pinned island use.
