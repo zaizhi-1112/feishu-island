@@ -6,6 +6,7 @@ struct HubCard: Identifiable, Codable, Sendable {
     var kind: String
     var text: String
     var href: String?
+    var sections: [HubContentSection]?
 }
 struct HubSnapshot: Codable, Sendable {
     var connected = false
@@ -66,5 +67,54 @@ enum HubReadable {
             }.joined(separator:"\n")
         }
         return ""
+    }
+}
+
+struct HubContentSection: Codable, Equatable, Sendable {
+    var title: String = ""
+    var text: String = ""
+    var children: [HubContentSection] = []
+}
+
+enum HubStructured {
+    private static let metadata: Set<String> = ["id","key","href","url","view","type","kind","kindLabel","live","editedAt","updatedAt","createdAt","created_at","createdBy","ownerAvatar","avatar","ownerId","recordId","record_id","userId","user_id","appToken","tableId","format","limit","committedAt","submittedAt","submitted_at","color","icon","source","schema","version"]
+    private static let labels = ["name":"名称","title":"标题","label":"名称","contract":"签约方式","level":"等级","platforms":"平台","followers":"粉丝","tags":"标签","status":"状态","state":"状态","count":"数量","total":"合计","value":"数值","current":"当前","target":"目标","expected":"预期","progress":"进度","owner":"负责人","date":"日期","start":"开始","end":"结束","period":"周期","cycle":"周期","standing":"状态","results":"关键结果","description":"说明","summary":"摘要","content":"内容","text":"内容","unit":"单位","rule":"项目","due":"截止时间","trend":"趋势"]
+    private static let containers: Set<String> = ["props","items","rows","entries","cards","data","fields","columns","list","records"]
+    static func sections(_ value: Any, depth: Int = 0) -> [HubContentSection] {
+        guard depth < 20 else { return [.init(text: "内容层级过深，请在中台查看完整内容。")] }
+        if let rows = value as? [Any] { return rows.flatMap { sections($0, depth: depth + 1) } }
+        if let text = value as? String {
+            let cleaned = clean(text)
+            return cleaned.isEmpty ? [] : [.init(text: cleaned)]
+        }
+        if let number = value as? NSNumber { return [.init(text: number.stringValue)] }
+        guard let row = value as? [String: Any] else { return [] }
+        if row["auth"] != nil { return [.init(text: "请在中台完成本人授权。")] }
+        if row["forbidden"] != nil { return [.init(text: "你没有此来源的读取权限。")] }
+        if row["error"] != nil { return [.init(text: "来源读取失败，请稍后刷新。")] }
+        let nameKey = ["name","title","label"].first { row[$0] is String }
+        let title = nameKey.flatMap { row[$0] as? String }.map(clean) ?? ""
+        var children: [HubContentSection] = []
+        let priority = ["contract","level","tags","status","state","value","current","target","progress","followers","platforms"]
+        let keys = row.keys.sorted { a,b in
+            let x = priority.firstIndex(of:a) ?? 999, y = priority.firstIndex(of:b) ?? 999
+            return x == y ? a < b : x < y
+        }
+        for key in keys where key != nameKey && !metadata.contains(key) && !key.lowercased().hasSuffix("token") && !key.lowercased().hasSuffix("avatar") && !key.lowercased().hasSuffix("url") && !key.lowercased().hasSuffix("id") {
+            guard let value = row[key] else { continue }
+            var parts = sections(value, depth: depth + 1)
+            guard !parts.isEmpty else { continue }
+            if containers.contains(key) { children += parts; continue }
+            let label = labels[key] ?? (key.unicodeScalars.contains { $0.value > 127 } ? key : "补充信息")
+            if parts.count == 1, parts[0].title.isEmpty, parts[0].children.isEmpty {
+                var text = parts[0].text
+                if key == "followers", let n = Double(text), n >= 10000 { text = String(format: "%.1f 万", n / 10000).replacingOccurrences(of: ".0 万", with: " 万") }
+                parts[0].title = label; parts[0].text = text; children += parts
+            } else { children.append(.init(title: label, children: parts)) }
+        }
+        return title.isEmpty ? children : [.init(title: title, children: children)]
+    }
+    static func clean(_ text: String) -> String {
+        text.replacingOccurrences(of: #"https?://[^\s<>]+"#, with: "", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

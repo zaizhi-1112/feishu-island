@@ -171,7 +171,7 @@ actor HubBackend {
             for (index,entry) in ((page["data"] as? [[String:Any]]) ?? []).enumerated() {
                 let title = entry["title"] as? String ?? "个人卡片"
                 let result = entry["result"] as? [String:Any] ?? entry
-                snapshot.cards.append(HubCard(id:"\(kind):\(title):\(index)",title:title,kind:result["type"] as? String ?? "",text:Self.readable(result),href:page["view"] as? String))
+                snapshot.cards.append(HubCard(id:"\(kind):\(title):\(index)",title:title,kind:result["type"] as? String ?? "",text:Self.readable(result),href:page["view"] as? String,sections:HubStructured.sections(result)))
             }
         }
         do {

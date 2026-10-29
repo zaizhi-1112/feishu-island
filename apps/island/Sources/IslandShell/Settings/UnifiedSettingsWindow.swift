@@ -164,7 +164,9 @@ private struct UnifiedSettingsLayout:View {
                 Text("显示屏").tag("display")
             }.pickerStyle(.segmented).labelsHidden().accessibilityIdentifier("unified.appearance.tabs")
             switch appearancePage {
-            case "interaction": IslandSettingsCard("主题与交互") { UnifiedAppearanceControls(appState: appState) }
+            case "interaction":
+                IslandSettingsCard("快捷键") { IslandShortcutRecorder(appState: appState) }
+                IslandSettingsCard("主题与交互") { UnifiedAppearanceControls(appState: appState) }
             case "display": IslandSettingsCard("灵动岛显示在哪里") { UnifiedDisplaySettings(appState: appState) }
             default: IslandSkinStudio(store: agents)
             }

@@ -55,10 +55,15 @@ expect(decoded == .automatic, "automatic preference persistence")
 
 let edge = NookEdgeDockLayout(state: .compact, hovering: false, contentHeight: 30,
                              shownTopInset: 4, physicalNotchHeight: 0)
-expect(edge.isRetracted && edge.visibleHeight == 4, "idle draws only four-point edge")
+expect(edge.isRetracted && edge.visibleHeight == 4, "notchless idle keeps a four-point invisible target")
 expect(edge.contentOffset == -26 && edge.containerHeight == 4, "external pill retracts above screen")
 expect(edge.hitRect(width: 96).contains(CGPoint(x: 48, y: 2)), "top edge remains reachable")
 expect(!edge.hitRect(width: 96).contains(CGPoint(x: 48, y: 50)), "old pill location is not interactive while retracted")
+let cameraTarget = NookEdgeDockLayout.entryRect(screen: CGRect(x:0,y:0,width:1440,height:900), notchWidth:180, notchHeight:32)
+expect(cameraTarget == CGRect(x:630,y:868,width:180,height:32), "hidden hover uses only the physical camera footprint")
+expect(!cameraTarget.contains(CGPoint(x:720,y:867)) && !cameraTarget.contains(CGPoint(x:629,y:890)), "hidden camera hover avoids the bottom and menu bar sides")
+let externalTarget = NookEdgeDockLayout.entryRect(screen: CGRect(x:1440,y:100,width:1920,height:1080), notchWidth:0, notchHeight:0)
+expect(externalTarget == CGRect(x:2320,y:1176,width:160,height:4), "notchless monitor has a transparent centered screen-edge entry")
 let revealed = NookEdgeDockLayout(state: .compact, hovering: true, contentHeight: 30,
                                  shownTopInset: 4, physicalNotchHeight: 0)
 expect(!revealed.isRetracted && revealed.contentOffset == 4, "revealed pill stays four points below screen edge")
@@ -68,8 +73,8 @@ expect(revealed.hitRect(width: 96).contains(CGPoint(x: 48, y: 3)), "pointer can 
 expect(revealed.hitRect(width: 96).contains(CGPoint(x: 48, y: 20)), "revealed pill can be clicked")
 let notchedEdge = NookEdgeDockLayout(state: .compact, hovering: false, contentHeight: 32,
                                     shownTopInset: 36, physicalNotchHeight: 32)
-expect(notchedEdge.visibleTop == 32 && notchedEdge.visibleHeight == 4, "hardware notch gets a lip immediately below it")
-expect(notchedEdge.hitRect(width: 96).contains(CGPoint(x: 48, y: 34)), "notched lip is reachable below camera area")
+expect(notchedEdge.visibleTop == 0 && notchedEdge.visibleHeight == 32, "retracted pointer target stays inside camera cutout")
+expect(!notchedEdge.hitRect(width: 96).contains(CGPoint(x: 48, y: 34)), "no target or lip below camera area")
 let panel = NookEdgeDockLayout(state: .expanded, hovering: false, contentHeight: 300,
                               shownTopInset: 4, physicalNotchHeight: 0)
 expect(!panel.isRetracted && panel.containerHeight == 304, "expanded panel preserves full content even without hover")
@@ -204,7 +209,7 @@ MainActor.assumeIsolated {
     store.toggleReceiving()
     store.remindLater(mine.id)
     for i in 0..<110 { store.receive(fixture("bulk\(i)")) }
-    expect(store.messages.count == 100, "recent list stays bounded")
+    expect(store.messages.count == 113, "day-based history retains bursts beyond the legacy 100-message cap")
     expect(store.messages.contains { $0.id == mine.id && $0.remindAt != nil }, "burst cannot evict scheduled reminder")
 }
 // Per-target rules use stable IDs and cannot override a block or the receiving gate.

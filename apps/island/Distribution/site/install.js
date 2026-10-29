@@ -32,7 +32,7 @@
     stopReading(); desktop.dataset.phase='closed'; $('#expand-island').setAttribute('aria-expanded','false'); $('#island-content').inert=true;
   }
   function scheduleCollapse() { clearTimeout(collapseTimer); collapseTimer=setTimeout(closeIsland,650); }
-  island.addEventListener('pointerenter',()=>{clearTimeout(collapseTimer);if($('#hover-mode').value==='full')openIsland();});
+  island.addEventListener('pointerenter',()=>{clearTimeout(collapseTimer);if($('#hover-mode').value==='full')openIsland();else if(desktop.dataset.phase==='closed')desktop.dataset.phase='peek';});
   island.addEventListener('pointerleave',scheduleCollapse);
   island.addEventListener('focusin',openIsland);
   island.addEventListener('focusout',()=>{if(!island.matches(':hover'))scheduleCollapse();});

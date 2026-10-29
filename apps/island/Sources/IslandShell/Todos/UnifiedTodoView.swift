@@ -174,14 +174,11 @@ struct UnifiedTodoPanel: View {
                     Button("编辑") { inputFocused=false; editingID=item.id }
                         .font(.system(size:12)).foregroundStyle(theme.accent).fixedSize()
                         .buttonStyle(.plain).disabled(!WorkspaceStore.canEdit(item)).accessibilityLabel("编辑："+item.title)
-                    Menu {
-                        Button("删除待办", role: .destructive) {
+                    Button("删除", role: .destructive) {
                             store.deleteItem(item.id)
                             if !store.disk.items.contains(where: { $0.id == item.id }) { deletedTask = item.id; restoredTask = nil; notice = "已移到设置中的最近删除。" }
-                        }
-                    } label: { Image(systemName: "ellipsis").frame(width: 20, height: 24) }
-                    .menuStyle(.borderlessButton).fixedSize().disabled(!WorkspaceStore.canEdit(item))
-                    .accessibilityLabel("更多操作：" + item.title)
+                    }.buttonStyle(.plain).font(.system(size: 12)).fixedSize().disabled(!WorkspaceStore.canEdit(item))
+                    .accessibilityLabel("删除待办：" + item.title)
                 }
             }
             if !WorkspaceStore.canEdit(item), item.archive != nil {

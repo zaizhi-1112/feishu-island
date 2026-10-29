@@ -840,6 +840,7 @@ public final class AppCoordinator: ObservableObject {
     /// Puts the hover intent on the surface: the host's, when its chrome behavior fixes one,
     /// otherwise the person's choice from Settings.
     func applyHoverIntent() {
+        surface.presentationAllowed = moduleHost.chromeBehavior.presentationAllowed
         surface.edgeDocked = moduleHost.chromeBehavior.edgeDocked
         let fixed = moduleHost.chromeBehavior.hoverIntent
         if appState.hostFixesHoverIntent != (fixed != nil) { appState.hostFixesHoverIntent = fixed != nil }

@@ -352,7 +352,7 @@ public final class FeishuStore: ObservableObject {
         messages.sort { $0.created > $1.created }
         historyDirty = true
         if message.isImportant(followed: followed, rules: rules, custom: customRules) {
-            if !isMuted && !playback.suspended {
+            if !IslandOnboardingPolicy.isNewUser && !isMuted && !playback.suspended {
                 // The island and desktop are independent outputs of one read-only event.
                 // Opening the island must not suppress a short floating message.
                 if playback.enqueue(message) { pendingDesktop.insert(message.id) }

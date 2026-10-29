@@ -84,3 +84,6 @@ The edge-dock reveal mask uses floating corners while the floating chrome is exp
 2026-10-29 build84: Hover retention includes the hardware camera area within the existing narrow entry bridge. Click hit regions are unchanged. This prevents an upward pointer motion from interrupting full expansion while preserving lateral menu-bar exit and pointer-only behavior. Native regression replays the upward motion and rapid re-entry.
 
 - build92: NookHotkey event initializer accepts opt-in unmodified keys for the hub wheel only; other shortcut editors retain modifier requirements. Added F13–F19 labels.
+
+## 2026-10-29 build95 first-run gate and hidden retraction
+The host supplies a main-actor presentationAllowed closure, applied before compact, expand or peek creates a surface. First-run setup controls this gate. Retracted edge chrome is fully invisible; its hit region ends at the physical camera area (4pt transparent fallback on notchless screens). Existing licenses and pointer handling remain in effect.

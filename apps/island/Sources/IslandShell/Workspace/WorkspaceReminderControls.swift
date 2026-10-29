@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import SwiftUI
 import UniformTypeIdentifiers
 import AVKit
@@ -149,7 +150,7 @@ struct WorkspaceReminderLibrary: View {
                 }
             }
             HStack {
-                Button(importing ? "正在导入…" : "添加自己的视频") { pickVideo() }.disabled(importing).buttonStyle(IslandButtonStyle())
+                Button(importing ? "正在本机去除背景…" : "添加自己的视频") { pickVideo() }.disabled(importing).buttonStyle(IslandButtonStyle())
                 Spacer()
                 Button("停止桌面提醒") { store.dismissAllScreenReminders() }.buttonStyle(.plain).font(.system(size: 12))
             }
@@ -161,6 +162,8 @@ struct WorkspaceReminderLibrary: View {
             }
             if hasRemovedBuiltins {Button("恢复内置素材"){store.restoreBuiltinScreenMaterials();if selected.isEmpty {selected=store.screenMaterials.first?.id ?? ""}}}
             if renaming {HStack {TextField("视频名称",text:$rename);Button("保存"){store.renameScreenMaterial(selected,name:rename);renaming=false};Button("取消"){renaming=false}}}
+            ScreenReminderDismissalSettings()
+            Text("视频会先在本机分离主体、生成透明背景，再加入素材库。出现 3 秒后可点击鼠标或按任意键关闭提醒。").font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if !importError.isEmpty { Text(importError).font(.system(size: 12)).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true) }
             Text("支持MP4、MOV，最长2分钟。透明视频直接呈现，普通视频保留原画面。素材只保存在这台Mac；此处播放不会触发桌面提醒。")
                 .font(.system(size: 12)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
@@ -242,4 +245,21 @@ private final class ReminderVideoPreview: NSView {
         if let completionObserver { NotificationCenter.default.removeObserver(completionObserver); self.completionObserver = nil }
     }
     deinit { if let completionObserver { NotificationCenter.default.removeObserver(completionObserver) } }
+}
+
+
+struct ScreenReminderDismissalSettings: View {
+    @State private var keyboardAllowed = AXIsProcessTrusted()
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("出现 3 秒后，点击鼠标或按任意键关闭。").font(.system(size: 12))
+            if !keyboardAllowed {
+                Button("允许在其他应用中按键关闭") {
+                    let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+                    keyboardAllowed = AXIsProcessTrustedWithOptions(options)
+                }.buttonStyle(.bordered)
+                Text("在系统提示中允许辅助功能；鼠标点击关闭无需此权限。").font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+        }.onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in keyboardAllowed = AXIsProcessTrusted() }
+    }
 }

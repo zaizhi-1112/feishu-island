@@ -177,7 +177,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// clipped chrome, where it can spill past the edge.
     private var chrome: some View {
         notchContent()
-            // Retraction leaves a 4pt shell, never the bottom of an avatar or status dot.
+            // Hide all artwork while retracted; the camera area remains an invisible hover target.
             .opacity(nook.edgeDocked && edgeLayout.isRetracted ? 0 : 1)
             .background { NookBackdropFill(backdrop: nook.backdrop, shape: notchShape) }
             .overlay { rimLine() }
@@ -212,6 +212,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             let layout = edgeLayout
             chrome
                 .overlay { companionLayer() }
+                .opacity(layout.isRetracted ? 0 : 1)
                 .offset(y: layout.contentOffset)
                 .frame(height: layout.containerHeight, alignment: .top)
                 .background(alignment: .top) {

@@ -18,7 +18,7 @@ HELPERS = {'agent-status-helper', 'lark-cli', 'feishu-hub-helper'}
 CHECKIN_FILES = set()
 RESOURCE_FILES = {'deepseek-balance.cjs', 'AppIcon.icns', 'LarkCLI-LICENSE', 'OpenNook-LICENSE', 'NookSurface-LICENSE', 'OpenNook-NOTICE.md', '开始使用.html'}
 RESOURCE_DIRS = {'ThirdPartyLicenses'}
-WEB_FILES = {'deepseek-icon.ico', 'avatar-virxact.png', 'pet-codex.png', 'style.css', 'codex-atlas.webp', 'virxact-logo.svg', 'agent-codex.png', 'pet-workbuddy.svg', 'avatar-workbuddy.png', 'agent-workbuddy.png', 'avatar-codex.png', 'pet-workbuddy.png', 'avatar-claude.png', 'todos.js', 'skin-v2.css', 'agent-claude.png', 'app.js', 'brand-flow.json', 'index.html', 'skin-effects.js', 'virxact-logo.png', 'brand-geometry.json', 'pet-codex.svg', 'pet-claude.png', 'skins.json', 'pet-claude.svg'}
+WEB_FILES = {'avatar-virxact.svg', 'deepseek-icon.ico', 'avatar-virxact.png', 'pet-codex.png', 'style.css', 'codex-atlas.webp', 'virxact-logo.svg', 'agent-codex.png', 'pet-workbuddy.svg', 'avatar-workbuddy.png', 'agent-workbuddy.png', 'avatar-codex.png', 'pet-workbuddy.png', 'avatar-claude.png', 'todos.js', 'skin-v2.css', 'agent-claude.png', 'app.js', 'brand-flow.json', 'index.html', 'skin-effects.js', 'virxact-logo.png', 'brand-geometry.json', 'pet-codex.svg', 'pet-claude.png', 'skins.json', 'pet-claude.svg'}
 # Native SkinManifest / SkinResources consume these assets directly. The three
 # JSON files are required at startup; the images keep all four native themes
 # complete. Legacy browser scripts are allowed source assets, not dependencies.
@@ -28,7 +28,7 @@ REQUIRED_SKIN_FILES = {'skins.json', 'brand-geometry.json', 'brand-flow.json',
                        'avatar-virxact.png', 'virxact-logo.png', 'agent-codex.png', 'deepseek-icon.ico'}
 EXTENSION_FILES = set()
 LOL_FILES = {'THIRD_PARTY_NOTICES.md', 'push.png', 'pingwheel_enemyvisionrender.png', 'LICENSE.txt', 'omw.png', 'all_in.png', 'need_vision.png', 'enemy_missing.png', 'pingwheel_retreatrender.png', 'generic_ping.png', 'Base.wav', 'assist_me.png'}
-REMINDER_FILES = {'cat-walk.mov', 'rick-portal.mov', 'what-a-day.mp4', 'gemini-greeting.mp4', 'SOURCE.txt'}
+REMINDER_FILES = {'cat-walk.mov', 'rick-portal.mov', 'what-a-day-alpha.mov', 'gemini-greeting-alpha.mov', 'SOURCE.txt'}
 VOLUME_NAME = '一切在岛'
 VOLUME_METADATA = {'.background', '.DS_Store', '.fseventsd', '.Trashes', '.TemporaryItems', '.VolumeIcon.icns'}
 LAYOUT_DIR = ROOT/'scripts/dmg-layout'
@@ -247,7 +247,7 @@ def package(app, output):
                 'status': 'pilot-preparation', 'colleagueAccountVerified': False,
                 'notarized': False, 'includesPersonalCredentials': False,
                 'format': 'dmg', 'archive': archive.name, 'sha256': digest,
-                'installation': 'drag-to-applications', 'browserExtensionEmbedded': False,
+                'installation': 'double-click-install-and-setup', 'browserExtensionEmbedded': False,
                 'finderLayout': layout,
                 'verification': {'imageIntegrity': True, 'readOnlyMounted': True,
                                  'bundleHashesMatch': True, 'signatureValid': True, 'detached': True},

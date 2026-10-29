@@ -19,6 +19,7 @@ extension Nook {
     /// transition away from compact, or ``peekContent`` going `nil`; the pointer leaving
     /// does not end it. Pass `nil` (the default) to let the nook pick its screen.
     public func peek(on screen: NSScreen? = nil) async {
+        guard presentationAllowed() else { return }
         await runPeek(on: screen, byHover: false)?.value
     }
 

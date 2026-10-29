@@ -83,6 +83,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     @Published public var style: NookStyle
 
     /// Retract compact chrome to a small edge; hover reveals, click expands.
+    public var presentationAllowed: @MainActor () -> Bool = { true }
     @Published public var edgeDocked = false { didSet { updateLayoutForm() } }
     /// A transient host claim can reveal the second stage without simulating hover.
     @Published public var compactRevealActive = false { didSet { updateLayoutForm() } }
@@ -194,6 +195,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     var hasDeferredHoverExit = false
     private var interactionExitTask: Task<Void, Never>?
     private var keyboardPointerTask: Task<Void, Never>?
+    private var transparentEdgeGlobalMonitor: Any?
+    private var transparentEdgeLocalMonitor: Any?
     private var menuTrackingDepth=0
     var chromeFrameInWindow: CGRect = .zero
     var compactHitWidth: CGFloat = 0
@@ -907,6 +910,7 @@ extension Nook {
     /// Expand the chrome. Pass `nil` (the default) to let `resolvedScreen` pick the
     /// target - typically the host's persisted display preference via ``screenProvider``.
     public func expand(on screen: NSScreen? = nil) async {
+        guard presentationAllowed() else { return }
         guard let target = screen ?? resolvedScreen else { return }
         // Preserve the peek owner until the expanded-state observer has selected
         // its activity view. An intermediate hidden state would clear that owner.
@@ -919,6 +923,7 @@ extension Nook {
     /// Collapse the chrome to its compact pill. Pass `nil` (the default) to let
     /// `resolvedScreen` pick the target.
     public func compact(on screen: NSScreen? = nil) async {
+        guard presentationAllowed() else { return }
         guard let target = screen ?? resolvedScreen else { return }
         let skipHide = transitionConfiguration.skipIntermediateHides
         await runTransition(toward: .compact) { [weak self] generation in
@@ -1526,6 +1531,16 @@ extension Nook {
         }
 
         windowController = .init(window: panel)
+        // A fully transparent window may receive no SwiftUI hover events. Observe
+        // pointer motion without intercepting clicks or painting a visible bottom lip.
+        if edgeDocked {
+            transparentEdgeGlobalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved]) { [weak self] _ in
+                Task { @MainActor in self?.evaluateTransparentEdgePointer() }
+            }
+            transparentEdgeLocalMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
+                self?.evaluateTransparentEdgePointer(); return event
+            }
+        }
     }
 
     /// Show with the hosting layer starting at opacity 0, then animate to 1. The window itself
@@ -1549,7 +1564,21 @@ extension Nook {
         layer.opacity = 1
     }
 
+    private func evaluateTransparentEdgePointer() {
+        guard edgeDocked, state == .compact, presentationAllowed(), let window = windowController?.window,
+              window.isVisible, let screen = window.screen ?? resolvedScreen else { return }
+        if isHovering {
+            if !pointerInsideChrome && !isDragInFlight { updateChromeHoverState(false) }
+        } else if !compactRevealActive {
+            let entry = NookEdgeDockLayout.entryRect(screen: screen.frame, notchWidth: notchSize.width, notchHeight: physicalNotchHeight)
+            if entry.contains(pointerLocation()) { updateChromeHoverState(true) }
+        }
+    }
+
     fileprivate func deinitializeWindow() {
+        if let transparentEdgeGlobalMonitor { NSEvent.removeMonitor(transparentEdgeGlobalMonitor) }
+        if let transparentEdgeLocalMonitor { NSEvent.removeMonitor(transparentEdgeLocalMonitor) }
+        transparentEdgeGlobalMonitor = nil; transparentEdgeLocalMonitor = nil
         // The views that reported hover are going away with the window, and SwiftUI does
         // not report an exit for a view it tears down.
         resetHoverSources()

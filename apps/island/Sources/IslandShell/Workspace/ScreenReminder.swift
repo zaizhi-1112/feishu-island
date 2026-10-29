@@ -19,8 +19,8 @@ struct ScreenReminderMaterial: Codable, Identifiable, Equatable, Sendable {
     static let builtins = [
         Self(id:"cat",name:"猫咪走动",durationSeconds:11,hasAlpha:true,bundledFilename:"cat-walk.mov"),
         Self(id:"rick",name:"瑞克传送门",durationSeconds:10,hasAlpha:true,bundledFilename:"rick-portal.mov"),
-        Self(id:"what-a-day",name:"KUN · What a Day",durationSeconds:60,hasAlpha:false,bundledFilename:"what-a-day.mp4"),
-        Self(id:"gemini-greeting",name:"Gemini 人物视频",durationSeconds:10.005,hasAlpha:false,bundledFilename:"gemini-greeting.mp4")
+        Self(id:"what-a-day",name:"KUN · What a Day",durationSeconds:60,hasAlpha:true,bundledFilename:"what-a-day-alpha.mov"),
+        Self(id:"gemini-greeting",name:"Gemini 人物视频",durationSeconds:10.005,hasAlpha:true,bundledFilename:"gemini-greeting-alpha.mov")
     ]
 }
 
@@ -68,6 +68,7 @@ enum ScreenReminderRules {
             schedule.fireAt = now.addingTimeInterval(Double(minutes)*60)
         } else { schedule.enabled = false }
     }
+    static func canDismiss(elapsed: TimeInterval) -> Bool { elapsed >= 3 }
     static func playbackSeconds(_ request: ScreenReminderRequest) -> TimeInterval {
         min(120,max(Double(request.style.durationSeconds),ceil(request.material.durationSeconds)+1))
     }
@@ -144,6 +145,7 @@ enum ScreenReminderMedia {
     private var player: AVPlayer?
     private var expiry: Timer?
     private var dismissalWatchdog: DispatchWorkItem?
+    private var interactionStarted: TimeInterval = 0
     private var localEscape: Any?
     private var globalEscape: Any?
     private var lockObserver: NSObjectProtocol?
@@ -227,19 +229,23 @@ enum ScreenReminderMedia {
         if deliveredTitles.count>64 {deliveredTitles.removeFirst()}
         if displaysWindows {
             panel.orderFrontRegardless(); close.orderFrontRegardless(); isPresenting=true
-            presentationCount += 1; lastPresentedAt=Date()
+            presentationCount += 1; lastPresentedAt=Date(); interactionStarted=ProcessInfo.processInfo.systemUptime
             expiry=Timer.scheduledTimer(withTimeInterval:ScreenReminderRules.playbackSeconds(request),repeats:false) { [weak self] _ in Task { @MainActor in guard self?.current?.id == entry.id else{return};self?.dismiss() } }
             if let expiry { RunLoop.main.add(expiry,forMode:.common) }
             let watchdog=DispatchWorkItem { [weak self] in guard self?.current?.id == entry.id else{return};self?.dismiss() }
             dismissalWatchdog=watchdog
             DispatchQueue.main.asyncAfter(deadline:.now()+ScreenReminderRules.playbackSeconds(request)+1,execute:watchdog)
-            localEscape=NSEvent.addLocalMonitorForEvents(matching:.keyDown) { [weak self] event in
-                if event.keyCode==53 { self?.dismiss() }; return event
+            localEscape=NSEvent.addLocalMonitorForEvents(matching:[.keyDown,.leftMouseDown,.rightMouseDown,.otherMouseDown]) { [weak self] event in
+                guard let self, self.current?.id == entry.id, ScreenReminderRules.canDismiss(elapsed:ProcessInfo.processInfo.systemUptime-self.interactionStarted) else { return event }
+                if event.window === self.windows.last { return event } // Keep the explicit rest actions usable.
+                self.dismiss(); return nil
             }
             // Global key monitoring may be unavailable without system permission. The
             // visible close control and bounded timeout do not depend on that permission.
-            globalEscape=NSEvent.addGlobalMonitorForEvents(matching:.keyDown) { [weak self] event in
-                if event.keyCode==53 { Task { @MainActor in self?.dismiss() } }
+            globalEscape=NSEvent.addGlobalMonitorForEvents(matching:[.keyDown,.leftMouseDown,.rightMouseDown,.otherMouseDown]) { [weak self] event in
+                Task { @MainActor in
+                    guard let self, self.current?.id == entry.id, ScreenReminderRules.canDismiss(elapsed:ProcessInfo.processInfo.systemUptime-self.interactionStarted) else { return }; self.dismiss()
+                }
             }
             lockObserver=DistributedNotificationCenter.default().addObserver(forName:NSNotification.Name("com.apple.screenIsLocked"),object:nil,queue:.main) { [weak self] _ in Task { @MainActor in self?.suspendForLock() } }
         }

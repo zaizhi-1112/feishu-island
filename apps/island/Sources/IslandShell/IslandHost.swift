@@ -42,6 +42,7 @@ public enum IslandHost {
         }
         host.chromeBehavior.showsLaunchShimmer = false
         host.chromeBehavior.edgeDocked = true
+        host.chromeBehavior.presentationAllowed = { !IslandOnboardingPolicy.isNewUser }
         // User preferences own both hover modes and persist through AppState.
         host.chromeBehavior.hoverIntent = nil
         host.moduleSwitcherPlacement = .leadingCluster

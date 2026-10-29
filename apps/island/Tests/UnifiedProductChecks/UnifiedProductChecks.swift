@@ -22,6 +22,8 @@ import SwiftUI
     @MainActor static func runChecks() async throws {
         let app=NSApplication.shared
         app.setActivationPolicy(CommandLine.arguments.contains("--interactive") ? .accessory:.prohibited)
+        if CommandLine.arguments.contains("--dismiss-review") { showReminderDismissReview(); return }
+        if CommandLine.arguments.contains("--guide-review") { showGuideReview(); return }
         if CommandLine.arguments.contains("--queue-timer-review") {try await runScreenQueueTimerReview();return}
         if CommandLine.arguments.contains("--audit-probes") {try runSystemAuditProbes();return}
         if CommandLine.arguments.contains("--audit-review") {try showSystemAuditReview();return}
@@ -34,6 +36,7 @@ import SwiftUI
         try await runPlatformSettingsLayoutChecks(check: check)
         if CommandLine.arguments.contains("--platform-settings-only") { print("PASS \(count) platform settings checks; isolated data, no live accounts"); return }
         try await runOnboardingChecks(check: check)
+        try await runFirstRunSurfaceChecks(check: check)
         if CommandLine.arguments.contains("--onboarding-only") { print("PASS \(count) onboarding checks; isolated preferences, no live accounts"); return }
         try runDeepSeekChecks(check: check)
         if CommandLine.arguments.contains("--deepseek-only") { print("PASS \(count) DeepSeek checks; synthetic data only"); return }

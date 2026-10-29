@@ -28,6 +28,7 @@ private final class HubPingPanel: NSPanel {
     private var expiry:Task<Void,Never>?
     private var registeredHotkey: NookHotkey?
     func start() {
+        guard !IslandOnboardingPolicy.isNewUser else { return }
         let preview = IslandRuntime.isSkinPreview && (Bundle.main.bundleIdentifier == "local.youzi.island.skin-preview"
             || ProcessInfo.processInfo.arguments.contains("--shortcut-preview"))
         guard preview || (Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview" && !IslandRuntime.isSkinPreview) else { return }

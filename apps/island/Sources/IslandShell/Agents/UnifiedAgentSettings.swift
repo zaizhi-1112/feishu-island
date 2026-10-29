@@ -32,6 +32,7 @@ struct UnifiedAgentSettings:View {
     private var orderedProfiles:[AgentProfile] { store.preferences.visibleProfiles + store.preferences.profiles.filter{ !store.preferences.visibleIDs.contains($0.id) } }
     var body:some View {
         VStack(alignment:.leading,spacing:24) {
+            IslandSettingsCard("获取本机 Agent") { AgentDiscoveryView(store: store) }
             IslandSettingsCard("我的工具") {
                 HStack { Text("选择工具的使用方式，修改后立即生效。").font(.system(size:12)).foregroundStyle(.secondary);Spacer();Button("接入Agent"){editingID=nil;adding=true}.buttonStyle(.borderedProminent) }
                 LazyVGrid(columns:[GridItem(.flexible(),alignment:.top),GridItem(.flexible(),alignment:.top)],alignment:.leading,spacing:16) {

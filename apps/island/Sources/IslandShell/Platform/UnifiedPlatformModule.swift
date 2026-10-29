@@ -47,7 +47,7 @@ struct UnifiedPlatformPanel: View {
                     ForEach(workspace.visibleCards) { card in
                         DisclosureGroup(isExpanded: Binding(get: { !closedCards.contains(card.id) }, set: { if $0 { closedCards.remove(card.id) } else { closedCards.insert(card.id) } })) {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text(HubCardPresentation.text(card)).font(.system(size: 16)).lineSpacing(5).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                                HubCardContent(card: card)
                                 if let url = card.href.flatMap(HubPingGeometry.safeURL) {
                                     Button("打开中台原页") { _ = launcher.activate(.init(id: 0, title: card.title, url: url)) }.buttonStyle(IslandButtonStyle())
                                 }

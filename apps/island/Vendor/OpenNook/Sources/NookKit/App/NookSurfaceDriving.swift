@@ -114,6 +114,7 @@ protocol NookSurfaceDriving: AnyObject {
     /// What resting the pointer on the compact pill does. Projected from the host's chrome
     /// behavior, or the person's preferences.
     var hoverIntent: NookHoverIntent { get set }
+    var presentationAllowed: @MainActor () -> Bool { get set }
     var edgeDocked: Bool { get set }
     var compactRevealActive: Bool { get set }
 
@@ -160,6 +161,7 @@ protocol NookSurfaceDriving: AnyObject {
 }
 
 extension NookSurfaceDriving {
+    var presentationAllowed: @MainActor () -> Bool { get { { true } } set {} }
     /// Convenience matching `Nook.playFeedback`'s defaulted call shape, so call sites
     /// such as `surface.playFeedback(.shimmer, duration: 1.1)` keep compiling.
     func playFeedback(

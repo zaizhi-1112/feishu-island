@@ -21,6 +21,7 @@ struct IslandSettingsView: View {
                     NookDisplaySettingsSection(appState: appState)
                 }
                 NookSettingsGroup("快捷键与交互", isInitiallyExpanded: false) {
+                    IslandShortcutRecorder(appState: appState)
                     NookShortcutSettingsSection(appState: appState)
                 }
                 NookSettingsGroup("关于", isInitiallyExpanded: false) {

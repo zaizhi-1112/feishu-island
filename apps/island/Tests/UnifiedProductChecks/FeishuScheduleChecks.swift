@@ -68,6 +68,15 @@ import NookApp
     check(try await client.events(calendarID:"primary",from:now,to:now.addingTimeInterval(86400)).isEmpty,"official empty data response represents empty calendar")
     client.requestOverride={_,_,_ in ["items":"bad"]}
     do{_=try await client.events(calendarID:"primary",from:now,to:now.addingTimeInterval(86400));check(false,"malformed list rejected")}catch{check(true,"malformed list rejected")}
+    reload.removeScheduleEvent(soon.id)
+    check(reload.disk.feishuSchedule?.events.isEmpty == true, "local calendar removal removes reminders")
+    let afterRemoval=WorkspaceStore(root:root,startTimers:false)
+    _=afterRemoval.mutate{$0.feishuSchedule?.apply([soon],calendarID:"primary",now:now)}
+    check(afterRemoval.disk.feishuSchedule?.events.isEmpty == true, "local calendar removal persists through restart and resync")
+    check(afterRemoval.disk.items == beforeTasks, "calendar removal preserves ordinary todos")
+    check(!afterRemoval.restoreScheduleEvent(soon,accountKey:"different-account"),"undo cannot restore into a different account")
+    check(afterRemoval.restoreScheduleEvent(soon,accountKey:state.accountKey),"local deletion can be undone for the original account")
+    check(!afterRemoval.restoreScheduleEvent(soon,accountKey:state.accountKey),"repeated undo cannot duplicate an event")
     var different=connection;different.localAccount=LocalFeishuAccount(appID:"cli_fixture",openID:"ou_other",userName:"另一合成账号")
     check(reload.activateFeishuSchedule(different) && reload.disk.feishuSchedule!.events.isEmpty,"changing account clears previous schedule state")
     check(reload.disk.items==beforeTasks && reload.disk.todoHistory==beforeHistory,"account isolation preserves other data")

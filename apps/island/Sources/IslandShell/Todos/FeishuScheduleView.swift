@@ -5,6 +5,8 @@ struct FeishuScheduleSection: View {
     @ObservedObject var store: WorkspaceStore
     @State private var editID: String?
     @State private var limit=20
+    @State private var removed: FeishuScheduleEvent?
+    @State private var removedAccount = ""
     @Environment(\.nookResolvedTheme) private var theme
     private var groups: [(String,[FeishuScheduleEvent])] {
         var result: [(String,[FeishuScheduleEvent])] = []
@@ -38,6 +40,15 @@ struct FeishuScheduleSection: View {
                     Text(store.disk.feishuSchedule?.lastSync == nil ? "把飞书日程带到岛上":"未来30天暂无日程").font(.system(size:14,weight:.medium))
                     Text("默认提前1天和15分钟提醒，可随时调整。").font(.system(size:11)).foregroundStyle(theme.secondaryLabel)
                 }.frame(maxWidth:.infinity).padding(.vertical,25)
+            }
+            if let removed {
+                HStack {
+                    Text("已从岛上移除，飞书日程保留。").font(.caption)
+                    Button("撤销") {
+                        _ = store.restoreScheduleEvent(removed, accountKey: removedAccount)
+                        self.removed = nil
+                    }
+                }
             }
             ForEach(groups,id:\.0) {date,events in
                 VStack(alignment:.leading,spacing:9) {
@@ -75,6 +86,7 @@ struct FeishuScheduleSection: View {
             Rectangle().fill(theme.subtleStroke).frame(height:1)
             HStack {
                 Button {editID=editID==event.id ? nil:event.id} label:{Label("修改提醒",systemImage:"bell")}.disabled(!event.active)
+                Button("从岛上删除", role: .destructive) { if store.removeScheduleEvent(event.id) { removed = event; removedAccount = store.disk.feishuSchedule?.accountKey ?? "" } }
                 Spacer()
                 Button {store.openFeishuCalendar(event:event)} label:{HStack(spacing:5){Text("在飞书中查看");Image(systemName:"arrow.up.right")}}
             }.buttonStyle(TodoSettingsLinkStyle())

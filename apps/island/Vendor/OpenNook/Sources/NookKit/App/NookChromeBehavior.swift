@@ -22,6 +22,8 @@ import SwiftUI
 /// `NookApp.main`, which crosses to the main actor - like the configurations that carry
 /// it. Not `Equatable` because ``backdrop`` carries a closure.
 public struct NookChromeBehavior: Sendable {
+    /// Host first-run gate. Every presentation path must respect this.
+    public var presentationAllowed: @Sendable @MainActor () -> Bool = { true }
     /// Resolves the surface backdrop from the live chrome state. Returns the
     /// `NSVisualEffectView` material / darken / solid fill the chrome paints behind its
     /// content. Receives a ``NookBackdropContext``: the current ``NookAppearancePreferences``,

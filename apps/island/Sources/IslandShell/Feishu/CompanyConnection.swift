@@ -332,6 +332,7 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
     }
     @MainActor func returnToSettings() {
         window?.orderOut(nil)
+        if IslandOnboardingPolicy.isNewUser { return }
         UnifiedSettingsWindow.shared.open(section: authorizationPurpose == .calendar ? .todos : .messages)
     }
     @MainActor func reloadLoginPage() {
