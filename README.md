@@ -4,14 +4,16 @@
 
 把飞书消息、Agent 状态、待办日程和虚实中台放进 Mac 顶部的灵动岛。
 
-**当前版本：0.12.3 · build97（2026-10-29）** · Apple 芯片 Mac · macOS 15 或更高版本
+**本次版本：0.12.4 · build98（2026-10-29）** · Apple 芯片 Mac · macOS 15 或更高版本
+
+发布进度及待解决问题见 [验证记录](docs/build95-first-run.md)。
 
 [下载最新版本](https://github.com/zaizhi-1112/feishu-island/releases/latest) · [产品网页](https://feishu-island.virxact.net) · [反馈问题](https://github.com/zaizhi-1112/feishu-island/issues)
 
 ## 安装与开始使用
 
 1. 在 [GitHub Releases](https://github.com/zaizhi-1112/feishu-island/releases/latest) 下载 `.dmg`，或从已登录的[虚实中台入口](https://virxact.net/apps/feishu-island/open)下载。
-2. 打开安装包，双击里面的「一切在岛」，点「安装并开始设置」，完成安装后直接进入使用前设置。
+2. 打开安装包，把「一切在岛」拖进 Applications，然后从「应用程序」打开它。
 3. 首次打开如果 macOS 拦截，前往「系统设置 → 隐私与安全性」，找到这次打开记录并点击「仍要打开」。当前安装包尚未经过 Apple 公证。
 4. 依次完成七步选择：展开、外观、飞书、弹幕、提醒、快捷键和 Agent，点击「开始使用」后灵动岛才出现。Agent 可先跳过，以后在设置中一键发现并选择连接。
 

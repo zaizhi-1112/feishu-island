@@ -191,6 +191,7 @@ struct IslandSettingsCard<Content:View>:View {
 }
 struct UnifiedAppearanceControls:View {
     @ObservedObject var appState:AppState
+    @AppStorage("island.showRetractedEdge") private var showRetractedEdge = false
     private func binding<T>(_ key:WritableKeyPath<NookAppearancePreferences,T>)->Binding<T> {
         Binding(get:{appState.appearancePreferences[keyPath:key]},set:{ value in var next=appState.appearancePreferences; next[keyPath:key]=value; appState.replaceAppearancePreferences(next) })
     }
@@ -204,6 +205,10 @@ struct UnifiedAppearanceControls:View {
             Text("完整展开").tag(NookOpenOnHover.immediately)
             Text("先露出胶囊，点击展开").tag(NookOpenOnHover.peekFirst)
         }.pickerStyle(.segmented).accessibilityIdentifier("unified.hoverMode")
+        Picker("收起时", selection: $showRetractedEdge) {
+            Text("完全隐藏").tag(false)
+            Text("露出黑边").tag(true)
+        }.pickerStyle(.segmented)
         Text("统一使用悬浮胶囊。未锁定时空闲移开即收起，输入或操作菜单时保留展开；点齿轮旁的小锁可始终保持展开。").font(.system(size:12)).foregroundStyle(.secondary)
     }
 }

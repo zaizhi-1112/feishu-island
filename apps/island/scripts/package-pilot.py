@@ -247,7 +247,7 @@ def package(app, output):
                 'status': 'pilot-preparation', 'colleagueAccountVerified': False,
                 'notarized': False, 'includesPersonalCredentials': False,
                 'format': 'dmg', 'archive': archive.name, 'sha256': digest,
-                'installation': 'double-click-install-and-setup', 'browserExtensionEmbedded': False,
+                'installation': 'drag-to-applications', 'browserExtensionEmbedded': False,
                 'finderLayout': layout,
                 'verification': {'imageIntegrity': True, 'readOnlyMounted': True,
                                  'bundleHashesMatch': True, 'signatureValid': True, 'detached': True},

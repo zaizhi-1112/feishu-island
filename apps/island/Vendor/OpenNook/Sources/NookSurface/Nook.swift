@@ -219,7 +219,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         if edgeDocked {
             let layout = NookEdgeDockLayout(state: state, hovering: isHovering || compactRevealActive,
                 peeking: isPeeking, contentHeight: chromeFrameInWindow.height,
-                shownTopInset: topInset, physicalNotchHeight: physicalNotchHeight)
+                shownTopInset: topInset, physicalNotchHeight: physicalNotchHeight,
+                showRetractedEdge: UserDefaults.standard.bool(forKey: "island.showRetractedEdge"))
             let local = NSPoint(x: point.x - (window.frame.midX - chromeFrameInWindow.width / 2),
                                 y: window.frame.maxY - point.y)
             return layout.hoverRects(width: chromeFrameInWindow.width,

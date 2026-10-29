@@ -12,6 +12,7 @@ import NookApp
     check(IslandOnboardingPolicy.initialState(saved: "pending", hasExistingData: true) == "pending", "interrupted first run resumes despite partial saves")
     check(IslandInstaller.isInstallSource(URL(fileURLWithPath:"/Volumes/一切在岛/一切在岛.app")), "DMG opens installation action")
     check(IslandInstaller.isInstallSource(URL(fileURLWithPath:"/private/var/folders/test/AppTranslocation/id/d/一切在岛.app")), "Gatekeeper translocation still opens installer")
+    check(!IslandInstaller.shouldStartInstaller(source:URL(fileURLWithPath:"/private/var/folders/test/AppTranslocation/id/d/一切在岛.app"),arguments:["--onboarding"]), "installed copy never re-enters installer when Gatekeeper translocates it")
     check(!IslandInstaller.isInstallSource(URL(fileURLWithPath:"/Applications/一切在岛.app")), "installed launch never copies itself")
     let isolated = UserDefaults(suiteName: "island.onboarding.check." + UUID().uuidString)!
     IslandOnboardingPolicy.finish(defaults: isolated, skipped: true)

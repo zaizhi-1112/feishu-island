@@ -37,7 +37,7 @@ def prepare(manifest, output):
     (output / 'SHA256SUMS').write_text(digest + '  ' + dmg.name + '\n')
     shutil.copy2(manifest, output / 'manifest.json')
     shutil.copy2(ROOT / 'Distribution/开始使用.html', output / 'installation-guide.html')
-    notes = '<p>安装后自动进入七步设置，全部完成才显示灵动岛；Agent 发现与连接由本人选择。新增快捷键录制、日程本机删除；修复中台卡片与虚实主题。屏幕提醒3秒后可点击或按键关闭，内置和导入视频支持透明背景。</p>'
+    notes = '<p>安装盘恢复拖入应用程序的引导画面。新增收起时完全隐藏或露出黑边的选择；改善飞书授权后的连接状态和权限收窄。</p>'
     (output / (dmg.stem + '.html')).write_text(notes)
     tool = ROOT / '.build/artifacts/sparkle/Sparkle/bin/generate_appcast'
     run(str(tool), '--account', KEY_ACCOUNT, '--maximum-deltas', '0', '--download-url-prefix', f'https://github.com/{REPO}/releases/download/{tag}/', str(output))
@@ -76,7 +76,7 @@ def publish(prepared):
     if existing.returncode == 0:
         raise ValueError('Release exists; inspect its state before retrying to avoid duplicate publication')
     notes = Path(prepared['directory']) / 'release-notes.md'
-    notes.write_text('首次安装双击包内 App，点击“安装并开始设置”；完成全部七步选择才出现灵动岛。Agent 先发现再连接，跳过后保持未连接。增加快捷键录制、普通待办删除与飞书日程本机移除；中台按分组显示，虚实主题使用官方 Logo。待办和休息屏幕动效3秒后可点击或按键关闭；KUN、Gemini 已处理透明背景，自定义视频在本机去背景。跨应用按键关闭需本人授予系统权限。\n\nApple 芯片 Mac，macOS 15+。首次安装仍需按安装窗口指引在系统设置允许打开。build91 及更早版本请先手动安装一次。\n')
+    notes.write_text('安装盘恢复拖入应用程序的引导画面；收起时可选择完全隐藏或露出黑边。飞书连接增加权限收窄、连接进度和失败提示；复制后的启动避免重复进入安装器。\n\nApple 芯片 Mac，macOS 15+；安装包尚未 Apple 公证。两位同事报告的无法打开（其中一例 -47）尚未复现，安全提示后的完整首次启动和受影响同事的飞书连接仍需实机验证。build91 及更早版本请先手动安装一次。\n')
     run('gh', 'release', 'create', tag, '--repo', REPO, '--target', commit, '--draft', '--title', f"一切在岛 {prepared['version']} · build{prepared['build']}", '--notes-file', str(notes))
     run('gh', 'release', 'upload', tag, '--repo', REPO, *prepared['files'])
     run('gh', 'release', 'edit', tag, '--repo', REPO, '--draft=false', '--latest')

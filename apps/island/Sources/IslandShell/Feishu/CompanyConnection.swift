@@ -198,7 +198,7 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
             authorizationGranted = state["authorized"] as? Bool == true
             let local = statusJSON()[authorizationPurpose.rawValue] as? [String: Any]
             authorizationConnected = authorizationGranted && local?["connected"] as? Bool == true
-            if !authorizationBusy {
+            if !authorizationBusy && !(purpose == .receive && FeishuStore.active?.connecting == true) {
                 authorizationFeedback = !authorizationConfigured ? "这项连接暂不可用，请联系应用维护者。"
                     : authorizationConnected ? "已核实本人授权，Mac连接已完成。"
                     : authorizationGranted ? "飞书授权已保存。点下方按钮核对Mac连接，成功后会显示连接结果。"
@@ -303,7 +303,13 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
         }
     }
     @MainActor func continueDesktopConnection() {
-        if authorizationPurpose == .receive, let store = FeishuStore.active, !store.connecting {
+        if authorizationPurpose == .receive {
+            guard let store = FeishuStore.active else {
+                reportReceiveConnectionFailure("飞书消息组件尚未就绪，请稍后重新核对连接。")
+                return
+            }
+            authorizationFeedback = "飞书授权已完成，正在核对 Mac 连接…"
+            guard !store.connecting else { return }
             store.completeCompanyConnection()
         } else if authorizationPurpose == .calendar {
             Task {
@@ -311,6 +317,11 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
                 await refreshAuthorizationStatus()
             }
         } else { Task { await refreshAuthorizationStatus() } }
+    }
+    @MainActor func reportReceiveConnectionFailure(_ message: String) {
+        guard authorizationPurpose == .receive else { return }
+        authorizationConnected = false
+        authorizationFeedback = message
     }
     @MainActor func cancelAuthorization() {
         authorizationAttempt = UUID()

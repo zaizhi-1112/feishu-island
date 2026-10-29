@@ -75,6 +75,9 @@ let notchedEdge = NookEdgeDockLayout(state: .compact, hovering: false, contentHe
                                     shownTopInset: 36, physicalNotchHeight: 32)
 expect(notchedEdge.visibleTop == 0 && notchedEdge.visibleHeight == 32, "retracted pointer target stays inside camera cutout")
 expect(!notchedEdge.hitRect(width: 96).contains(CGPoint(x: 48, y: 34)), "no target or lip below camera area")
+let visibleEdge = NookEdgeDockLayout(state: .compact, hovering: false, contentHeight: 32,
+                                     shownTopInset: 36, physicalNotchHeight: 32, showRetractedEdge: true)
+expect(visibleEdge.visibleHeight == 36 && visibleEdge.hitRect(width: 96).contains(CGPoint(x: 48, y: 34)), "optional edge extends four points below camera")
 let panel = NookEdgeDockLayout(state: .expanded, hovering: false, contentHeight: 300,
                               shownTopInset: 4, physicalNotchHeight: 0)
 expect(!panel.isRetracted && panel.containerHeight == 304, "expanded panel preserves full content even without hover")

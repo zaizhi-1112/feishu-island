@@ -26,7 +26,8 @@ public struct NookEdgeDockLayout: Equatable, Sendable {
         peeking: Bool = false,
         contentHeight: CGFloat,
         shownTopInset: CGFloat,
-        physicalNotchHeight: CGFloat
+        physicalNotchHeight: CGFloat,
+        showRetractedEdge: Bool = false
     ) {
         let height = max(contentHeight, Self.edgeHeight)
         let notch = max(physicalNotchHeight, 0)
@@ -34,7 +35,7 @@ public struct NookEdgeDockLayout: Equatable, Sendable {
         if isRetracted {
             // Keep a transparent pointer target at the camera (or screen edge).
             visibleTop = 0
-            visibleHeight = notch > 0 ? notch : Self.edgeHeight
+            visibleHeight = notch > 0 ? notch + (showRetractedEdge ? Self.edgeHeight : 0) : Self.edgeHeight
             containerHeight = visibleHeight
             contentOffset = containerHeight - height
         } else {

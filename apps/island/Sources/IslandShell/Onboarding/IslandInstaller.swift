@@ -6,9 +6,15 @@ import AppKit
     public nonisolated static func isInstallSource(_ source: URL) -> Bool {
         source.path.hasPrefix("/Volumes/") || source.path.contains("/AppTranslocation/")
     }
+    public nonisolated static func shouldStartInstaller(source: URL, arguments: [String]) -> Bool {
+        // The copy started by this installer is the installed application even
+        // if Gatekeeper presents it from a randomized read-only location. Do
+        // not start a second install or overwrite the destination recursively.
+        isInstallSource(source) && !arguments.contains("--onboarding")
+    }
     public static func runIfNeeded() -> Bool {
         let source = Bundle.main.bundleURL
-        guard isInstallSource(source), source.pathExtension == "app",
+        guard shouldStartInstaller(source: source, arguments: ProcessInfo.processInfo.arguments), source.pathExtension == "app",
               Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview" else { return false }
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
