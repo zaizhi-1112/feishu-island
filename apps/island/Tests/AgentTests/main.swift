@@ -202,6 +202,11 @@ final class AgentTests {
         XCTAssertTrue(values[1].label.contains("5小时"))
     }
     func testMissingCodexWindowsAreNotZero() {
+        let guiEnvironment = CodexReader.queryEnvironment(["PATH":"/usr/bin:/bin", "CUSTOM":"keep"])
+        XCTAssertTrue(guiEnvironment["PATH"]!.contains("/opt/homebrew/bin"))
+        XCTAssertTrue(guiEnvironment["PATH"]!.contains("/.local/node/bin"))
+        XCTAssertEqual(guiEnvironment["CUSTOM"], "keep")
+        XCTAssertEqual(CodexReader.queryEnvironment(guiEnvironment), guiEnvironment)
         XCTAssertTrue(CodexReader.parseQuotas([:],now:now).isEmpty)
         XCTAssertTrue(CodexReader.parseQuotas(["rateLimits":["primary":NSNull()]],now:now).isEmpty)
     }
@@ -233,6 +238,12 @@ final class AgentTests {
         XCTAssertEqual(reloaded.visibleIDs,migrated.visibleIDs)
     }
     func testClaudeContextUsageIsNotSubscriptionQuota() {
+        XCTAssertNil(ClaudeQuotaRecord.parse(["context_window":["used_percentage":20]], now:now))
+        XCTAssertNil(ClaudeQuotaRecord.parse(["rate_limits":["five_hour":["used_percentage":20,"resets_at":now-1]]], now:now))
+        XCTAssertNil(ClaudeQuotaRecord.parse(["rate_limits":["five_hour":["used_percentage":101,"resets_at":now+100]]], now:now))
+        let fresh = ClaudeQuotaRecord.parse(["rate_limits":["five_hour":["used_percentage":25,"resets_at":now+100]]], now:now)
+        XCTAssertEqual(fresh?.quotas.first?.remainingPercent,75)
+        XCTAssertEqual(fresh?.quotas.first?.updatedAt,now)
         XCTAssertTrue(AgentBridge.claudeQuotas(["context_window":["used_percentage":99]],now:now).isEmpty)
         let quotas = AgentBridge.claudeQuotas(["five_hour":["used_percentage":80.5,"resets_at":1_010_000]],now:now)
         XCTAssertEqual(quotas.first?.remainingPercent,19.5)

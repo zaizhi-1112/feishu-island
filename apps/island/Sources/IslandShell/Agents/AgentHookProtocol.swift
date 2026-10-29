@@ -76,3 +76,18 @@ struct AgentHookPolicy: Codable {
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
 }
+
+/// Only subscription windows leave the status-line payload. No paths, model prompts or credentials.
+struct ClaudeQuotaRecord: Codable {
+    var quotas: [AgentQuota]
+    static func parse(_ input: [String: Any], now: Double) -> Self? {
+        guard let limits = input["rate_limits"] as? [String: Any] else { return nil }
+        let quotas = [("five_hour", "5小时额度"), ("seven_day", "周额度")].compactMap { key, title -> AgentQuota? in
+            guard let window = limits[key] as? [String: Any],
+                  let used = window["used_percentage"] as? Double, used.isFinite, (0...100).contains(used),
+                  let reset = window["resets_at"] as? Double, AgentTimestamp.isValid(reset), reset > now else { return nil }
+            return AgentQuota(id: key, label: title, remainingPercent: 100-used, resetsAt: reset, updatedAt: now)
+        }
+        return quotas.isEmpty ? nil : Self(quotas: quotas)
+    }
+}

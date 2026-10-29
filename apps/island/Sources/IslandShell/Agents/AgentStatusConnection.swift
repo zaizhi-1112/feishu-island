@@ -8,6 +8,11 @@ enum AgentStatusConnection {
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let hooks = object["hooks"] as? [String: Any],
               let helper = Bundle.main.executableURL?.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Helpers/agent-status-helper") else { return false }
+        if provider == "claude" {
+            guard let statusLine = object["statusLine"] as? [String: Any],
+                  let command = statusLine["command"] as? String,
+                  command.contains(helper.path), command.hasSuffix(" --statusline claude") else { return false }
+        }
         return ["UserPromptSubmit", "PreToolUse", "PermissionRequest", "PostToolUse", "Stop"].allSatisfy { event in
             (hooks[event] as? [[String: Any]] ?? []).contains { entry in
                 (entry["hooks"] as? [[String: Any]] ?? []).contains { ($0["command"] as? String)?.contains(helper.path) == true && ($0["command"] as? String)?.hasSuffix(" --record " + provider) == true }

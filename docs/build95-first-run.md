@@ -54,3 +54,13 @@ Agent 的 Codex 历史读取、WorkBuddy 和 Claude 状态读取并发，先交�
 超长弹幕进入屏幕后才开始滚动正文，并在离开屏幕前展示末尾；合成几何检查覆盖首尾可见位置。build99 发布后发现此显示边界，故由 build100 延续修正。
 
 发布结果：build100 已发布到 GitHub Release，飞书下载页发布编号 715 于 15:29 UTC 上线，服务器核验的安装包与 GitHub 一致。按本人要求未另做完整浏览器下载校验。本机正式应用仍为原安装版本，main 未合并。
+
+## build101：本机弹幕与额度修复（2026-10-30）
+
+本人确认此前同事安装问题已解决，本轮不再继续复现 -47 或首次安全确认。
+
+飞书展示层仅移除卡片的 font/text_tag 样式标签、将 br 转成换行，保留正文、行内代码和代码块；原消息存档不变。Codex 的 npm 入口依赖 Node，Finder 启动环境缺少 Node 路径时会直接断开额度查询；查询子进程补齐本机常见 Node 路径，不修改系统 PATH。
+
+Claude Code 额度不再使用 Claude Desktop 的历史记录。已选择连接 Claude 的用户通过官方 statusLine 的 rate_limits 接收五小时和周额度；辅助程序只保存额度、重置时间和更新时间，原有终端 statusLine 命令与输出保留。缺失/非法/已过期窗口不覆盖已有数据，不把上下文百分比当作订阅额度，也不访问账号凭据。客户端新回复后同步，界面刷新只重新读取客户端提供的数据，不能冒充网络额度刷新。
+
+官方字段依据：https://code.claude.com/docs/en/statusline 。本机已安装 0.12.7 build101，730 项 Agent、79 项 helper、28 项消息检查及生产编译/深度验签通过。真实 Codex GUI 环境查询与设置页读数已核对；Claude 原 statusLine 保留，尚待其新回复提供真实额度。原版与配置备份仅保存在 `.build/build101-local-backup`。本轮未更新公开下载或合并 main。

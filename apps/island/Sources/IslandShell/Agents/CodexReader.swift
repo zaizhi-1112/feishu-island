@@ -139,6 +139,15 @@ actor CodexReader {
             }
         }
     }
+    /// Finder-launched applications do not inherit the shell's Node search path.
+    nonisolated static func queryEnvironment(_ inherited: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
+        var environment = inherited
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let paths = (inherited["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin").components(separatedBy: ":")
+        let additions = ["/opt/homebrew/bin", "/usr/local/bin", home + "/.local/bin", home + "/.local/node/bin"]
+        environment["PATH"] = (paths + additions.filter { !paths.contains($0) }).joined(separator: ":")
+        return environment
+    }
     nonisolated static func quotas() async throws -> [AgentQuota] {
         guard let executable = executable() else { throw AgentReadError.unavailable("未找到Codex，请先安装并登录。") }
         let result = try await CodexQuotaRequest(executable: executable).run()
@@ -158,6 +167,7 @@ private final class CodexQuotaRequest: @unchecked Sendable {
             queue.async { [self] in
                 self.continuation = continuation
                 self.process.arguments = ["app-server", "--listen", "stdio://"]
+                self.process.environment = CodexReader.queryEnvironment()
                 self.process.standardInput = self.input; self.process.standardOutput = self.output; self.process.standardError = FileHandle.nullDevice
                 self.output.fileHandleForReading.readabilityHandler = { [weak self] handle in
                     let data = handle.availableData

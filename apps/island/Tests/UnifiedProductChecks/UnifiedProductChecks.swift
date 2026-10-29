@@ -22,6 +22,13 @@ import SwiftUI
     @MainActor static func runChecks() async throws {
         let app=NSApplication.shared
         app.setActivationPolicy(CommandLine.arguments.contains("--interactive") ? .accessory:.prohibited)
+        if CommandLine.arguments.contains("--live-agent-quota-diagnostic") {
+            let quotas = try await CodexReader.quotas()
+            print("Codex live quota windows: \(quotas.count); remaining: \(quotas.map { $0.remainingPercent }); fresh: \(quotas.allSatisfy { $0.isFresh(now: Date().timeIntervalSince1970) })")
+            let claude = ClaudeDesktopReader.snapshot(now: Date().timeIntervalSince1970)
+            print("Claude Code quota windows: \(claude.quotas.count); fresh: \(claude.quotas.filter { $0.isFresh(now: Date().timeIntervalSince1970) }.count)")
+            return
+        }
         if CommandLine.arguments.contains("--dismiss-review") { showReminderDismissReview(); return }
         if CommandLine.arguments.contains("--guide-review") { showGuideReview(); return }
         if CommandLine.arguments.contains("--queue-timer-review") {try await runScreenQueueTimerReview();return}

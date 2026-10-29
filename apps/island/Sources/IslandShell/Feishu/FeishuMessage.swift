@@ -193,9 +193,25 @@ func feishuDisplayText(_ source: String) -> String {
             return line
         }
         guard !inCodeBlock else { return line }
-        let readable = line.replacingOccurrences(of: #"^(\s{0,3})\*\s+"#, with: "$1• ", options: .regularExpression)
+        // Strip only Feishu presentation tags, leaving code and ordinary comparisons intact.
+        let readable = feishuPresentationTags(line)
+            .replacingOccurrences(of: #"^(\s{0,3})\*\s+"#, with: "$1• ", options: .regularExpression)
             .replacingOccurrences(of: #"^\s{0,3}#{1,6}\s+"#, with: "", options: .regularExpression)
         guard let formatted = try? AttributedString(markdown: readable, options: options) else { return readable }
         return String(formatted.characters)
     }.joined(separator: "\n")
+}
+
+private func feishuPresentationTags(_ line: String) -> String {
+    // Inline code is literal, just like fenced code. Never use a general HTML renderer.
+    let pattern = #"(`+)[^`]*?\1|(?i:</?(?:font|text_tag)(?:\s+[^<>]*?)?\s*>|<br\s*/?>)"#
+    guard let regex = try? NSRegularExpression(pattern: pattern) else { return line }
+    let original = line as NSString
+    var result = line
+    for match in regex.matches(in: line, range: NSRange(location: 0, length: original.length)).reversed() {
+        let token = original.substring(with: match.range)
+        guard !token.hasPrefix("`"), let range = Range(match.range, in: result) else { continue }
+        result.replaceSubrange(range, with: token.lowercased().hasPrefix("<br") ? "\n" : "")
+    }
+    return result
 }
