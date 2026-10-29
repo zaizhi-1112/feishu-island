@@ -28,7 +28,7 @@ public enum NookApp {
             let app = NSApplication.shared
             let delegate = AppDelegate(host: host)
             app.delegate = delegate
-            app.setActivationPolicy(.accessory)
+            app.setActivationPolicy(.regular)
             app.run()
             withExtendedLifetime(delegate) {}
         }
@@ -148,6 +148,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.image =
             moduleHost.branding.menuBarTemplateImage(size: 14)
             ?? NSImage(systemSymbolName: "text.bubble", accessibilityDescription: hostName)
+        if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "png"), let image = NSImage(contentsOf: url) {
+            image.size = NSSize(width: 20, height: 20)
+            image.isTemplate = false
+            item.button?.image = image
+        }
         statusItem = item
         rebuildMenu()
 

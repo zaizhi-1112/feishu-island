@@ -55,7 +55,7 @@ public final class DanmuPlayback {
         case "light": overlay.skinBackground = color("background") ?? NSColor.white.withAlphaComponent(0.94); overlay.skinForeground = color("foreground") ?? NSColor(srgbRed: 0.1, green: 0.12, blue: 0.15, alpha: 1)
         default: break
         }
-        // Every length uses moving, bounded multiline segments. No message blocks the desktop queue.
+        // Each message stays in one moving panel, scrolling long text within it.
         overlay.preferStatic = false
         overlay.allowsCards = false
         overlay.multilineMotion = true

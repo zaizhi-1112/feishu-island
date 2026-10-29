@@ -237,7 +237,7 @@ struct IslandOnboardingView: View {
             Text("也可以先跳过，稍后在设置里连接。").font(.system(size: 12)).foregroundStyle(.secondary)
         case .danmu:
             option(0, "只在岛内看", "桌面保持安静。", "capsule", selected: !feishu.danmu.enabled) { var p = feishu.danmu; p.enabled = false; feishu.updateDanmu(p); playing = false }
-            option(1, "也显示桌面弹幕", "短消息飘过，长消息分页。", "text.bubble", selected: feishu.danmu.enabled) { var p = feishu.danmu; p.enabled = true; p.paused = false; feishu.updateDanmu(p); replay() }
+            option(1, "也显示桌面弹幕", "消息完整飘过，长文字在同一条弹幕中滚动。", "text.bubble", selected: feishu.danmu.enabled) { var p = feishu.danmu; p.enabled = true; p.paused = false; feishu.updateDanmu(p); replay() }
             if feishu.danmu.enabled {
                 HStack(spacing: 8) {
                     ForEach([("none","文字"),("dark","深色气泡"),("light","浅色气泡")], id: \.0) { value, title in

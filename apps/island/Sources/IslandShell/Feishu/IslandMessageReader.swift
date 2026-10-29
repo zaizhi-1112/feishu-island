@@ -87,7 +87,7 @@ struct IslandMessageReader: View {
         .foregroundStyle(theme.primaryLabel)
         .accessibilityIdentifier("feishu.reader")
         .onAppear {
-            if pages.isEmpty { pages = IslandReadingPages.split(message.text, fontSize: fontSize) }
+            if pages.isEmpty { pages = IslandReadingPages.split(message.displayText, fontSize: fontSize) }
             page = min(max(0, initialPage), pages.count - 1)
         }
         .onChange(of: page) { _, value in onPageChange(value) }

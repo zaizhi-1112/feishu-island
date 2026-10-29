@@ -477,7 +477,7 @@ public final class AppCoordinator: ObservableObject {
         // app object is first materialized; a unit-test process that constructs the
         // coordinator without ever calling `NSApplication.shared.run()` traps on
         // `NSApp.setActivationPolicy`. The shared accessor materializes lazily.
-        NSApplication.shared.setActivationPolicy(.accessory)
+        NSApplication.shared.setActivationPolicy(.regular)
         if moduleHost.chromeBehavior.keyboard.installsEditMenu {
             NookEditMenu.installIfNeeded()
         }

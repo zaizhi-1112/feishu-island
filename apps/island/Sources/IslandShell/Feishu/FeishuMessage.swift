@@ -173,11 +173,29 @@ public struct FeishuMessage: Identifiable, Equatable, Sendable, Codable {
         return components.url
     }
     public var source: String { chatKind == "p2p" ? senderName : chatName }
+    // Keep the original message for history and rules; format only its presentation.
+    var displayText: String { feishuDisplayText(text) }
     var danmuText: String {
         let chat = chatName.trimmingCharacters(in: .whitespacesAndNewlines)
         let sender = senderName.trimmingCharacters(in: .whitespacesAndNewlines)
         let label = chatKind == "p2p" || chat == sender || chat.isEmpty ? sender : sender.isEmpty ? chat : "\(chat) · \(sender)"
-        return label.isEmpty ? text : "\(label)：\(text)"
+        return label.isEmpty ? displayText : "\(label)：\(displayText)"
     }
     public var reason: String { importanceReason(followed: [chatID]) ?? "关注" }
+}
+
+func feishuDisplayText(_ source: String) -> String {
+    let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+    var inCodeBlock = false
+    return source.components(separatedBy: "\n").map { line in
+        if line.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+            inCodeBlock.toggle()
+            return line
+        }
+        guard !inCodeBlock else { return line }
+        let readable = line.replacingOccurrences(of: #"^(\s{0,3})\*\s+"#, with: "$1• ", options: .regularExpression)
+            .replacingOccurrences(of: #"^\s{0,3}#{1,6}\s+"#, with: "", options: .regularExpression)
+        guard let formatted = try? AttributedString(markdown: readable, options: options) else { return readable }
+        return String(formatted.characters)
+    }.joined(separator: "\n")
 }

@@ -16,7 +16,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 HELPERS = {'agent-status-helper', 'lark-cli', 'feishu-hub-helper'}
 CHECKIN_FILES = set()
-RESOURCE_FILES = {'deepseek-balance.cjs', 'AppIcon.icns', 'LarkCLI-LICENSE', 'OpenNook-LICENSE', 'NookSurface-LICENSE', 'OpenNook-NOTICE.md', '开始使用.html'}
+RESOURCE_FILES = {'deepseek-balance.cjs', 'AppIcon.png', 'AppIcon.icns', 'LarkCLI-LICENSE', 'OpenNook-LICENSE', 'NookSurface-LICENSE', 'OpenNook-NOTICE.md', '开始使用.html'}
 RESOURCE_DIRS = {'ThirdPartyLicenses'}
 WEB_FILES = {'avatar-virxact.svg', 'deepseek-icon.ico', 'avatar-virxact.png', 'pet-codex.png', 'style.css', 'codex-atlas.webp', 'virxact-logo.svg', 'agent-codex.png', 'pet-workbuddy.svg', 'avatar-workbuddy.png', 'agent-workbuddy.png', 'avatar-codex.png', 'pet-workbuddy.png', 'avatar-claude.png', 'todos.js', 'skin-v2.css', 'agent-claude.png', 'app.js', 'brand-flow.json', 'index.html', 'skin-effects.js', 'virxact-logo.png', 'brand-geometry.json', 'pet-codex.svg', 'pet-claude.png', 'skins.json', 'pet-claude.svg'}
 # Native SkinManifest / SkinResources consume these assets directly. The three

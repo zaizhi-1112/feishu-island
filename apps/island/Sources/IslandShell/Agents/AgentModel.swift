@@ -179,6 +179,11 @@ public struct AgentPreferences: Codable, Sendable {
         visibleIDs = ids
         if !ids.contains(primaryID), let first = visibleProfiles.first { primaryID = first.id }
     }
+    public mutating func moveVisibleID(_ id: String, by offset: Int) {
+        guard let index = visibleIDs.firstIndex(of: id), (-1...1).contains(offset), offset != 0,
+              visibleIDs.indices.contains(index + offset) else { return }
+        visibleIDs.swapAt(index, index + offset)
+    }
     public var validationError: String? {
         guard ["auto", "codex", "claude", "workbuddy", "virxact", "deepseek"].contains(skinID) else { return "请选择可用的皮肤。" }
         let builtins = Set(["codex", "claude", "workbuddy"])

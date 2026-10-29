@@ -44,13 +44,23 @@ struct UnifiedAgentSettings:View {
             }
             IslandSettingsCard("岛上怎样显示") {
                 HStack(spacing:12) {
-                    ForEach(store.preferences.visibleProfiles) { profile in
-                        AgentPrimaryChoice(profile:profile,selected:store.primary.id==profile.id,motion:store.preferences.effectsEnabled) {store.selectPrimary(profile.id)}
+                    ForEach(Array(store.preferences.visibleProfiles.enumerated()), id: \.element.id) { index, profile in
+                        VStack(spacing: 6) {
+                            AgentPrimaryChoice(profile:profile,selected:store.primary.id==profile.id,motion:store.preferences.effectsEnabled) {store.selectPrimary(profile.id)}
+                            if store.preferences.visibleProfiles.count > 1 {
+                                HStack(spacing: 12) {
+                                    Button { moveVisible(profile.id, by: -1) } label: { Image(systemName:"arrow.left") }
+                                        .disabled(index == 0).accessibilityLabel("将\(profile.name)向左移动")
+                                    Button { moveVisible(profile.id, by: 1) } label: { Image(systemName:"arrow.right") }
+                                        .disabled(index == store.preferences.visibleProfiles.count - 1).accessibilityLabel("将\(profile.name)向右移动")
+                                }.buttonStyle(.borderless).font(.system(size: 13))
+                            }
+                        }
                     }
                     if store.preferences.visibleIDs.isEmpty { Text("还没有选择显示在岛上的工具").foregroundStyle(.secondary) }
                 }
                 Toggle("收起时显示主用Agent的额度",isOn:setting(\.quotaDisplayEnabled))
-                Text("点击上方工具或岛内工具切换主用Agent。Codex显示剩余比例，WorkBuddy显示积分，DeepSeek Harness显示余额。查看额度可独立于任务状态读取。").font(.caption).foregroundStyle(.secondary)
+                Text("点击工具切换主用 Agent，用箭头调整岛上的顺序。Codex显示剩余比例，WorkBuddy显示积分，DeepSeek Harness显示余额。查看额度可独立于任务状态读取。").font(.caption).foregroundStyle(.secondary)
             }
             IslandSettingsCard("什么时候提醒我") {
                 Toggle("需要我确认或补充信息",isOn:setting(\.attentionAlerts))
@@ -73,6 +83,11 @@ struct UnifiedAgentSettings:View {
     private func mode(_ id:String)->String {store.preferences.visibleIDs.contains(id) ? "show" : store.preferences.isMonitoring(id) ? "alerts":"off"}
     private func setting(_ key:WritableKeyPath<AgentPreferences,Bool>)->Binding<Bool>{Binding(get:{store.preferences[keyPath:key]},set:{value in change{$0[keyPath:key]=value}})}
     private func change(_ action:(inout AgentPreferences)->Void) {var p=store.preferences;action(&p);do{try store.update(p);error="";undo=nil}catch{self.error=error.localizedDescription}}
+    private func moveVisible(_ id:String, by offset:Int) {
+        change { preferences in
+            preferences.moveVisibleID(id, by: offset)
+        }
+    }
     private func setMode(_ id:String,_ mode:String,replace:String?=nil) {
         if mode=="show",!store.preferences.visibleIDs.contains(id),store.preferences.visibleIDs.count==3,replace==nil {replacing=id;return}
         let old=store.preferences

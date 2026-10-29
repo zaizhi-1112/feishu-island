@@ -9,6 +9,7 @@ final class FlyingText: NSView {
     var motionPanel: PassThroughWindow?
     var motionMessage: DanmuMessage?
     var motionPages: [String] = []
+    var motionScreenWidth: CGFloat = 0
     var clickedPause = false
     var motionOpen: (() -> Void)?
     private var tracking: NSTrackingArea?
@@ -46,9 +47,17 @@ final class FlyingText: NSView {
             NSBezierPath(roundedRect: bounds, xRadius: corner, yRadius: corner).fill()
         }
         if let borderColor { borderColor.setStroke(); let edge = NSBezierPath(roundedRect:bounds.insetBy(dx:0.5,dy:0.5),xRadius:corner,yRadius:corner);edge.lineWidth=1;edge.stroke() }
-        if let message = motionMessage {
-            content.draw(with: NSRect(x: 14, y: 38, width: bounds.width - 28, height: bounds.height - 50), options: [.usesLineFragmentOrigin, .usesFontLeading])
-            let progress = motionPages.count > 1 ? "\(message.segment + 1)/\(motionPages.count) · " : ""
+        if motionMessage != nil {
+            let viewport = NSRect(x: 14, y: 38, width: bounds.width - 28, height: bounds.height - 50)
+            let textHeight = ceil(content.boundingRect(with: NSSize(width: viewport.width, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading]).height)
+            let overflow = max(0, textHeight - viewport.height)
+            let travel = max(1, motionScreenWidth + bounds.width)
+            let fraction = min(1, max(0, (motionScreenWidth - position) / travel))
+            NSGraphicsContext.saveGraphicsState()
+            NSBezierPath(rect: viewport).addClip()
+            content.draw(with: NSRect(x: viewport.minX, y: viewport.minY - overflow * (1 - fraction), width: viewport.width, height: max(textHeight, viewport.height)), options: [.usesLineFragmentOrigin, .usesFontLeading])
+            NSGraphicsContext.restoreGraphicsState()
+            let progress = ""
             let hint = clickedPause ? "移开继续" : "点击停留"
             (progress + hint).draw(at: NSPoint(x: 14, y: 12), withAttributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: textColor.withAlphaComponent(0.8)])
         } else if card {

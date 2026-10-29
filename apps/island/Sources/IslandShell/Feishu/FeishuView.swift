@@ -138,7 +138,7 @@ struct FeishuView: View {
                     Spacer(minLength: 2)
                     Text(message.created, style: .time).font(.system(size: 9)).foregroundStyle(theme.tertiaryLabel)
                 }
-                Text(message.text)
+                Text(message.displayText)
                     .font(.system(size: 14)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal:false,vertical:true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 5) {

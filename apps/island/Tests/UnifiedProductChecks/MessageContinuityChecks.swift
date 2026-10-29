@@ -13,6 +13,9 @@ import NookApp
     }
     check(try card(["schema":"2.0", "header":["title":["tag":"plain_text","content":"合成标题"]], "body":["elements":[["tag":"markdown","content":"第一段\n第二段"]]]]) == "合成标题\n第一段\n第二段", "Card 2.0 original body keeps title and paragraphs")
     check(try card(["header":["title":["content":"合成"]],"i18n_elements":["zh_cn":[["tag":"div","text":["content":"中文"]]],"en_us":[["tag":"div","text":["content":"English"]]]]]) == "合成\n中文", "Card 1.0 selects one locale")
+    let formatted = try message("markdown", "**重点**和 *强调*，代码 `a*b`，公式 2*3")
+    check(formatted.text.contains("**重点**") && formatted.displayText == "重点和 强调，代码 a*b，公式 2*3", "message display removes Markdown emphasis while preserving source and literal stars")
+    check(feishuDisplayText("# 标题\n* **重点**\n```\n* 原样\n```") == "标题\n• 重点\n```\n* 原样\n```", "Markdown headings and lists are readable without changing code blocks")
     let text = String(repeating: "这是一段合成消息，包含日期与链接。\nhttps://example.com/\n", count: 8)
     let overlay = Overlay(showsWindow:false, frame:NSRect(x:0,y:0,width:1440,height:900))
     overlay.multilineMotion = true; overlay.fontSize = 28; overlay.movementSpeed = 500

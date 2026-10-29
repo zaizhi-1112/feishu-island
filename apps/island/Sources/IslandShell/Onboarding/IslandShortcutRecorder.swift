@@ -23,6 +23,8 @@ struct IslandShortcutRecorder: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in stop() }
     }
     private func start() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.keyWindow?.makeKeyAndOrderFront(nil)
         recording = true; appState.isRecordingHotkey = true
         hint = "按住 Command、Option 或 Control，再按一个键。Esc 取消。"
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in

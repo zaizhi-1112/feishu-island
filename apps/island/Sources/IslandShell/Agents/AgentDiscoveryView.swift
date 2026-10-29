@@ -20,9 +20,15 @@ struct AgentDiscoveryView: View {
                     AgentIdentityIcon(id: option.id, size: 24)
                     Text(option.name).font(.system(size: 13, weight: .medium))
                     Spacer()
-                    if store.preferences.isMonitoring(option.id) { Text("已连接").font(.caption).foregroundStyle(.secondary) }
+                    if store.preferences.isMonitoring(option.id) {
+                        Text(!store.preferences.visibleIDs.contains(option.id) ? "监测已开启 · 未在岛上显示" : (store.snapshots[option.id]?.sessions.isEmpty == false || store.snapshots[option.id]?.quotas.isEmpty == false || store.snapshots[option.id]?.metrics.isEmpty == false ? "已收到数据" : "监测已开启 · 等待数据")).font(.caption).foregroundStyle(.secondary)
+                    }
                     else { Button("连接") { connect(option.id) }.buttonStyle(.bordered) }
                 }.padding(.vertical, 4)
+            }
+            if discovered.contains(where: { store.preferences.isMonitoring($0.id) && !store.preferences.visibleIDs.contains($0.id) }) {
+                Text("岛上最多显示三个；可在设置的 Agent 状态中更换。")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             if !error.isEmpty { Text(error).font(.caption).foregroundStyle(.orange) }
         }

@@ -63,6 +63,12 @@ import SwiftUI
         prefs.setVisibleIDs(["workbuddy",profile.id,"codex"])
         check(prefs.visibleProfiles.map(\.id)==["workbuddy",profile.id,"codex"],"display order respected")
         check(prefs.activeMonitorIDs.contains("claude"),"hiding retains monitoring")
+        let primaryBeforeReorder = prefs.primaryID
+        prefs.moveVisibleID("codex", by: -1)
+        check(prefs.visibleIDs == ["workbuddy", "codex", profile.id] && prefs.primaryID == primaryBeforeReorder && prefs.activeMonitorIDs.contains("claude"), "reordering visible Agents keeps primary and monitoring")
+        let ordered = try JSONDecoder().decode(AgentPreferences.self, from: JSONEncoder().encode(prefs))
+        check(ordered.visibleIDs == prefs.visibleIDs, "Agent display order survives persistence")
+
         prefs.visibleIDs.append("claude")
         check(prefs.validationError != nil,"fourth visible Agent rejected")
         prefs.setVisibleIDs([])

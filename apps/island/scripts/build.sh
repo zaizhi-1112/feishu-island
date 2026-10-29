@@ -73,6 +73,7 @@ cp -R "$ROOT/Vendor/OpenNook/ThirdPartyLicenses" "$APP/Contents/Resources/"
 bash "$ROOT/scripts/build-app-icon.sh"
 if [[ -f "$ROOT/Resources/AppIcon.icns" ]]; then
     cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/"
+    cp "$ROOT/Resources/AppIcon.png" "$APP/Contents/Resources/"
 fi
 codesign --force --sign - "$APP"
 codesign --verify --strict "$APP"
