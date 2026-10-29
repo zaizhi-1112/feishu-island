@@ -1,4 +1,4 @@
-# 一切在岛 0.12.5 build99
+# 一切在岛 0.12.6 build100
 
 发布状态及未完成的实机验收见仓库的 docs/build95-first-run.md。
 

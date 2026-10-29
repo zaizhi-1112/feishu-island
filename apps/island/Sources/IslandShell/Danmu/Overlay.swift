@@ -51,8 +51,9 @@ final class FlyingText: NSView {
             let viewport = NSRect(x: 14, y: 38, width: bounds.width - 28, height: bounds.height - 50)
             let textHeight = ceil(content.boundingRect(with: NSSize(width: viewport.width, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading]).height)
             let overflow = max(0, textHeight - viewport.height)
-            let travel = max(1, motionScreenWidth + bounds.width)
-            let fraction = min(1, max(0, (motionScreenWidth - position) / travel))
+            // Scroll only while the complete panel is on screen, so the first
+            // and final lines remain visible during entry and exit.
+            let fraction = MotionTextLayout.scrollFraction(position:position, screenWidth:motionScreenWidth, panelWidth:bounds.width)
             NSGraphicsContext.saveGraphicsState()
             NSBezierPath(rect: viewport).addClip()
             content.draw(with: NSRect(x: viewport.minX, y: viewport.minY - overflow * (1 - fraction), width: viewport.width, height: max(textHeight, viewport.height)), options: [.usesLineFragmentOrigin, .usesFontLeading])

@@ -16,6 +16,7 @@ import NookApp
     let formatted = try message("markdown", "**重点**和 *强调*，代码 `a*b`，公式 2*3")
     check(formatted.text.contains("**重点**") && formatted.displayText == "重点和 强调，代码 a*b，公式 2*3", "message display removes Markdown emphasis while preserving source and literal stars")
     check(feishuDisplayText("# 标题\n* **重点**\n```\n* 原样\n```") == "标题\n• 重点\n```\n* 原样\n```", "Markdown headings and lists are readable without changing code blocks")
+    check(MotionTextLayout.scrollFraction(position: 820, screenWidth: 1440, panelWidth: 620) == 0 && MotionTextLayout.scrollFraction(position: 0, screenWidth: 1440, panelWidth: 620) == 1, "long-message text starts and finishes scrolling while its whole panel is visible")
     let text = String(repeating: "这是一段合成消息，包含日期与链接。\nhttps://example.com/\n", count: 8)
     let overlay = Overlay(showsWindow:false, frame:NSRect(x:0,y:0,width:1440,height:900))
     overlay.multilineMotion = true; overlay.fontSize = 28; overlay.movementSpeed = 500

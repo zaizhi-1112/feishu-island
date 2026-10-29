@@ -2,6 +2,10 @@ import AppKit
 
 /// Pure text layout shared by the renderer and burst/continuation checks.
 enum MotionTextLayout {
+    static func scrollFraction(position: CGFloat, screenWidth: CGFloat, panelWidth: CGFloat) -> CGFloat {
+        let travel = max(1, screenWidth - panelWidth)
+        return min(1, max(0, (travel - position) / travel))
+    }
     static func segments(_ text: String, font: NSFont, width: CGFloat, height: CGFloat) -> [String] {
         let characters = Array(text)
         var result: [String] = [], index = 0
@@ -89,7 +93,7 @@ extension Overlay {
         view.position = screen.width; view.lane = lane; view.alphaValue = opacity
         view.motionScreenWidth = screen.width
         let readingSeconds = max(1, Double(view.content.string.count) / 8)
-        view.speed = min(movementSpeed ?? screen.width / duration, (screen.width + actualWidth) / readingSeconds)
+        view.speed = min(movementSpeed ?? screen.width / duration, max(1, screen.width - actualWidth) / readingSeconds)
         let panel = PassThroughWindow(contentRect: view.frame.offsetBy(dx: screen.minX, dy: screen.minY), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = false
         panel.ignoresMouseEvents = false; panel.hidesOnDeactivate = false; panel.isReleasedWhenClosed = false
