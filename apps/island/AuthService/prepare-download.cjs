@@ -17,47 +17,66 @@ function validateSource(source){
  }
 }
 
-async function prepareDownload(root,{fetchImpl=fetch,onProgress=()=>{}}={}){
+async function prepareDownload(root,{fetchImpl=fetch,onProgress=()=>{},chunkBytes=1024*1024}={}){
  const source=JSON.parse(await fs.readFile(path.join(root,'download-source.json'),'utf8'));
  validateSource(source);
- let url=source.assetUrl||source.url,response;
- // Leave five minutes of the platform's 15-minute build window for image export.
- const signal=AbortSignal.timeout(600000);
- for(let hop=0;hop<3;hop++){
-  response=await fetchImpl(url,{redirect:'manual',signal,headers:{Accept:'application/octet-stream'}});
-  if(![301,302,303,307,308].includes(response.status))break;
-  const location=response.headers.get('location');
-  await response.body?.cancel();
-  let next;try{next=new URL(location);}catch{throw new Error('Invalid asset redirect');}
-  if(next.protocol!=='https:'||next.username||next.password||next.port||
-     !['release-assets.githubusercontent.com','objects.githubusercontent.com'].includes(next.hostname))
-   throw new Error('Unexpected asset redirect host');
-  url=next.href;
- }
- if(response.status!==200||!response.body||Number(response.headers.get('content-length'))!==source.size){
-  await response.body?.cancel();throw new Error('Download response does not match the audited package');
- }
- onProgress(`Installer source accepted: ${source.size} bytes`);
+ if(!Number.isSafeInteger(chunkBytes)||chunkBytes<1||chunkBytes>1024*1024)throw new Error('Invalid asset chunk size');
+ // Bounded ranges avoid a single slow overseas connection exhausting the build window.
+ const controller=new AbortController();
+ const signal=AbortSignal.any([AbortSignal.timeout(600000),controller.signal]);
  const partial=path.join(root,'installer.partial');
- const file=await fs.open(partial,constants.O_WRONLY|constants.O_CREAT|constants.O_TRUNC|constants.O_NOFOLLOW,0o600);
- const hash=createHash('sha256');let size=0,reported=0;
- try{
-  for await(const bytes of response.body){
-   size+=bytes.length;if(size>source.size)throw new Error('Installer exceeds audited size');
-   hash.update(bytes);let offset=0;
-   while(offset<bytes.length){const result=await file.write(bytes,offset,bytes.length-offset);offset+=result.bytesWritten;}
-   if(size-reported>=5*1024*1024){reported=size;onProgress(`Installer received: ${size}/${source.size} bytes`);}
+ const file=await fs.open(partial,constants.O_RDWR|constants.O_CREAT|constants.O_TRUNC|constants.O_NOFOLLOW,0o600);
+ const count=Math.ceil(source.size/chunkBytes);
+ let next=0,total=0,reported=0,accepted=false;
+ async function part(index){
+  const start=index*chunkBytes,end=Math.min(source.size-1,start+chunkBytes-1),length=end-start+1;
+  let url=source.assetUrl||source.url,response;
+  for(let hop=0;hop<3;hop++){
+   response=await fetchImpl(url,{redirect:'manual',signal,headers:{Accept:'application/octet-stream',Range:`bytes=${start}-${end}`}});
+   if(![301,302,303,307,308].includes(response.status))break;
+   const location=response.headers.get('location');await response.body?.cancel();
+   let target;try{target=new URL(location);}catch{throw new Error('Invalid asset redirect');}
+   if(target.protocol!=='https:'||target.username||target.password||target.port||
+      !['release-assets.githubusercontent.com','objects.githubusercontent.com'].includes(target.hostname))throw new Error('Unexpected asset redirect host');
+   url=target.href;
   }
-  if(size!==source.size||hash.digest('hex')!==source.sha256)throw new Error('Installer checksum or size mismatch');
+  const whole=response.status===200&&start===0&&length===source.size;
+  const range=response.status===206&&response.headers.get('content-range')===`bytes ${start}-${end}/${source.size}`;
+  if((!whole&&!range)||!response.body||Number(response.headers.get('content-length'))!==length){
+   await response.body?.cancel();throw new Error('Download response range or size differs from the audited package');
+  }
+  if(!accepted){accepted=true;onProgress(`Installer source accepted: ${source.size} bytes in ${count} verified ranges`);}
+  let received=0;
+  for await(const bytes of response.body){
+   if(received+bytes.length>length)throw new Error('Installer exceeds audited range size');
+   let offset=0;
+   while(offset<bytes.length){const result=await file.write(bytes,offset,bytes.length-offset,start+received+offset);offset+=result.bytesWritten;}
+   received+=bytes.length;total+=bytes.length;
+   if(total-reported>=5*1024*1024){reported=total;onProgress(`Installer received: ${total}/${source.size} bytes`);}
+  }
+  if(received!==length)throw new Error('Installer range size mismatch');
+ }
+ try{
+  await file.truncate(source.size);
+  const workers=Array.from({length:Math.min(16,count)},async()=>{
+   try{while(next<count&&!signal.aborted){const index=next++;await part(index);}}
+   catch(error){controller.abort();throw error;}
+  });
+  const results=await Promise.allSettled(workers);
+  const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
+  if(total!==source.size)throw new Error('Installer total size mismatch');
+  const hash=createHash('sha256');
+  for await(const bytes of file.createReadStream({start:0,autoClose:false}))hash.update(bytes);
+  if(hash.digest('hex')!==source.sha256)throw new Error('Installer checksum mismatch');
  }finally{await file.close();}
  await fs.rename(partial,path.join(root,'public',source.package));
- return {package:source.package,size,sha256:source.sha256};
+ return {package:source.package,size:source.size,sha256:source.sha256};
 }
 
 if(require.main===module)prepareDownload(__dirname,{onProgress:message=>console.log(message)}).then(result=>{
  console.log(`Audited installer ready: ${result.package}; ${result.size} bytes; SHA-256 ${result.sha256}`);
 }).catch(error=>{
- const reason=/^(Invalid audited|Invalid asset|Unexpected asset|Download response|Installer exceeds|Installer checksum)/.test(error.message)?error.message:
+ const reason=/^(Invalid audited|Invalid asset|Unexpected asset|Download response|Installer exceeds|Installer checksum|Installer range|Installer total)/.test(error.message)?error.message:
   (/^[A-Z_]+$/.test(error.cause?.code||error.code||'')?(error.cause?.code||error.code):'Network or file operation failed');
  console.error(`Audited installer preparation failed: ${reason}. Retain the previous release.`);process.exitCode=1;
 });

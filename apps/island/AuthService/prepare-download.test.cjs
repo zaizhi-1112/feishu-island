@@ -22,7 +22,7 @@ test('build fetches only a pinned public installer, verifies bytes, and sends no
  }});
  assert.equal(result.sha256,source.sha256);assert.equal(calls.length,2);
  assert.equal(calls[0].url,source.url);
- for(const call of calls){assert.equal(call.options.redirect,'manual');assert.deepEqual(call.options.headers,{Accept:'application/octet-stream'});}
+ for(const call of calls){assert.equal(call.options.redirect,'manual');assert.deepEqual(call.options.headers,{Accept:'application/octet-stream',Range:'bytes=0-'+(bytes.length-1)});}
  assert.deepEqual(await fs.readFile(path.join(root,'public',packageName)),bytes);
  await assert.rejects(fs.stat(path.join(root,'installer.partial')),{code:'ENOENT'});
 });
@@ -57,4 +57,19 @@ test('build accepts a fresh official CDN link while still verifying the pinned i
  await fs.writeFile(path.join(root,'download-source.json'),JSON.stringify({...source,assetUrl}));
  const result=await prepareDownload(root,{fetchImpl:async url=>{assert.equal(url,assetUrl);return response();}});
  assert.equal(result.sha256,source.sha256);
+});
+
+
+test('out-of-order bounded ranges assemble one exact installer and reject wrong Content-Range',async()=>{
+ const root=await fixture();let active=0,peak=0;
+ const fetchImpl=async(url,options)=>{
+  const [start,end]=options.headers.Range.slice(6).split('-').map(Number);
+  active++;peak=Math.max(peak,active);await new Promise(resolve=>setTimeout(resolve,start===0?15:1));active--;
+  return new Response(bytes.subarray(start,end+1),{status:206,headers:{'content-length':String(end-start+1),'content-range':`bytes ${start}-${end}/${bytes.length}`}});
+ };
+ await prepareDownload(root,{fetchImpl,chunkBytes:4});
+ assert(peak>1&&peak<=16);assert.deepEqual(await fs.readFile(path.join(root,'public',packageName)),bytes);
+ const badRoot=await fixture();
+ await assert.rejects(prepareDownload(badRoot,{chunkBytes:4,fetchImpl:async()=>new Response(bytes.subarray(0,4),{status:206,headers:{'content-length':'4','content-range':'bytes 0-3/999'}})}),/range/);
+ await assert.rejects(fs.stat(path.join(badRoot,'public',packageName)),{code:'ENOENT'});
 });
