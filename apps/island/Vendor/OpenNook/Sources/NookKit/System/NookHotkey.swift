@@ -76,7 +76,9 @@ extension NookHotkey {
         if let named = namedKeys[event.keyCode] {
             return named
         }
-        guard let character = event.charactersIgnoringModifiers?.first else {
+        // charactersIgnoringModifiers retains Shift (e.g. Shift+9 is "(").
+        // Resolve the base key separately; the modifier glyphs already show Shift.
+        guard let character = (event.characters(byApplyingModifiers: []) ?? event.charactersIgnoringModifiers)?.first else {
             return ""
         }
         if character.isLetter || character.isNumber || "`-=[]\\;',./".contains(character) {

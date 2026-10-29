@@ -93,3 +93,5 @@ The host supplies a main-actor presentationAllowed closure, applied before compa
 2026-10-30: NookPanel explicitly remains visible on app deactivation and joins application spaces, retaining its status-bar-above window level for pinned island use.
 
 - build105: expanded window elevation follows the explicit keep-open preference. Compact edge remains available above ordinary windows; unpinned expanded content uses the normal window level.
+
+- build106: shortcut labels resolve the unmodified key via AppKit so Shift+digit and Shift+punctuation remain recordable; modifier registration is unchanged.

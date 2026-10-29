@@ -16,7 +16,7 @@ class DistributionChecks(unittest.TestCase):
         # Retain generated fixtures; do not irreversibly remove filesystem content.
         directory = Path(tempfile.mkdtemp(prefix='island-package-synthetic-'))
         app = directory/'一切在岛.app'
-        files = {'Contents/MacOS/YuIsland', 'Contents/Resources/AppIcon.icns', 'Contents/Resources/开始使用.html', 'Contents/Resources/deepseek-balance.cjs'}
+        files = {'Contents/MacOS/YuIsland', 'Contents/Resources/AppIcon.icns', 'Contents/Resources/开始使用.html', 'Contents/Resources/deepseek-balance.cjs', 'Contents/Resources/claude-desktop-usage.cjs'}
         files |= {'Contents/Resources/LOLPing/'+name for name in m.LOL_FILES}
         files |= {'Contents/Resources/SettingsWeb/'+name for name in m.REQUIRED_SKIN_FILES}
         files |= {'Contents/Helpers/'+name for name in m.HELPERS}
@@ -56,6 +56,15 @@ class DistributionChecks(unittest.TestCase):
         directory, app = self.fixture()
         (app/'Contents/Resources/personal').symlink_to(directory)
         with self.assertRaisesRegex(ValueError, 'symlinks'): m.inspect(app)
+
+    def test_claude_usage_reader_must_ship_without_account_data(self):
+        directory, app = self.fixture()
+        m.inspect(app)
+        reader = app/'Contents/Resources/claude-desktop-usage.cjs'
+        reader.rename(directory/'retained-usage-reader.cjs')
+        with self.assertRaisesRegex(ValueError, 'Required runtime'): m.inspect(app)
+        self.assertFalse(m.allowed(Path('Contents/Resources/plan-usage-history.json')))
+        self.assertFalse(m.allowed(Path('Contents/Resources/Claude/Cache/Cache_Data/cache_0')))
 
     def test_reminders_require_exact_packaged_media_and_reject_personal_videos(self):
         directory, app = self.fixture()

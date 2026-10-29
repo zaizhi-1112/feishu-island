@@ -6,6 +6,7 @@ No private key export, token file, app data, or source archive is included.
 """
 import argparse
 import hashlib
+import html
 import json
 from pathlib import Path
 import shutil
@@ -37,7 +38,8 @@ def prepare(manifest, output):
     (output / 'SHA256SUMS').write_text(digest + '  ' + dmg.name + '\n')
     shutil.copy2(manifest, output / 'manifest.json')
     shutil.copy2(ROOT / 'Distribution/开始使用.html', output / 'installation-guide.html')
-    notes = '<p>修复快捷键录入，显示 Dock 与菜单栏图标，改善飞书消息和 Agent 状态显示，支持调整 Agent 显示顺序。</p>'
+    release_notes = (ROOT / 'Distribution/release-notes.md').read_text().strip()
+    notes = ''.join('<p>' + html.escape(p) + '</p>' for p in release_notes.split('\n\n'))
     (output / (dmg.stem + '.html')).write_text(notes)
     tool = ROOT / '.build/artifacts/sparkle/Sparkle/bin/generate_appcast'
     run(str(tool), '--account', KEY_ACCOUNT, '--maximum-deltas', '0', '--download-url-prefix', f'https://github.com/{REPO}/releases/download/{tag}/', str(output))
@@ -76,7 +78,7 @@ def publish(prepared):
     if existing.returncode == 0:
         raise ValueError('Release exists; inspect its state before retrying to avoid duplicate publication')
     notes = Path(prepared['directory']) / 'release-notes.md'
-    notes.write_text('安装指引支持录入快捷键，Dock 和菜单栏显示应用图标。飞书消息显示 Markdown 格式，长消息在一条弹幕内滚动。Agent 状态读取相互独立，并区分启用监测和收到数据；设置中可调整岛上显示顺序。\n\nApple 芯片 Mac，macOS 15+；安装包尚未 Apple 公证。两位同事报告的无法打开（其中一例 -47）尚未复现，安全提示后的完整首次启动和受影响同事的飞书连接仍需实机验证。build91 及更早版本请先手动安装一次。\n')
+    notes.write_text((ROOT/'Distribution/release-notes.md').read_text())
     run('gh', 'release', 'create', tag, '--repo', REPO, '--target', commit, '--draft', '--title', f"一切在岛 {prepared['version']} · build{prepared['build']}", '--notes-file', str(notes))
     run('gh', 'release', 'upload', tag, '--repo', REPO, *prepared['files'])
     run('gh', 'release', 'edit', tag, '--repo', REPO, '--draft=false', '--latest')
