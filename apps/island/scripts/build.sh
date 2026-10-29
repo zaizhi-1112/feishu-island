@@ -61,6 +61,7 @@ mkdir -p "$APP/Contents/Resources/LOLPing"
 cp "$ROOT/Resources/LOLPing/"* "$APP/Contents/Resources/LOLPing/"
 cp "$ROOT/Distribution/开始使用.html" "$APP/Contents/Resources/开始使用.html"
 cp "$ROOT/Resources/deepseek-balance.cjs" "$APP/Contents/Resources/deepseek-balance.cjs"
+cp "$ROOT/Resources/claude-desktop-usage.cjs" "$APP/Contents/Resources/claude-desktop-usage.cjs"
 mkdir -p "$APP/Contents/Resources/ScreenReminder"
 for asset in cat-walk.mov rick-portal.mov what-a-day-alpha.mov gemini-greeting-alpha.mov SOURCE.txt; do
     cp "$ROOT/Resources/ScreenReminder/$asset" "$APP/Contents/Resources/ScreenReminder/"

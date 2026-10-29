@@ -33,7 +33,8 @@ private final class IslandSettingsPanel: NSPanel {
             let next = IslandSettingsPanel(contentRect: NSRect(x:0,y:0,width:1020,height:760), styleMask:[.titled,.closable,.miniaturizable,.resizable,.nonactivatingPanel], backing:.buffered,defer:false)
             next.title = "一切在岛 · 设置"; next.identifier = .init("feibao.settings")
             next.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .canJoinAllApplications]
-            next.level = .floating
+            next.level = .normal
+            next.isFloatingPanel = false
             next.hidesOnDeactivate = false
             next.minSize = NSSize(width:840,height:620); next.isReleasedWhenClosed = false
             next.delegate = self; next.setFrameAutosaveName("FeibaoUnifiedSettings")

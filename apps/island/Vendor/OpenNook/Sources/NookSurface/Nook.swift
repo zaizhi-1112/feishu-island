@@ -52,6 +52,10 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// `true` while the chrome has a live `NSWindow` mounted. The narrow public
     /// surface area for observing window presence - replaces the previous
     /// `windowController != nil` pattern hosts had to write.
+    /// Only an explicitly pinned expanded island stays above other applications.
+    public var keepsExpandedWindowAboveApplications = false {
+        didSet { updateWindowLevel() }
+    }
     public var hasLiveWindow: Bool { windowController?.window != nil }
 
     /// Applies a configuration block to the currently-mounted `NSWindow`, if one
@@ -1437,7 +1441,14 @@ extension Nook {
 }
 
 extension Nook {
+    private func updateWindowLevel() {
+        guard let panel = windowController?.window as? NookPanel else { return }
+        let elevated = state != .expanded || keepsExpandedWindowAboveApplications
+        panel.isFloatingPanel = elevated
+        panel.level = elevated ? NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + NookPanel.levelOffsetAboveStatusBar) : .normal
+    }
     private func updateLayoutForm() {
+        updateWindowLevel()
         let form = presentation.resolvedForm(state: state, edgeDocked: edgeDocked,
             screenHasNotch: physicalNotchHeight > 0,
             revealed: isHovering || isPeeking || compactRevealActive)
@@ -1532,6 +1543,7 @@ extension Nook {
         }
 
         windowController = .init(window: panel)
+        updateWindowLevel()
         // A fully transparent window may receive no SwiftUI hover events. Observe
         // pointer motion without intercepting clicks or painting a visible bottom lip.
         if edgeDocked {

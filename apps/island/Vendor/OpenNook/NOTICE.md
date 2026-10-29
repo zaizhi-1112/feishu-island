@@ -91,3 +91,5 @@ The host supplies a main-actor presentationAllowed closure, applied before compa
 2026-10-29: The host runs as a regular macOS application so its Dock icon remains available during onboarding and settings; the status item uses the bundled product icon when present.
 
 2026-10-30: NookPanel explicitly remains visible on app deactivation and joins application spaces, retaining its status-bar-above window level for pinned island use.
+
+- build105: expanded window elevation follows the explicit keep-open preference. Compact edge remains available above ordinary windows; unpinned expanded content uses the normal window level.

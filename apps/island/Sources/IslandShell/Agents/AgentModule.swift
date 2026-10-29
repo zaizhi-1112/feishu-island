@@ -169,7 +169,7 @@ private struct AgentQuotaRow: View {
                 if quota.remainingUnits != nil, let total = quota.totalUnits {
                     Text("总计\(total, specifier: "%.0f")积分 · 剩余\(quota.remainingPercent, specifier: "%.1f")%")
                 } else if let reset = quota.resetsAt {
-                    Text("重置：\(Date(timeIntervalSince1970: reset).formatted(date: .abbreviated, time: .shortened))")
+                    Text("重置：\(Date(timeIntervalSince1970: (reset / 60).rounded() * 60).formatted(date: .abbreviated, time: .shortened))")
                 }
                 if quota.resetsAt == nil && quota.remainingUnits == nil {
                     Text("重置时间暂未提供")

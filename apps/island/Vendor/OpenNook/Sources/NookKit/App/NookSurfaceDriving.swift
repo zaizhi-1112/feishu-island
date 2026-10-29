@@ -65,6 +65,7 @@ protocol NookSurfaceDriving: AnyObject {
 
     /// Suspends auto-compact-on-hover-exit while `true`.
     var staysExpandedOnHoverExit: Bool { get set }
+    var keepsExpandedWindowAboveApplications: Bool { get set }
 
     /// `true` while a layout-resize grace window suppresses hover-exit auto-compact.
     var isLayoutGraceActive: Bool { get }

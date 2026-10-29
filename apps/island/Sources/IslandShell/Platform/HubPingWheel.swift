@@ -42,10 +42,9 @@ struct HubPingWheel: View {
                     .overlay(Circle().stroke(Color(red: 0.78, green: 0.67, blue: 0.43), lineWidth: 2.8))
                     .overlay(Circle().stroke(Color(red: 0.78, green: 0.67, blue: 0.43).opacity(0.65), lineWidth: 0.8).padding(6 * scale))
                 VStack(spacing: 5) {
-                    if let image = HubPingAsset.image("generic_ping") {
-                        Image(nsImage:image).resizable().scaledToFit().frame(width:34 * scale,height:34 * scale)
-                    }
-                    Text("PING").font(.system(size: 15 * scale, weight: .bold)).foregroundStyle(.cyan)
+                    VirxactMark().fill(.white)
+                        .frame(width: 48 * scale, height: 48 * scale)
+                        .accessibilityLabel("虚实传媒")
                     Label(dragging ? "移回取消" : (gesture.shortcutHeld ? "松开打开" : "滑动 / 点击"), systemImage: "computermouse")
                         .font(.system(size: 9 * scale, weight: .semibold)).foregroundStyle(.white.opacity(0.55)).padding(.top, 6 * scale)
                 }.allowsHitTesting(false)
