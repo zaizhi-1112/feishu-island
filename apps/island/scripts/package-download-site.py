@@ -7,6 +7,10 @@ from pathlib import Path
 import plistlib
 import re
 import shutil
+from datetime import datetime, timezone
+from urllib.parse import urlsplit, parse_qs
+from urllib.request import Request, HTTPRedirectHandler, build_opener
+from urllib.error import HTTPError
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = {'index.html', 'install.js', 'install.css', 'landing.css', 'agent-guide.html',
@@ -73,9 +77,52 @@ def web_guide(source):
     return html, css, js
 
 
-def stage(package, output, manifest_path=None, web_only=False):
+def download_source(package, manifest, asset, page):
+    name = package.name
+    match = re.search(r'class="download-alternative"><a href="(https://github\.com/[\w.-]+/[\w.-]+/releases/tag/[\w.-]+)"', page)
+    if not match or page.count(f'href="{name}" download="一切在岛.dmg"') != 1:
+        raise ValueError('Expected one named download and a fixed GitHub release page')
+    release_url = match.group(1)
+    if release_url.rsplit('/', 1)[-1] != f'v{manifest["version"]}-build{manifest["build"]}':
+        raise ValueError('GitHub release and audited package differ')
+    asset_url = release_url.replace('/releases/tag/', '/releases/download/')+'/'+name
+    if (asset.get('state') != 'uploaded' or asset.get('name') != name or
+            asset.get('browser_download_url') != asset_url or
+            asset.get('size') != package.stat().st_size or
+            asset.get('digest') != 'sha256:'+manifest['sha256']):
+        raise ValueError('Public GitHub asset does not match the audited package')
+    return {'package': name, 'url': asset_url, 'size': asset['size'], 'sha256': manifest['sha256']}
+
+
+def resolve_asset(source):
+    """Resolve GitHub's public CDN link locally; the build still verifies every byte."""
+    class NoRedirect(HTTPRedirectHandler):
+        def redirect_request(self, *args): return None
+    try:
+        response = build_opener(NoRedirect).open(Request(source['url'], method='HEAD'), timeout=20)
+    except HTTPError as error:
+        response = error
+    with response:
+        url = response.headers.get('Location', '')
+        parsed = urlsplit(url)
+        if response.code != 302 or parsed.scheme != 'https' or parsed.netloc != 'release-assets.githubusercontent.com':
+            raise ValueError('GitHub did not return its official public asset host')
+        expiry = datetime.fromisoformat(parse_qs(parsed.query).get('se', [''])[0].replace('Z', '+00:00'))
+        if (expiry-datetime.now(timezone.utc)).total_seconds() < 300:
+            raise ValueError('GitHub asset URL expires too soon; refresh before uploading')
+        return {**source, 'assetUrl':url}
+
+
+def stage(package, output, manifest_path=None, web_only=False, download_asset=None):
     manifest = json.loads((manifest_path or package.parent/'package-manifest.json').read_text())
     name, digest, aliases = validate(package, manifest)
+    source = None
+    if web_only:
+        if download_asset is None:
+            raise ValueError('Website-only uploads require verified GitHub asset metadata')
+        source = download_source(package, manifest, json.loads(download_asset.read_text()),
+                                 (ROOT/'Distribution/site/index.html').read_text())
+        source = resolve_asset(source)
     output.mkdir(parents=True, exist_ok=False)
     public = output/'public'; public.mkdir()
     for asset in sorted(SERVICE):
@@ -88,18 +135,13 @@ def stage(package, output, manifest_path=None, web_only=False):
     for filename, text in [('start.html', html), ('start.css', css), ('start.js', js)]:
         (public/filename).write_text(text)
     if web_only:
-        # Keep the same-origin download button. Its service route resolves to
-        # the audited binary asset, so a click downloads instead of opening GitHub.
-        page = (public/'index.html').read_text()
-        match = re.search(r'class="download-alternative"><a href="(https://github\.com/[\w.-]+/[\w.-]+/releases/tag/[\w.-]+)"', page)
-        if not match or page.count(f'href="{name}" download') != 1:
-            raise ValueError('Expected one current download and a fixed GitHub release page')
-        release_url = match.group(1)
-        expected_tag = f'v{manifest["version"]}-build{manifest["build"]}'
-        if release_url.rsplit('/', 1)[-1] != expected_tag:
-            raise ValueError('GitHub release and audited package differ')
-        asset_url = release_url.replace('/releases/tag/', '/releases/download/')+'/'+name
-        (public/'download-fallback.json').write_text(json.dumps({'package': name, 'url': asset_url}, indent=2)+'\n')
+        # The deployment build fetches the audited bytes, keeping uploads small.
+        # Serving the file ourselves makes the Chinese attachment name reliable.
+        copy_regular(ROOT/'AuthService/prepare-download.cjs', output/'prepare-download.cjs')
+        (output/'download-source.json').write_text(json.dumps(source, indent=2)+'\n')
+        service = json.loads((output/'package.json').read_text())
+        service.setdefault('scripts', {})['build'] = 'node prepare-download.cjs'
+        (output/'package.json').write_text(json.dumps(service, indent=2)+'\n')
     else:
         copy_regular(package, public/name)
     (public/'download-aliases.json').write_text(json.dumps(aliases, indent=2)+'\n')
@@ -112,6 +154,7 @@ if __name__ == '__main__':
     parser.add_argument('package', type=Path)
     parser.add_argument('output', type=Path)
     parser.add_argument('--manifest', type=Path)
-    parser.add_argument('--web-only', action='store_true', help='Publish the website; download the audited GitHub binary directly')
+    parser.add_argument('--web-only', action='store_true', help='Upload website sources; prepare the audited DMG during deployment build')
+    parser.add_argument('--download-asset', type=Path, help='GitHub release asset metadata JSON, required for --web-only')
     args = parser.parse_args()
-    print(stage(args.package, args.output, args.manifest, args.web_only))
+    print(stage(args.package, args.output, args.manifest, args.web_only, args.download_asset))

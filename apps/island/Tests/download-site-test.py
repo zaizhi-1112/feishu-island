@@ -71,5 +71,21 @@ class DownloadSiteChecks(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'inline behavior'):
             m.web_guide('<head><style>body{}</style></head><button onclick="unexpected()">Go</button>')
 
+    def test_remote_asset_must_match_audited_bytes_and_release(self):
+        page = (f'<a href="{self.name}" download="一切在岛.dmg">Download</a>'
+                '<p class="download-alternative"><a href="https://github.com/owner/repo/releases/tag/v1.2.3-build99">GitHub</a></p>')
+        asset = {'state':'uploaded', 'name':self.name, 'size':self.package.stat().st_size,
+                 'digest':'sha256:'+self.manifest['sha256'],
+                 'browser_download_url':'https://github.com/owner/repo/releases/download/v1.2.3-build99/'+self.name}
+        result = m.download_source(self.package, self.manifest, asset, page)
+        self.assertEqual(result['sha256'], self.manifest['sha256'])
+        self.assertEqual(result['url'], asset['browser_download_url'])
+        for key, value in [('state','new'),('size',999),('digest','sha256:wrong'),('name','other.dmg'),
+                           ('browser_download_url',asset['browser_download_url'].replace('build99/','build98/'))]:
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError,'asset'):
+                m.download_source(self.package, self.manifest, {**asset,key:value}, page)
+        with self.assertRaisesRegex(ValueError,'named download'):
+            m.download_source(self.package, self.manifest, asset, page.replace('download="一切在岛.dmg"','download'))
+
 
 if __name__ == '__main__': unittest.main()

@@ -1,4 +1,4 @@
-/* White product page with the hub's dust mark in the right-hand masthead. */
+/* White product page, full-page dust and the hub's mark in the right-hand masthead. */
 :root {
   color-scheme: light;
   --brand-ink: var(--fg);
@@ -26,9 +26,8 @@
   }
 }
 html {scroll-behavior:smooth;scrollbar-gutter:stable}
-body {position:relative;margin:0;background:var(--page-bg);color:var(--page-fg);font-family:var(--font-sans);-webkit-font-smoothing:antialiased;isolation:isolate}
-#brand-particles {position:absolute;top:84px;right:0;width:min(34vw,520px);height:288px;pointer-events:none;z-index:-1}
-@media(max-width:1100px) {#brand-particles {display:none}}
+body {position:relative;min-height:100vh;margin:0;background:var(--page-bg);color:var(--page-fg);font-family:var(--font-sans);-webkit-font-smoothing:antialiased;isolation:isolate}
+#brand-particles {position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:-1}
 a {color:inherit;text-underline-offset:4px}
 button,a {-webkit-tap-highlight-color:transparent}
 button {font:inherit}

@@ -5,6 +5,7 @@ const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:
 const {createServer}=require('./server.cjs');
 const name='feishu-island-0.7.0-build29-arm64.dmg';
 const bytes=Buffer.from('abcdefghijklmnopqrstuvwxyz');
+const chineseName=encodeURIComponent('一切在岛.dmg');
 const owner={'X-Auth-User-Id':'synthetic-owner'};
 async function fixture(t,{includePackage=true}={}){
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'island-download-test-'));
@@ -27,7 +28,7 @@ function raw(base,pathname,headers=owner){
 test('DMG downloads have the correct MIME, attachment name and exact streamed bytes',async t=>{
  const {base}=await fixture(t);const r=await fetch(base+'/'+name,{headers:owner});
  assert.equal(r.status,200);assert.equal(r.headers.get('content-type'),'application/x-apple-diskimage');
- assert.equal(r.headers.get('content-disposition'),'attachment; filename="'+name+'"; filename*=UTF-8\'\''+name);
+ assert.equal(r.headers.get('content-disposition'),'attachment; filename="island.dmg"; filename*=UTF-8\'\''+chineseName);
  assert.equal(r.headers.get('content-length'),String(bytes.length));assert.equal(r.headers.get('accept-ranges'),'bytes');
  assert.equal(r.headers.get('cache-control'),'no-store');assert.equal(r.headers.get('x-content-type-options'),'nosniff');
  assert.deepEqual(Buffer.from(await r.arrayBuffer()),bytes);
@@ -130,7 +131,7 @@ test('cached Feishu release URLs download the current package with its correct f
  await fs.writeFile(path.join(root,'download-aliases.json'),JSON.stringify({[old]:name}));
  for(const headers of [owner,{...owner,Range:'bytes=10-'},{...owner,Range:'bytes=10-','If-Range':'Wed, 01 Jan 2020 00:00:00 GMT'}]){
   const r=await fetch(base+'/'+old,{headers});assert.equal(r.status,200);assert.equal(r.headers.get('content-range'),null);
-  assert(r.headers.get('content-disposition').includes(name));assert.deepEqual(Buffer.from(await r.arrayBuffer()),bytes);
+  assert(r.headers.get('content-disposition').includes(chineseName));assert.deepEqual(Buffer.from(await r.arrayBuffer()),bytes);
  }
  const head=await fetch(base+'/'+old,{method:'HEAD',headers:owner});assert.equal(head.status,200);assert.equal(head.headers.get('content-length'),String(bytes.length));
  assert.equal((await fetch(base+'/'+old)).status,401);
@@ -162,33 +163,14 @@ test('product portraits stay public to company users while removed previews are 
  }
 });
 
-test('web-only downloads resolve directly to the exact installer asset, never a GitHub page',async t=>{
+test('unprepared packages fail closed without external redirects or exposing build inputs',async t=>{
  const {root,base}=await fixture(t,{includePackage:false});
- const old='feishu-island-0.7.0-build28-arm64.dmg';
- const url='https://github.com/synthetic-owner/island-downloads/releases/download/v0.7.0-build29/'+name;
- await fs.writeFile(path.join(root,'download-aliases.json'),JSON.stringify({[old]:name}));
- await fs.writeFile(path.join(root,'download-fallback.json'),JSON.stringify({package:name,url}));
- for(const file of [name,old])for(const method of ['GET','HEAD']){
-  const response=await fetch(base+'/'+file,{method,headers:owner,redirect:'manual'});
-  assert.equal(response.status,303);assert.equal(response.headers.get('location'),url);
-  assert.equal((await response.arrayBuffer()).byteLength,0);
+ await fs.writeFile(path.join(root,'download-source.json'),JSON.stringify({package:name,url:'https://github.com/owner/repo/releases/download/v0.7.0-build29/'+name}));
+ await fs.writeFile(path.join(root,'installer.partial'),bytes);
+ for(const file of [name,'download-source.json','prepare-download.cjs','installer.partial']){
+  const response=await fetch(base+'/'+file,{headers:owner,redirect:'manual'});
+  assert.equal(response.status,404);assert.equal(response.headers.get('location'),null);
  }
- assert.equal((await fetch(base+'/'+name,{redirect:'manual'})).status,401);
- assert.equal((await fetch(base+'/download-fallback.json',{headers:owner})).status,404);
- assert.equal((await fetch(base+'/feishu-island-0.7.0-build999-arm64.dmg',{headers:owner,redirect:'manual'})).status,404);
- const partial=await fetch(base+'/'+old,{headers:{...owner,Range:'bytes=10-'},redirect:'manual'});
- assert.equal(partial.status,409);assert.equal(partial.headers.get('location'),null);
-});
-
-test('download fallbacks reject arbitrary hosts, credentials, query targets and mismatched packages',async t=>{
- const {root,base}=await fixture(t,{includePackage:false});
- const asset='https://github.com/owner/repo/releases/download/v0.7.0-build29/'+name;
- for(const url of ['https://example.com/package','https://github.com@evil.example/releases/tag/v1','http://github.com/owner/repo/releases/tag/v1','https://github.com/owner/repo/releases/tag/v0.7.0-build29',asset+'?next=bad',asset.replace('build29/','build28/'),asset.replace(name,'another.dmg')]){
-  await fs.writeFile(path.join(root,'download-fallback.json'),JSON.stringify({package:name,url}));
-  assert.equal((await fetch(base+'/'+name,{headers:owner,redirect:'manual'})).status,404);
- }
- await fs.writeFile(path.join(root,'download-fallback.json'),JSON.stringify({package:'feishu-island-0.7.0-build999-arm64.dmg',url:asset}));
- assert.equal((await fetch(base+'/'+name,{headers:owner,redirect:'manual'})).status,404);
 });
 
 test('brand motion resources use the same company gate and exact bundled bytes',async t=>{

@@ -1,4 +1,4 @@
-/* Virxact masthead dust: official mark contours, flowing strokes and spring return.
+/* Virxact page dust: official mark contours, flowing strokes and spring return.
    Reference: the hub's masthead dust effect, checked on 2026-10-29.
    This standalone drawing reads only the bundled brand SVG, never hub/user data. */
 (() => {
@@ -14,7 +14,7 @@
     {kx:.0062,ky:.026,speed:.13,strength:200,phase:4.2}
   ];
   let width=0,height=0,frame=0,previous=0,elapsed=0,visible=false,paused=false,ready=false;
-  let ink='',outlines=[],particles=[],wind=[],bounds,mark={x:0,y:0,radius:1,scale:1};
+  let ink='',outlines=[],particles=[],wind=[],protectedAreas=[],bounds,mark={x:0,y:0,radius:1,scale:1,visible:true};
   const pointer={x:-10000,y:-10000};
   let randomState=11;
   function random(){
@@ -32,7 +32,7 @@
   function flow(x,y,time){
     const dx=x-mark.x,dy=y-mark.y;
     const along=(dx-dy)*diagonal,across=(dx+dy)*diagonal;
-    const distance=along*along+across*across,radius=mark.radius*mark.radius;
+    const distance=along*along+across*across,radius=mark.visible?mark.radius*mark.radius:0;
     let vx=0,vy=0;
     if(distance>radius){
       const squared=distance*distance;
@@ -66,8 +66,9 @@
     const viewport=document.documentElement.clientWidth;
     mark.radius=Math.min(110,Math.max(64,64+(viewport-1100)*.2));
     mark.scale=mark.radius/(bounds.height/2);
-    mark.x=width*.5;mark.y=height*.47;
-    for(const outline of outlines){
+    mark.x=width-Math.min(width*.34,520)/2;mark.y=84+288*.47;
+    mark.visible=viewport>1100;
+    for(const outline of mark.visible?outlines:[]){
       const length=outline.node.getTotalLength(),count=Math.ceil(length*mark.scale/2);
       for(let index=0;index<count;index++){
         const point=outline.node.getPointAtLength(length*index/count);
@@ -79,9 +80,28 @@
         if(outline.brush.isPointInPath(outline.path,x,y)){addPoint(x,y,false,random());added++;}
       }
     }
-    wind=Array.from({length:Math.min(900,Math.round(width*height/240))},()=>{
+    wind=Array.from({length:Math.min(width<700?450:2200,Math.round(width*height/(width<700?1000:570)))},()=>{
       const particle={x:0,y:0,vx:0,vy:0,life:0,tone:0};resetWind(particle,true);return particle;
     });
+  }
+  function protectContent(){
+    const origin=canvas.getBoundingClientRect();protectedAreas=[];
+    for(const element of document.querySelectorAll('.brand,.site-nav nav,#hero-title,.hero-copy,.download-button,.download-alternative,.download-feedback,.feature-tabs,.demo-controls,.experience-note,.demo-toolbar')){
+      if(!element.getClientRects().length)continue;
+      let rectangles;
+      if(element.matches('.brand,#hero-title,.hero-copy,.download-alternative,.download-feedback')){
+        const range=document.createRange();range.selectNodeContents(element);rectangles=[...range.getClientRects()];
+      }else rectangles=[element.getBoundingClientRect()];
+      for(const box of rectangles)if(box.width&&box.height)protectedAreas.push({left:box.left-origin.left-8,right:box.right-origin.left+8,top:box.top-origin.top-8,bottom:box.bottom-origin.top+8});
+    }
+  }
+  function contentFade(x,y){
+    let fade=1;
+    for(const box of protectedAreas){
+      const dx=Math.max(box.left-x,0,x-box.right),dy=Math.max(box.top-y,0,y-box.bottom);
+      fade=Math.min(fade,Math.hypot(dx,dy)/20);if(fade===0)break;
+    }
+    return fade;
   }
   function paint(dt){
     const time=elapsed/1000;
@@ -91,12 +111,15 @@
       const velocity=flow(particle.x,particle.y,time);
       particle.vx=velocity.vx;particle.vy=velocity.vy;
       particle.x+=particle.vx*dt;particle.y+=particle.vy*dt;particle.life-=dt;
-      const inside=Math.hypot(particle.x-mark.x,particle.y-mark.y)<mark.radius;
+      const distanceToMark=Math.hypot(particle.x-mark.x,particle.y-mark.y);
+      const inside=mark.visible&&distanceToMark<mark.radius;
       if(particle.life<=0||particle.x<-12||particle.x>width+12||particle.y<-12||particle.y>height+12||inside){
         if(dt)resetWind(particle);continue;
       }
-      const fade=Math.max(0,Math.min(1,particle.x/92,(width-particle.x)/44,particle.y/36,(height-particle.y)/36));
-      context.globalAlpha=[.14,.24,.36,.52][particle.tone]*fade;
+      const edgeFade=Math.max(0,Math.min(1,particle.x/28,(width-particle.x)/28,particle.y/24,(height-particle.y)/24));
+      const emphasis=mark.visible&&distanceToMark<290?1:(width<700?.55:.75);
+      context.globalAlpha=[.13,.21,.32,.46][particle.tone]*edgeFade*emphasis*contentFade(particle.x,particle.y);
+      if(context.globalAlpha<.01)continue;
       context.beginPath();context.moveTo(particle.x,particle.y);
       context.lineTo(particle.x-particle.vx*.26,particle.y-particle.vy*.26);context.stroke();
     }
@@ -136,6 +159,7 @@
   }
   function resize(){
     const box=canvas.getBoundingClientRect(),nextWidth=box.width,nextHeight=box.height;
+    protectContent();
     if(nextWidth===width&&nextHeight===height){sync();return;}
     width=nextWidth;height=nextHeight;
     const ratio=Math.min(devicePixelRatio||1,1.5);
@@ -144,7 +168,8 @@
     ink=getComputedStyle(document.documentElement).getPropertyValue('--brand-ink').trim();
     if(ready&&width&&height)rebuild();sync();
   }
-  new ResizeObserver(resize).observe(canvas);
+  const sizeObserver=new ResizeObserver(resize);sizeObserver.observe(canvas);
+  sizeObserver.observe(document.querySelector('.hero'));
   new IntersectionObserver(([entry])=>{visible=entry.isIntersecting;sync();}).observe(canvas);
   addEventListener('pointermove',event=>{
     const box=canvas.getBoundingClientRect();pointer.x=event.clientX-box.left;pointer.y=event.clientY-box.top;
