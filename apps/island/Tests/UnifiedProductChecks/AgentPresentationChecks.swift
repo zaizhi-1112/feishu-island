@@ -23,11 +23,15 @@ import NookApp
         guard let bitmap=host.bitmapImageRepForCachingDisplay(in:host.bounds) else{throw WorkError.message("Missing indicator bitmap")}
         host.cacheDisplay(in:host.bounds,to:bitmap)
         var red=0
-        for y in stride(from:0,to:bitmap.pixelsHigh,by:2) {for x in stride(from:0,to:bitmap.pixelsWide,by:2) {
+        // A seven-point lamp can hit only eight sampled pixels on a 1x display.
+        // Count its full area in points so Retina scale and pixel alignment do
+        // not change whether the same visible red lamp passes the assertion.
+        for y in 0..<bitmap.pixelsHigh {for x in 0..<bitmap.pixelsWide {
             if let c=bitmap.colorAt(x:x,y:y)?.usingColorSpace(.deviceRGB),c.redComponent>0.65,c.greenComponent<0.45,c.blueComponent<0.45 {red += 1}
         }}
         if let output {try bitmap.representation(using:.png,properties:[:])!.write(to:output.appendingPathComponent(name+".png"))}
-        check(!window.isVisible,"indicator fixture stays off-screen: "+name);window.close();return red
+        let pixelScale = (CGFloat(bitmap.pixelsWide) / size.width) * (CGFloat(bitmap.pixelsHigh) / size.height)
+        check(!window.isVisible,"indicator fixture stays off-screen: "+name);window.close();return Int(CGFloat(red) / pixelScale)
     }
     let withQuota=try await capture(AnyView(AgentPersistentCompactSlot(store:agents,leading:false)),"running-with-quota")
     check(withQuota>8,"real persistent quota slot renders a red light while running")
