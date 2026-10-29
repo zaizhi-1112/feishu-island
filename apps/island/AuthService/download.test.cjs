@@ -147,22 +147,17 @@ test('release aliases cannot expose private files, symlinks or external URLs',as
  }
 });
 
-test('all native previews and product portraits are served exactly, without broadening file access',async t=>{
+test('product portraits stay public to company users while removed previews are unavailable',async t=>{
  const root=process.env.ISLAND_DOWNLOAD_SITE||path.join(__dirname,'../Distribution/site');
- const manifest=JSON.parse(await fs.readFile(path.join(__dirname,'../Distribution/native-preview-manifest.json'),'utf8'));
  const server=createServer({broker:{},root});await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>server.close());
  const base='http://127.0.0.1:'+server.address().port;
- const crypto=require('node:crypto');
- for(const asset of manifest.assets){
-  const denied=await fetch(base+'/'+asset.file);assert.equal(denied.status,401);
-  const response=await fetch(base+'/'+asset.file,{headers:owner});assert.equal(response.status,200,asset.file);
-  assert.equal(response.headers.get('content-type'),'image/jpeg');
-  const bytes=Buffer.from(await response.arrayBuffer());assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),asset.sha256,asset.file);
- }
  for(const id of ['codex','workbuddy','deepseek']){
-  const response=await fetch(base+'/native-agent-'+id+'.png',{headers:owner});assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'image/png');
+  const name='native-agent-'+id+'.png';
+  const denied=await fetch(base+'/'+name);assert.equal(denied.status,401);
+  const response=await fetch(base+'/'+name,{headers:owner});assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'image/png');
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()),await fs.readFile(path.join(__dirname,'../Distribution/site',name)));
  }
- for(const privatePath of ['native-private.jpg','native-preview-manifest.json','../../workspace.json']){
-  assert.equal((await raw(base,'/'+privatePath)).status,404);
+ for(const removed of ['native-messages.jpg','native-guide-1.jpg','native-private.jpg','native-preview-manifest.json','../../workspace.json']){
+  assert.equal((await raw(base,'/'+removed)).status,404);
  }
 });
