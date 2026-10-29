@@ -46,11 +46,20 @@ extension Nook {
 // MARK: - NookDragDestination
 
 extension Nook: NookDragDestination {
+    func nookPanelAcceptsDrag(at point: NSPoint) -> Bool {
+        // The transparent panel spans the screen. Only the island is a typed-drop target.
+        guard onDrop != nil else { return true } // preserve legacy file-shelf behavior
+        guard let window = window else { return false }
+        let width = max(dragTargetSize.width, max(notchSize.width, 140)) + 40
+        let depth = state == .expanded ? max(dragTargetSize.height + 16, 56) : max(physicalNotchHeight + 36, 56)
+        return abs(point.x - window.frame.width / 2) <= width / 2
+            && point.y >= window.frame.height - depth && point.y <= window.frame.height
+    }
     /// Called when AppKit reports a file drag is over the panel. The *first* enter of a
     /// session snapshots the prior state and auto-expands a collapsed panel so the drop
     /// zone is visible; subsequent enters (every `draggingUpdated` forwards here) are
     /// idempotent no-ops that preserve the original snapshot.
-    func nookPanelDraggingEntered(_ urls: [URL]) -> NSDragOperation {
+    func nookPanelDraggingEntered(_ payload: NookDropPayload) -> NSDragOperation {
         guard case .idle = dragSession else {
             // Already active - a forwarded `draggingUpdated`, or a duplicate enter.
             // Keep the original snapshot; the advertised operation is unchanged.
@@ -82,8 +91,11 @@ extension Nook: NookDragDestination {
     /// the nook expanded so the registration UI is visible, otherwise restore prior
     /// state. The session is ended *before* restoring, so a `draggingExited`/`Ended`
     /// that AppKit delivers around the drop can't double-restore.
-    func nookPanelPerformDrop(_ urls: [URL]) -> Bool {
-        let accepted = onFileDrop?(urls) ?? false
+    func nookPanelPerformDrop(_ payload: NookDropPayload) -> Bool {
+        let accepted: Bool
+        if let onDrop { accepted = onDrop(payload) }
+        else if case .files(let urls) = payload { accepted = onFileDrop?(urls) ?? false }
+        else { accepted = false }
         endDragSession(restorePriorState: !accepted)
         return accepted
     }

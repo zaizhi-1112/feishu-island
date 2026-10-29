@@ -73,6 +73,8 @@ public struct NookSurfaceClaim: Sendable {
 
 /// How a granted ``NookSurfaceClaim`` shows itself.
 public enum NookSurfacePresentation: Sendable, Equatable {
+    /// Reveals the compact pill without any additional content below its slots.
+    case compact
     /// Opens the full nook onto the claiming module's content.
     case expanded
     /// Grows the compact pill into the claiming module's peek (`NookConfiguration.setPeek`),

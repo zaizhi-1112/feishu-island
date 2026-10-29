@@ -1,0 +1,1 @@
+{"name":"feishu-island-auth","private":true,"version":"0.1.0","scripts":{"start":"node server.cjs","test":"node --test *.test.cjs"},"engines":{"node":">=22"}}

@@ -1,0 +1,23 @@
+{
+  "version": 3,
+  "appName": "一切在岛.app",
+  "defaultView": "icon",
+  "alwaysOpenInIconView": true,
+  "windowWidth": 820,
+  "windowHeight": 674,
+  "iconSize": 96,
+  "positions": {
+    "一切在岛.app": [
+      230,
+      148
+    ],
+    "Applications": [
+      590,
+      148
+    ]
+  },
+  "sha256": "35931cf04833651d9e1b270404ebefe83c0e7d675666af10530f6982b2702e83",
+  "background": "background.tiff",
+  "backgroundSha256": "3be458f32441be0bf9263f26a191b30fa433952b2648c6e2f2ff8e6d0a119847",
+  "generator": "ds_store==1.3.1 / mac_alias==2.2.2"
+}

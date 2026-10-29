@@ -49,6 +49,7 @@ public final class NookActivityCenter: ObservableObject {
     private var endTasks: [String: Task<Void, Never>] = [:]
     private var alertTasks: [String: Task<Void, Never>] = [:]
     private var scopes: [String: NookLiveActivities] = [:]
+    private var pendingAlerts: [(key: String, alert: NookLiveActivity.Alert)] = []
 
     public nonisolated init() {}
 
@@ -126,20 +127,24 @@ public final class NookActivityCenter: ObservableObject {
 
     /// Ends every activity `moduleID` is running: the module is going away.
     func endAll(moduleID: String) {
+        pendingAlerts.removeAll { $0.key.hasPrefix(moduleID + "\u{1F}") }
         for entry in activities where entry.moduleID == moduleID {
             endTasks.removeValue(forKey: entry.id)?.cancel()
             alertTasks.removeValue(forKey: entry.id)?.cancel()
         }
         let remaining = activities.filter { $0.moduleID != moduleID }
         if remaining.count != activities.count { activities = remaining }
+        drainAlerts()
     }
 
     // MARK: - Internals
 
     private func remove(_ key: String) {
+        pendingAlerts.removeAll { $0.key == key }
         endTasks.removeValue(forKey: key)?.cancel()
         alertTasks.removeValue(forKey: key)?.cancel()
         activities.removeAll { $0.id == key }
+        drainAlerts()
     }
 
     private func scheduleEnd(_ key: String, after delay: Duration) {
@@ -153,10 +158,17 @@ public final class NookActivityCenter: ObservableObject {
 
     private func raiseAlert(_ key: String, _ alert: NookLiveActivity.Alert) {
         guard let index = activities.firstIndex(where: { $0.id == key }) else { return }
+        // Keep the current cue visible; a second module waits instead of stealing its pill.
+        if activities.contains(where: { $0.id != key && $0.isAlerting }) {
+            pendingAlerts.removeAll { $0.key == key }
+            pendingAlerts.append((key, alert))
+            return
+        }
+        pendingAlerts.removeAll { $0.key == key }
         let duration: Duration =
             switch alert {
                 case .none: .zero
-                case .peek(let duration), .expand(let duration): duration
+                case .compact(let duration), .peek(let duration), .expand(let duration): duration
             }
         var next = activities
         next[index].isAlerting = true
@@ -169,9 +181,21 @@ public final class NookActivityCenter: ObservableObject {
             var next = self.activities
             next[index].isAlerting = false
             self.activities = Self.ordered(next)
+            self.drainAlerts()
         }
         if let entry = activities.first(where: { $0.id == key }) {
             onAlert?(entry, alert)
+        }
+    }
+
+    private func drainAlerts() {
+        guard !activities.contains(where: \.isAlerting) else { return }
+        while !pendingAlerts.isEmpty {
+            let next = pendingAlerts.removeFirst()
+            if activities.contains(where: { $0.id == next.key }) {
+                raiseAlert(next.key, next.alert)
+                return
+            }
         }
     }
 

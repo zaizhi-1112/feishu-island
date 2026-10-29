@@ -2,33 +2,57 @@ import NookApp
 import SwiftUI
 
 public enum IslandHost {
-    public static let homeID = "local.youzi.island.home"
-    public static let feishuID = "local.youzi.island.feishu"
-    public static let sampleID = "local.youzi.island.sample"
+    public static let todoID = "local.zaizhi.feishu-island.preview.todos"
+    public static let platformID = "local.zaizhi.feishu-island.preview.platform"
+    public static let agentID = "local.zaizhi.feishu-island.preview.agents"
+    static let panelWidth: CGFloat = 400
+    static let panelHeight: CGFloat = 336
+    static let panelPadding: CGFloat = 12
+    static let navigationHeight: CGFloat = 27
+    static let moduleIDs = [feishuID, agentID, todoID, platformID]
+    public static let workspaceID = "local.zaizhi.feishu-island.preview.workspace"
+    public static let homeID = "local.zaizhi.feishu-island.preview.home"
+    public static let feishuID = "local.zaizhi.feishu-island.preview.feishu"
+    public static let sampleID = "local.zaizhi.feishu-island.preview.sample"
 
     public static func configuration() -> NookHostConfiguration {
+        MainActor.assumeIsolated { IslandOnboardingPolicy.prepareAtLaunch() }
         var host = NookHostConfiguration()
         host.branding = NookHostBranding(
-            hostName: "柚子岛", hostTagline: "常用功能，抬手即达。",
+            hostName: "一切在岛", hostTagline: "常用功能，抬手即达。",
             mark: NookHostBranding.symbol("capsule.fill"),
             menuBarIcon: NookHostBranding.symbol("capsule")
         )
         host.preferenceDefaults = NookPreferenceDefaults(
             appearance: NookAppearancePreferences(
-                chromePalette: .dark, presentation: .auto, soundsEnabled: false,
+                chromePalette: .dark, presentation: .floating, soundsEnabled: false,
                 hoverDelay: 0.15, externalDisplayHoverDelay: 0.2
             ),
             display: .automatic
         )
         host.chromeTheme = IslandDesign.chrome
+        host.chromeThemeSource = MainActor.assumeIsolated {
+            DispatchQueue.main.async { HubPingLauncher.shared.start(); AppUpdater.shared.start() }
+            return AgentStore.shared.themeSource
+        }
+        host.chromeBehavior.backdrop = { context in
+            .custom(.init(id: "island.skin.\(context.colorScheme).\(context.state).\(context.form)") { _ in
+                IslandSkinBackdrop(store: .shared, dark: context.colorScheme == .dark, compact: context.isCompact, notched: context.form == .notch)
+            })
+        }
         host.chromeBehavior.showsLaunchShimmer = false
         host.chromeBehavior.edgeDocked = true
-        // Hide the framework's conflicting "hover to fully expand" settings.
-        host.chromeBehavior.hoverIntent = NookHoverIntent(action: .none)
+        // User preferences own both hover modes and persist through AppState.
+        host.chromeBehavior.hoverIntent = nil
         host.moduleSwitcherPlacement = .leadingCluster
         host.register(FeishuModule.info) { FeishuModule(context: $0) }
-        host.register(HomeModule.info) { HomeModule(context: $0) }
-        host.register(SampleModule.info) { SampleModule(context: $0) }
+        host.register(AgentModule.info) { AgentModule(context: $0) }
+        host.register(TodoModule.info) { TodoModule(context: $0) }
+        host.register(UnifiedPlatformModule.info) { UnifiedPlatformModule(context: $0) }
+        if ProcessInfo.processInfo.arguments.contains("--self-test") || Bundle.main.bundleIdentifier != "local.zaizhi.feishu-island.preview" {
+            host.register(HomeModule.info) { HomeModule(context: $0) }
+            host.register(SampleModule.info) { SampleModule(context: $0) }
+        }
         host.defaultModule = feishuID
         return host
     }
@@ -36,20 +60,34 @@ public enum IslandHost {
     @MainActor
     static func baseConfiguration(title: String, symbol: String) -> NookConfiguration {
         var config = NookConfiguration()
-        config.expandedWidth = 320
+        config.expandedWidth = panelWidth
+        // The content and shell share one reversible curve; no second unfold or blur.
+        config.transitions = NookTransitionConfiguration(
+            openingAnimation: .smooth(duration: 0.42),
+            closingAnimation: .smooth(duration: 0.32),
+            conversionAnimation: .smooth(duration: 0.42),
+            skipIntermediateHides: true,
+            animationDuration: 0.42,
+            compactContentTransition: .init(animation: .easeOut(duration: 0.12)),
+            expandedContentTransition: .opacity,
+            compactContentRemoval: .init(animation: .easeOut(duration: 0.10)),
+            expandedContentRemoval: .init(animation: .easeOut(duration: 0.16))
+        )
+        config.allowsHorizontalModuleSwipe = true
         config.labels = IslandLabels.chinese
-        config.settingsGroups = [.appearance, .display, .shortcut, .about]
-        config.addSettingsSection(id: "island.webSettings", title: "设置面板") {
-            WebSettingsButton()
-        }
+        config.settingsGroups = [.appearance, .display, .about]
+        config.setSettings { IslandSettingsView() }
         config.topBar.leadingTitle = { _ in title }
         config.topBar.leadingIcon = symbol
+        // The island is a quick surface; the ordinary workbench owns all settings.
+        config.topBar.showsSettings = false
+        config.setTopBar { IntegrationTopBar(bar: $0) }
+        config.setPeek { UnifiedIslandPeek(title: title, symbol: symbol) }
         config.setCompactLeading {
-            IslandCompactGlyph(symbol: symbol)
+            AgentCompanionGlyph(store: .shared)
         }
         config.setCompactTrailing {
-            Text(title == "首页" ? "就绪" : "示例")
-                .font(.system(size: 10, weight: .medium)).foregroundStyle(.white.opacity(0.8))
+            IslandCompactTitle(title: title)
         }
         return config
     }
@@ -102,9 +140,3 @@ public final class SampleState: ObservableObject {
     }
 }
 
-private struct WebSettingsButton: View, Sendable {
-    var body: some View {
-        Button("打开网页版设置") { SettingsServer.shared.open() }
-            .buttonStyle(.bordered).accessibilityIdentifier("island.webSettings")
-    }
-}

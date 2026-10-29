@@ -36,3 +36,51 @@ OpenNook's modifications to the kit are licensed under the MIT License - see
 `LICENSE-MIT-NOOKSURFACE` - preserving compatibility with the original
 DynamicNotchKit license and keeping the chrome freely usable for any purpose,
 including downstream forks.
+
+## Local Feishu Island host patch (2026-10-21)
+
+`NookSurface/Internal/NookPanel.swift`: while a native file drag is accepted over
+this island, suppress the source's drag-image components so the host's waiting
+portal is visible. AppKit automatically restores the source drag images when the drag leaves or
+is cancelled; the host does not cache thumbnails. No file data is changed,
+no thumbnail is persisted, and normal mouse hit testing stays transparent.
+The existing MIT notice and upstream license remain in effect.
+
+`NookSurface/Nook.swift`: an edge-docked compact surface now honors the host's
+explicit `.expand` hover intent. Leaving cancels the pending delay; existing
+hover-exit compaction and explicit presentation pins remain unchanged. This
+removes the forced click between edge reveal and the host's expanded content.
+
+2026-10-23: Delay hover-exit collapse by 650ms, recheck real panel bounds, retain keyboard-focus interaction, and replay deferred exit after focus ends. No changes to message access or authentication.
+
+2026-10-23 build33: Keyboard focus no longer pins the island after pointer exit. Preserve the 650ms exit grace, measure visible chrome bounds rather than the half-screen transparent host panel, and poll pointer exits while the text editor retains keyboard focus. Explicit presentation pins and drag protection remain.
+
+2026-10-24 build34: Include visible child windows in hover interaction bounds; native menu tracking temporarily defers hover exit until the menu closes. Reminder editing in the host island uses inline content instead of a detached popover. No change to message access or authentication.
+
+2026-10-25 build38: NookLiveActivity gains an opt-in keepsCompactVisible flag (default false). Activity changes and arbiter claims both preserve compact-slot visibility while that activity exists, without expanding or pinning the panel. The host uses it only for the independently enabled Codex quota badge; camera clearance and hover-exit behavior are unchanged.
+
+2026-10-25 build39: Replay the resident activities' compact-visibility flag when the activity subscription is first bound, so restarting with an existing quota preference restores side slots. No new presentation pin, authentication or message access.
+
+## 2026-10-27 统一产品融合
+- 从佑哥0.9.2移植 ModuleHost.setNavigationOrder，隐藏中台导航不卸载配置。
+- edgeDocked支持系统已有peekFirst偏好；移出结束hover拥有的peek，点击继续完整展开。
+- 收纳白色提示边缘限主体宽度65%且最多160pt，展开不套用窄遮罩。
+- `NookSurface/Nook+Peek.swift`：悬浮排队开始与 compact 转换返回后检查 transition generation、任务取消及鼠标仍在区域；收回悬浮也检查当前 generation，避免快速移入移出或新操作被旧任务覆盖。程序主动触发的 peek 不要求鼠标悬停。`Tests/UnifiedProductChecks/PeekTransitionChecks.swift` 提供不创建窗口的排队取消回归检查。
+
+- 2026-10-27: Edge-docked presentations share expanded screen geometry and notch clearance. Floating compact chrome retracts into the hardware notch without a visible lip; only pointer hover reveals it. Non-notched display edge fallback remains.
+
+2026-10-27 build55: Docked expanded forms use floating capsule geometry. Compact vertical padding fits running Agent content within a 32pt notch.
+
+HotkeyController now forwards foreign Carbon signatures instead of consuming the launcher hotkey.
+
+2026-10-28 experience revision: Edge-docked expanded content uses a top alignment and one geometry group, so its navigation and body follow the same downward expansion as the shell. Non-docked alignment remains unchanged. The host supplies a shared reversible curve and skips the intermediate hide; no delayed content blur is used. Product-view frame capture and reversal checks are in Tests/ExperienceMotionChecks.
+
+The surface now honors an explicit host removal transition for docked content. With system Reduce Motion enabled, the surface disables shape and content animation in its view transaction; peripheral effects retain their existing reduced-motion behavior.
+
+The edge-dock reveal mask uses floating corners while the floating chrome is exposed, preventing the animated reveal rectangle from cutting square corners into a growing capsule. Retracted and notch-fused mask behavior stays the same.
+
+2026-10-29 build83: Explicit full-hover expansion has no added delay; peek-first retains its timing. Edge-docked compact content is clipped to the physical notch width including corner padding. Retracted chrome is black to prevent a pale lip below the hardware notch. No screen overlay or input interception is added.
+
+2026-10-29 build84: Hover retention includes the hardware camera area within the existing narrow entry bridge. Click hit regions are unchanged. This prevents an upward pointer motion from interrupting full expansion while preserving lateral menu-bar exit and pointer-only behavior. Native regression replays the upward motion and rapid re-entry.
+
+- build92: NookHotkey event initializer accepts opt-in unmodified keys for the hub wheel only; other shortcut editors retain modifier requirements. Added F13–F19 labels.

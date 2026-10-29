@@ -83,7 +83,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     @Published public var style: NookStyle
 
     /// Retract compact chrome to a small edge; hover reveals, click expands.
-    @Published public var edgeDocked = false
+    @Published public var edgeDocked = false { didSet { updateLayoutForm() } }
+    /// A transient host claim can reveal the second stage without simulating hover.
+    @Published public var compactRevealActive = false { didSet { updateLayoutForm() } }
     @Published private(set) var physicalNotchHeight: CGFloat = 0
 
     /// Side-effects applied while the pointer is over the chrome. Read on every hover change
@@ -142,6 +144,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// never pass through a host-called `expand`/`compact`.
     @Published public private(set) var state: NookState = .hidden {
         didSet {
+            updateLayoutForm()
             // A peek is a way of being compact; leaving compact ends it, on the same
             // transaction (and so the same curve) as the state change itself.
             if state != .compact {
@@ -171,6 +174,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     @Published public private(set) var isHovering: Bool = false {
         didSet {
             if isHovering { hasDeferredHoverExit = false }
+            updateLayoutForm()
         }
     }
 
@@ -188,6 +192,39 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// ``replayDeferredHoverExit()`` once nothing holds the chrome open; forgotten when the
     /// pointer comes back or the chrome leaves the expanded state.
     var hasDeferredHoverExit = false
+    private var interactionExitTask: Task<Void, Never>?
+    private var keyboardPointerTask: Task<Void, Never>?
+    private var menuTrackingDepth=0
+    var chromeFrameInWindow: CGRect = .zero
+    var compactHitWidth: CGFloat = 0
+    var pointerLocation: () -> NSPoint = { NSEvent.mouseLocation }
+    private var pointerInsideChrome: Bool {
+        guard let window = windowController?.window, !chromeFrameInWindow.isEmpty else { return isHovering }
+        let topInset: CGFloat = layoutForm == .floating
+            ? (edgeDocked ? physicalNotchHeight + NookEdgeDockLayout.revealGap : menubarHeight + 8) : 0
+        // The expanded chrome is centered and top-anchored. SwiftUI's global origin
+        // is not the NSWindow origin when the native hosting view is flipped.
+        let rect = NSRect(x: window.frame.midX - chromeFrameInWindow.width / 2,
+                          y: window.frame.maxY - topInset - chromeFrameInWindow.height,
+                          width: chromeFrameInWindow.width, height: chromeFrameInWindow.height)
+        let point = pointerLocation()
+        func containsChild(_ parent:NSWindow) -> Bool {
+            (parent.childWindows ?? []).contains { child in
+                child.isVisible && (child.frame.insetBy(dx:-4,dy:-4).contains(point) || containsChild(child))
+            }
+        }
+        if edgeDocked {
+            let layout = NookEdgeDockLayout(state: state, hovering: isHovering || compactRevealActive,
+                peeking: isPeeking, contentHeight: chromeFrameInWindow.height,
+                shownTopInset: topInset, physicalNotchHeight: physicalNotchHeight)
+            let local = NSPoint(x: point.x - (window.frame.midX - chromeFrameInWindow.width / 2),
+                                y: window.frame.maxY - point.y)
+            return layout.hoverRects(width: chromeFrameInWindow.width,
+                bridgeWidth: compactHitWidth > 0 ? compactHitWidth : 160,
+                physicalNotchHeight: physicalNotchHeight).contains { $0.contains(local) } || containsChild(window)
+        }
+        return rect.insetBy(dx: -4, dy: -4).contains(point) || containsChild(window)
+    }
 
     /// `true` while the chrome's panel has the keyboard, so typing goes to a text input in the
     /// chrome rather than to the app in front. See ``takeKeyboardFocus()``.
@@ -218,6 +255,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// app layer's concern; the engine never sees it.
     ///
     /// `@MainActor`-isolated: invoked from the surface's main-actor drag pipeline.
+    public var onDrop: (@MainActor (NookDropPayload) -> Bool)?
+    var dragTargetSize: CGSize = .zero
+
     public var onFileDrop: (@MainActor ([URL]) -> Bool)?
 
     /// Fired when the chrome transitions **into** the expanded surface - from any source:
@@ -326,6 +366,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         didSet {
             // Leaving compact ends a peek inside the state change, which moves the elements.
             guard state == .compact, isPeeking != oldValue else { return }
+            updateLayoutForm()
             sharedElements.surfaceWillMove(
                 to: .onScreen(state: state, isPeeking: isPeeking),
                 animation: transitionConfiguration.sharedElementPeekAnimation ?? effectivePeekAnimation
@@ -372,6 +413,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
     /// The lowest point, in the panel's coordinates, each companion reaches.
     var companionExtents: [String: CGFloat] = [:]
+    var chromeExtent: CGFloat = 0
 
     /// `true` while a panel resize to fit companions is queued for the next main-actor turn.
     var isPanelGrowthScheduled = false
@@ -634,6 +676,10 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     func updateHoverState(_ hovering: Bool) {
         guard state != .hidden, hovering != isHovering else { return }
 
+        // Animated layout can emit an exit under a stationary pointer. Preserve
+        // engagement while it remains in the panel or its original entry bridge.
+        if !hovering, edgeDocked, state == .expanded, !chromeFrameInWindow.isEmpty, pointerInsideChrome { return }
+        interactionExitTask?.cancel()
         isHovering = hovering
         if edgeDocked, ProcessInfo.processInfo.environment["YU_ISLAND_TRACE"] == "1" {
             let message = "[edge] hover=\(hovering) state=\(state) mouse=\(NSEvent.mouseLocation)\n"
@@ -642,9 +688,13 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         performHoverHapticIfEnabled()
         cancelHoverIntent()
 
-        // Edge docking has its own middle state: pointer presence reveals the compact
-        // pill through NookView's geometry, but never opens the full content on hover.
-        if edgeDocked, state == .compact { return }
+        // Honor a host's explicit expand intent at the screen edge as well.
+        // Leaving still cancels the pending intent before this branch.
+        if edgeDocked, state == .compact {
+            if hovering { hoverEntered() }
+            else if peekStartedByHover { runEndPeek() }
+            return
+        }
 
         // Any intent but the standard one waits, peeks, or does nothing; see `Nook+Peek.swift`.
         // The standard intent takes the path below, exactly as before intents existed.
@@ -659,7 +709,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         }
 
         guard hovering || !suppressesHoverExitCompact else {
-            if state == .expanded { hasDeferredHoverExit = true }
+            if state == .expanded { deferHoverExitUntilPointerLeaves() }
             return
         }
 
@@ -669,6 +719,11 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             if hovering {
                 await self._expand(on: screen, skipHide: true, generation: generation)
             } else {
+                guard !Task.isCancelled, !self.isHovering else { return }
+                if self.pointerInsideChrome || self.suppressesHoverExitCompact {
+                    self.deferHoverExitUntilPointerLeaves()
+                    return
+                }
                 await self._compact(on: screen, skipHide: true, generation: generation)
             }
         }
@@ -677,8 +732,27 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// Collapses the chrome for a hover exit that a hold deferred, once no hold is left. Does
     /// nothing when no exit is owed, when the pointer has come back to the chrome or a companion,
     /// or while a file drag is over the panel.
+    private func deferHoverExitUntilPointerLeaves() {
+        hasDeferredHoverExit = true
+        interactionExitTask?.cancel()
+        interactionExitTask = Task { [weak self] in
+            while let self, self.state == .expanded, !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(250))
+                guard !Task.isCancelled else { return }
+                if !self.isHovering && !self.isDragInFlight &&
+                    !self.pointerInsideChrome &&
+                    !self.suppressesHoverExitCompact {
+                    self.replayDeferredHoverExit(); return
+                }
+            }
+        }
+    }
+
     func replayDeferredHoverExit() {
         guard hasDeferredHoverExit, !suppressesHoverExitCompact else { return }
+        if pointerInsideChrome {
+            deferHoverExitUntilPointerLeaves(); return
+        }
         hasDeferredHoverExit = false
         guard state == .expanded, !isHovering, !isDragInFlight,
             let screen = windowController?.window?.screen ?? resolvedScreen
@@ -834,7 +908,9 @@ extension Nook {
     /// target - typically the host's persisted display preference via ``screenProvider``.
     public func expand(on screen: NSScreen? = nil) async {
         guard let target = screen ?? resolvedScreen else { return }
-        let skipHide = transitionConfiguration.skipIntermediateHides
+        // Preserve the peek owner until the expanded-state observer has selected
+        // its activity view. An intermediate hidden state would clear that owner.
+        let skipHide = isPeeking || transitionConfiguration.skipIntermediateHides
         await runTransition(toward: .expanded) { [weak self] generation in
             await self?._expand(on: target, skipHide: skipHide, generation: generation)
         }.value
@@ -912,12 +988,42 @@ extension Nook {
     /// Hands the keyboard back whenever the chrome leaves the expanded state, so typing never
     /// goes to a collapsed or hidden chrome. `$state` publishes before the new state is stored,
     /// so the new state is passed along rather than read back.
+    private func observeExpandedPointerExit() {
+        keyboardPointerTask = Task { [weak self] in
+            // Layout and key panels can lose hover exits. Check the real pointer
+            // after an entry without making a click on a tab a keep-open lock.
+            await Task.yield()
+            while let self, self.state == .expanded, !Task.isCancelled {
+                if (self.isHovering || self.hasDeferredHoverExit || self.hasKeyboardFocus)
+                    && !self.pointerInsideChrome && !self.isDragInFlight {
+                    self.isHovering = false
+                    self.hasDeferredHoverExit = true
+                    self.replayDeferredHoverExit()
+                }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+        }
+    }
+
     func observeStateForKeyboardFocus() {
+        NotificationCenter.default.publisher(for:NSMenu.didBeginTrackingNotification)
+            .receive(on:RunLoop.main).sink { [weak self] _ in
+                guard let self, self.state == .expanded else { return }
+                self.menuTrackingDepth += 1
+            }.store(in:&cancellables)
+        NotificationCenter.default.publisher(for:NSMenu.didEndTrackingNotification)
+            .receive(on:RunLoop.main).sink { [weak self] _ in
+                guard let self else { return }
+                self.menuTrackingDepth=max(0,self.menuTrackingDepth-1)
+                if self.menuTrackingDepth==0 { self.replayDeferredHoverExit() }
+            }.store(in:&cancellables)
         $state
             .removeDuplicates()
             .sink { [weak self] newState in
-                guard let self, newState != .expanded, self.hasKeyboardFocus else { return }
-                self.releaseKeyboardFocus()
+                guard let self else { return }
+                self.keyboardPointerTask?.cancel()
+                if newState == .expanded { self.observeExpandedPointerExit() }
+                else if self.hasKeyboardFocus { self.releaseKeyboardFocus() }
             }
             .store(in: &cancellables)
     }
@@ -1286,7 +1392,13 @@ extension Nook {
     /// A hover exit suppressed this way is owed and replays when the suppression lifts - see
     /// ``replayDeferredHoverExit()``.
     var suppressesHoverExitCompact: Bool {
-        staysExpandedOnHoverExit || isLayoutGraceActive
+        staysExpandedOnHoverExit || menuTrackingDepth > 0 || isEditingText
+            || (isLayoutGraceActive && pointerInsideChrome)
+    }
+
+    private var isEditingText: Bool {
+        guard let panel = windowController?.window as? NookPanel, panel.isKeyWindow else { return false }
+        return NookPanel.acceptsTyping(panel.firstResponder)
     }
 
     func beginLayoutGrace() {
@@ -1319,15 +1431,29 @@ extension Nook {
 }
 
 extension Nook {
+    private func updateLayoutForm() {
+        let form = presentation.resolvedForm(state: state, edgeDocked: edgeDocked,
+            screenHasNotch: physicalNotchHeight > 0,
+            revealed: isHovering || isPeeking || compactRevealActive)
+        if layoutForm != form { layoutForm = form }
+    }
+
+    /// Screen metrics are applied together for display changes and isolated layout checks.
+    func updateScreenGeometry(notch: CGSize, physicalHeight: CGFloat, menuHeight: CGFloat) {
+        notchSize = notch
+        physicalNotchHeight = physicalHeight
+        menubarHeight = menuHeight
+        updateLayoutForm()
+    }
+
     fileprivate func initializeWindow(screen: NSScreen, orderFront: Bool = true) {
         deinitializeWindow()
 
-        notchSize = screen.notchFrameWithMenubarAsBackup.size
-        physicalNotchHeight = screen.safeAreaInsets.top
-        menubarHeight = screen.menubarHeight
-        layoutForm = presentation.isFloating(screenHasNotch: screen.hasNotch) ? .floating : .notch
+        updateScreenGeometry(notch: screen.notchFrameWithMenubarAsBackup.size,
+                             physicalHeight: screen.safeAreaInsets.top, menuHeight: screen.menubarHeight)
         // Extents were measured in the window being replaced; the new one re-reports them.
         companionExtents.removeAll()
+        chromeExtent = 0
 
         let size = NSSize(
             width: screen.frame.width,
@@ -1338,13 +1464,9 @@ extension Nook {
             y: screen.frame.maxY - size.height
         )
 
-        // Two modifiers used to live on a `NookContentView` shim: a full-bleed
-        // top-anchored frame and a conversion animation on hover. Inlining the
-        // shim removes a one-line passthrough that earned its keep only as a
-        // named type - `NSHostingView` is the only consumer.
+        // The surface view owns reveal/conversion timing and its top anchor.
         let rootView = NookView(nook: self)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .animation(effectiveConversionAnimation, value: isHovering)
         let hostingView = NookHostingView(rootView: rootView)
         hostingView.wantsLayer = true
         hostingView.translatesAutoresizingMaskIntoConstraints = false
@@ -1390,6 +1512,7 @@ extension Nook {
         panel.onKeyStatusChange = { [weak self] isKey in
             guard let self, self.hasKeyboardFocus != isKey else { return }
             self.hasKeyboardFocus = isKey
+            if !isKey { self.replayDeferredHoverExit() }
         }
 
         panel.setFrame(NSRect(origin: origin, size: size), display: false)

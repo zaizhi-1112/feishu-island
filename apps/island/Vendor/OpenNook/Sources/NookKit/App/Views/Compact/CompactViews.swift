@@ -67,13 +67,21 @@ struct NookCompactHost<Content: View>: View {
     var chromeTheme: NookTheme = .standard
     var themeTokens: NookResolvedTokens = .standard
     let content: () -> Content
+    @Environment(\.nookChromeShape) private var shape
+
+    private var resolvedTheme: NookResolvedTheme {
+        guard shape?.form == .notch else { return theme(appState) }
+        // Hardware is black even when the expanded panel uses the light palette.
+        return .resolve(theme: chromeTheme, preferences: .init(chromePalette: .dark),
+                        effectiveColorScheme: .dark, reduceTransparency: true)
+    }
 
     var body: some View {
         content()
             .modifier(
                 NookChromeEnvironment(
                     appState: appState,
-                    theme: theme(appState),
+                    theme: resolvedTheme,
                     services: services,
                     labels: labels,
                     metrics: metrics,

@@ -38,11 +38,17 @@ extension Nook {
             let target = screen ?? windowController?.window?.screen ?? resolvedScreen
         else { return nil }
         return runTransition(toward: .compact) { [weak self] generation in
-            guard let self else { return }
+            // A queued hover can be overtaken by pointer exit or another transition
+            // before this task runs. Do not revive it (or create a window) afterward.
+            guard let self, self.isCurrent(generation), !Task.isCancelled,
+                !byHover || self.isHovering
+            else { return }
             if self.state != .compact || self.windowController?.window?.screen != target {
                 await self._compact(on: target, skipHide: true, generation: generation)
-                guard self.isCurrent(generation), !Task.isCancelled, self.state == .compact else { return }
             }
+            guard self.isCurrent(generation), !Task.isCancelled, self.state == .compact,
+                !byHover || self.isHovering
+            else { return }
             // A host peek over a pointer's peek takes it over, so leaving no longer ends it;
             // the pointer arriving on a host's peek leaves it the host's.
             if !self.isPeeking {
@@ -62,8 +68,10 @@ extension Nook {
     @discardableResult
     func runEndPeek() -> Task<Void, Never>? {
         guard state == .compact, isPeeking else { return nil }
-        return runTransition(toward: .compact) { [weak self] _ in
-            guard let self, self.isPeeking else { return }
+        return runTransition(toward: .compact) { [weak self] generation in
+            guard let self, self.isCurrent(generation), !Task.isCancelled,
+                self.state == .compact, self.isPeeking
+            else { return }
             withAnimation(self.effectivePeekAnimation) { self.isPeeking = false }
             self.peekStartedByHover = false
             try? await Task.sleep(for: self.conversionSettleDuration)

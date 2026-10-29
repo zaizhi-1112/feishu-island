@@ -80,8 +80,8 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
                 case .peekFirst: .peek
                 case .off: .none
             }
-        let delay = Self.duration(hoverDelay)
-        let external = Self.duration(externalDisplayHoverDelay)
+        let delay = openOnHover == .immediately ? Duration.zero : Self.duration(hoverDelay)
+        let external = openOnHover == .immediately ? Duration.zero : Self.duration(externalDisplayHoverDelay)
         return NookHoverIntent(
             action: action,
             delay: delay,
