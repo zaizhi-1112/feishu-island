@@ -1,7 +1,7 @@
-# 飞书工作岛协作仓库
-- 目标：维护「一切在岛」原生融合应用。本轮以柚子 0.10.0 build82（aac90af6）为基线修复用户反馈，工作分支 codex/build82-refinements。
+# 一切在岛
+- 目标：维护「一切在岛」原生融合应用，当前发布为 0.12.0 build94。产品功能见 README.md，实际验证见 docs/验证记录.md；build82 是历史开发基线，不代表当前产品版本。
 - apps/island：Swift/AppKit/SwiftUI 原生应用、消息接收、日程、待办、Agent 和个人卡片；apps/danmu：历史弹幕实现；docs：协作与验收说明。历史导入文档不代表当前运行结构。
-- 先读 README.md、docs/融合与协作说明.html；按子目录 AGENTS.md 的适用范围开发。
+- 先读 README.md、docs/验证记录.md 和相关子目录 AGENTS.md。docs/融合与协作说明.html 是 2026-10-19 的历史导入材料，不能把其中“未融合”“私有仓库”等状态当作当前事实。
 - 默认只跑合成数据、编译和测试。禁止真实账号接收、读取真实消息、自动安装登录项、启动 UI 自测、退出飞书或用不透明全屏背景验收，除非用户另行明确授权当前动作。
 - 账号、token、消息正文、聊天历史、日志、个人目录不可提交。不得在日志记录正文、改飞书已读或发送消息。仅使用各自本人授权。2026-10-29 用户明确要求更新后保留消息：允许按账号隔离、仅在本机应用目录保存消息与待播进度，默认 7 天，可关闭或调整天数，每日定时清理；不得上传或用于诊断日志。
 - 开发用 codex/功能名 分支，通过 PR 说明变化、用户影响、验证与未验证项；不要直接提交 main，不 force push，不自动合并或部署。
@@ -18,6 +18,8 @@
 - build85 按本人要求在独立中台 helper 中增加只读 `list_home_applications`，用于快捷入口选择；应用目录只在内存，不复制其他客户端凭据。首次更新 helper 如出现钥匙串系统确认，由本人处理，不操作 SecurityAgent。
 
 - 用户本次授权创建仓库并上传双方源码，允许一次 main 初始化导入；之后的功能改动遵循分支与 PR 流程。
+
+- 发布核对必须包含默认分支源码、根 README、About 与官网地址、验证记录、Release 和产品网页，步骤见 docs/协作速查.md。用户要求“GitHub 里都是最新的”时，先准备完整的默认分支更新，不能用只改 Release 或换默认分支冒充源码已合入；main 的双人批准约定在明确改变前继续适用。
 
 - build87 的 DeepSeek Harness 只读余额通过 `Resources/deepseek-balance.cjs` 和 `DeepSeekReader.swift` 接入。仅复用本人 Harness 的既有 Platform 登录，固定钱包 GET、拒绝重定向，不取 API Key，不读取对话、不发送任务；凭据不持久化到本应用，不输出原始响应。其他用户默认未启用，新入口不替换现有岛上位置。验证 `node --test Tests/deepseek-balance.test.cjs`、`AgentChecks` 与 `UnifiedProductChecks`；接口随 Harness 升级可能变化，禁止猜测金额或用0代替未知。
 

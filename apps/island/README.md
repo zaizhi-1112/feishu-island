@@ -35,7 +35,7 @@ python3 scripts/package-download-site.py /path/to/audited.dmg .build/site-releas
 
 本轮基于柚子的 build82 修复会话打开、接收调度、长消息弹幕、日程同步、待办历史与设置交互。普通用户点击「连接飞书」直接进入本人授权，日历使用只读的 `schedule` 用途。原本已绑定的本机账号保持可用。
 
-当前事实、验收边界与安装结果见 ../../docs/build82-refinements.md；面向用户的离线说明为 Distribution/开始使用.html。SOURCE-MANIFEST.sha256 是 build82 导入快照，不能用作修改后源码的校验清单。
+当前事实见[仓库首页](../../README.md)和[当前验证记录](../../docs/验证记录.md)，逐版实现与安装结果见[工作记录](../../docs/build82-refinements.md)；面向用户的离线说明为 [开始使用.html](Distribution/开始使用.html)。SOURCE-MANIFEST.sha256 是 build82 导入快照，不能用作修改后源码的校验清单。
 
 build84 修复完整展开时向上移入硬件刘海导致误收回的问题；点击区域不覆盖两侧菜单栏。新增向上移动、停在顶边、侧向离开和快速重复进出的原生回归检查。
 
