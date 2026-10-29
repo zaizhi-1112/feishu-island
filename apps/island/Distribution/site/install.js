@@ -5,7 +5,6 @@
   const $$ = selector => [...document.querySelectorAll(selector)];
   const escape = text => String(text).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const desktop = $('#demo-desktop'), island = $('#island'), panel = $('#demo-panel');
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const moduleNames = ['飞书消息', 'Agent 状态', '待办与日程', '我的卡片'];
   const captions = ['点开一条消息，试试完整阅读。','切换工具，看看状态和额度各自怎样呈现。','记下一件小事，完成后还能找回来。','展开卡片看全文，快捷入口在独立轮盘里。'];
   let current = 0, pinned = false, keyboardMode = false, collapseTimer, toastTimer, readerTimer;
@@ -29,7 +28,7 @@
   function openIsland() { clearTimeout(collapseTimer); desktop.dataset.phase='open'; $('#expand-island').setAttribute('aria-expanded','true'); $('#island-content').inert=false; }
   function closeIsland() {
     const inputActive = island.contains(document.activeElement) && document.activeElement.matches('input,select,textarea');
-    if (pinned || editing !== null || inputActive || (keyboardMode && island.contains(document.activeElement)) || !$('#wheel-overlay').hidden) return;
+    if (desktop.dataset.autoplay==='playing' || pinned || editing !== null || inputActive || (keyboardMode && island.contains(document.activeElement)) || !$('#wheel-overlay').hidden) return;
     stopReading(); desktop.dataset.phase='closed'; $('#expand-island').setAttribute('aria-expanded','false'); $('#island-content').inert=true;
   }
   function scheduleCollapse() { clearTimeout(collapseTimer); collapseTimer=setTimeout(closeIsland,650); }
@@ -121,20 +120,12 @@
   wheelButtons.forEach(button=>button.addEventListener('click',()=>closeWheel(`已选择“${button.dataset.destination}”。安装版会打开对应入口。`)));
   wheel.addEventListener('pointermove',event=>{if(event.pointerType!=='mouse')return;const rect=wheel.getBoundingClientRect(),x=event.clientX-rect.left-rect.width/2,y=event.clientY-rect.top-rect.height/2,r=Math.hypot(x,y);if(r<40){wheelArmed=true;wheelIndex=-1;}else{wheelIndex=Math.round((Math.atan2(y,x)+Math.PI/2+Math.PI*2)%(Math.PI*2)/(Math.PI/4))%8;}wheelButtons.forEach((b,i)=>b.setAttribute('aria-pressed',String(i===wheelIndex)));if(wheelArmed&&r>140&&wheelIndex>=0)closeWheel(`已选择“${wheelButtons[wheelIndex].dataset.destination}”。安装版会打开对应入口。`);});
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('#wheel-overlay').hidden){event.preventDefault();closeWheel();}});
-  // The gallery uses actual native views rendered with isolated synthetic stores.
-  const pageKeys=['messages','agents','todos','platform','rest','appearance','guide'];
-  const pageCopy={guide:['新手引导','从第一次打开，到按你的习惯使用。','六步依次选择展开方式、外观、飞书连接、弹幕、提醒和 Agent。需要哪项就连哪项，也能先跳过；页面预览不会为你连接任何账号。'],messages:['飞书消息','消息连接、提醒规则和弹幕样式，都在同一页。','私聊、群聊按你选择的规则提醒。消息只在内存里处理，不修改飞书已读状态。'],agents:['Agent 状态','岛上显示、仅提醒、不使用，工具可以分别设置。','Codex 显示剩余比例，WorkBuddy 显示积分，DeepSeek Harness 显示余额。未知时保留未知，不把任务状态画成完成百分比。'],todos:['待办','完成记录和最近删除，都有各自的位置。','在岛内新增、编辑待办，设置完成期限与提醒时间。完成历史保存在本机；飞书日程是独立的只读同步。'],platform:['中台','个人卡片在岛里，常用入口放进独立轮盘。','连接自己的中台账号后，选择想看的卡片。轮盘支持点击、滑动和按住快捷键选择后松开；网页上方可以体验点击与滑动。'],rest:['休息提醒','用喜欢的方式，提醒自己休息一下。','提醒时间和素材可以自己调整。build 90 保留猫咪走动、瑞克等内置素材，也支持导入和删除；网页不会触发桌面提醒。'],appearance:['外观与交互','明暗、皮肤、悬停方式和显示屏都能调整。','完整展开，或先露出胶囊再点击。选择适合你的方式，也可以把当前页面固定展开。']};
-  let galleryPage='messages',galleryDark=false,guideStep=1;
-  function showNative(key){galleryPage=key;const [title,caption,copy]=pageCopy[key];$('#guide-steps').hidden=key!=='guide';$('#native-image').src=`native-${key==='guide'?'guide-'+guideStep:key}${galleryDark?'-dark':''}.jpg`;$('#native-image').alt=`build 90 原生${title}设置，${galleryDark?'深色':'浅色'}，合成示例`;$('#native-caption').textContent=caption;$('#page-story p').textContent=copy;$('#native-panel').setAttribute('aria-labelledby',`page-${key}`);$$('[data-page]').forEach(button=>{const active=button.dataset.page===key;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;});}
-  $$('[data-guide-step]').forEach(button=>button.addEventListener('click',()=>{guideStep=Number(button.dataset.guideStep);$$('[data-guide-step]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));showNative('guide');}));
-  $$('[data-page]').forEach(button=>button.addEventListener('click',()=>showNative(button.dataset.page)));
-  tabKeyboard($$('[data-page]'),index=>showNative(pageKeys[index]));
-  $('#gallery-theme').addEventListener('click',()=>{galleryDark=!galleryDark;$('#gallery-theme').setAttribute('aria-pressed',String(galleryDark));$('#gallery-theme').textContent=galleryDark?'查看浅色':'查看深色';showNative(galleryPage);});
-  $('#native-image').addEventListener('error',()=>{$('#native-caption').textContent='原生预览暂时加载失败，请刷新页面重试。';});
-  $('#open-settings').addEventListener('click',()=>{showNative(pageKeys[current]);$('#pages').scrollIntoView({behavior:reduced.matches?'instant':'smooth'});$(`#page-${pageKeys[current]}`).focus({preventScroll:true});});
-  $('#gallery-zoom').addEventListener('click',()=>{$('#zoom-image').src=$('#native-image').src;$('#zoom-image').alt=$('#native-image').alt;$('#image-dialog-title').textContent=pageCopy[galleryPage][0]+' · 原生设置';$('#image-dialog').showModal();});
-  $('#close-image').addEventListener('click',()=>$('#image-dialog').close());
-  $('#image-dialog').addEventListener('click',event=>{if(event.target===$('#image-dialog')){const r=$('#image-dialog').getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)$('#image-dialog').close();}});
+  // Feedback stays in a modal; drafts are kept only in the current page.
+  const feedbackDialog=$('#feedback-dialog');
+  $('#open-feedback').addEventListener('click',()=>{if(!$('#wheel-overlay').hidden)closeWheel();pauseForInteraction();feedbackDialog.showModal();document.body.classList.add('dialog-open');});
+  $('#close-feedback').addEventListener('click',()=>feedbackDialog.close());
+  feedbackDialog.addEventListener('close',()=>{document.body.classList.remove('dialog-open');pauseForInteraction();});
+  feedbackDialog.addEventListener('click',event=>{if(event.target===feedbackDialog){const r=feedbackDialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)feedbackDialog.close();}});
   // Mailto hands a reviewed draft to the user's mail client. No fake sent state.
   const recipient='zaizhi@virxact.com';
   const feedbackBody=()=>`一切在岛反馈\n版本：0.11.1 · build 90\n类型：${$('#feedback-type').value}\n\n${$('#feedback-content').value.trim()}`;
@@ -145,10 +136,52 @@
   $('#feedback-form').addEventListener('submit',event=>event.preventDefault());
   $('#feedback-mail').addEventListener('click',event=>{if(!validFeedback()){event.preventDefault();return;}$('#feedback-mail').href=`mailto:${recipient}?subject=${encodeURIComponent('一切在岛 · '+$('#feedback-type').value)}&body=${encodeURIComponent(feedbackBody())}`;$('#feedback-status').textContent='邮件内容已准备，请在打开的邮箱里确认并发送。网页尚未发送邮件。';});
   async function copy(text,success){try{await navigator.clipboard.writeText(text);$('#feedback-status').textContent=success;}catch{$('#feedback-status').textContent='浏览器未允许复制，请选中文字手动复制。';}}
-  $('#copy-email').addEventListener('click',()=>copy(recipient,'邮箱已复制：'+recipient));
   $('#copy-feedback').addEventListener('click',()=>{if(validFeedback())copy(feedbackBody(),`反馈已复制。请粘贴到邮件，发送给 ${recipient}。`);});
-  let demoVisible=true;
-  new IntersectionObserver(entries=>{demoVisible=entries[0].isIntersecting;if(!demoVisible){clearTimeout(readerTimer);clearTimeout(collapseTimer);}else if(automatic)readerTick();},{threshold:.1}).observe(desktop);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)clearTimeout(readerTimer);else if(automatic)readerTick();});
+  // Rotate only when the demo is visible and nobody is working in it.
+  // A single timer serves this local preview; it never polls a backend.
+  const carouselInterval=8000, idleDelay=20000;
+  let demoVisible=false, carouselEnabled=true, carouselTimer, lastInteraction=-idleDelay;
+  function holdsCarousel(){
+    const active=document.activeElement;
+    return document.hidden || !demoVisible || feedbackDialog.open || pinned ||
+      editing!==null || reading!==null || scheduleEditing || !$('#wheel-overlay').hidden ||
+      Boolean($('#todo-input')?.value.trim()) ||
+      ($('#demo').contains(active) && (active.matches('input,select,textarea') || keyboardMode));
+  }
+  function scheduleCarousel(delay=carouselInterval){
+    clearTimeout(carouselTimer);
+    if(!carouselEnabled || holdsCarousel()){desktop.dataset.autoplay='paused';return;}
+    carouselTimer=setTimeout(()=>{
+      if(!carouselEnabled || holdsCarousel()){desktop.dataset.autoplay='paused';return;}
+      const remaining=idleDelay-(performance.now()-lastInteraction);
+      if(remaining>0){scheduleCarousel(remaining);return;}
+      select(current+1);
+      desktop.dataset.autoplay='playing';
+      scheduleCarousel();
+    },delay);
+  }
+  function pauseForInteraction(){
+    lastInteraction=performance.now();
+    desktop.dataset.autoplay='paused';
+    clearTimeout(carouselTimer);
+    queueMicrotask(()=>scheduleCarousel(idleDelay));
+  }
+  for(const eventName of ['pointerdown','keydown','input','change']){
+    $('#demo').addEventListener(eventName,event=>{if(!event.target.closest('#autoplay-toggle'))pauseForInteraction();},true);
+  }
+  $('#demo').addEventListener('focusout',()=>queueMicrotask(()=>scheduleCarousel()));
+  $('#autoplay-toggle').addEventListener('click',()=>{
+    carouselEnabled=!carouselEnabled;
+    $('#autoplay-toggle').textContent=carouselEnabled?'暂停轮播':'继续轮播';
+    if(carouselEnabled){lastInteraction=-idleDelay;openIsland();desktop.dataset.autoplay='playing';}
+    scheduleCarousel();
+  });
+  new IntersectionObserver(entries=>{
+    demoVisible=entries[0].isIntersecting;
+    if(!demoVisible){clearTimeout(readerTimer);clearTimeout(collapseTimer);}else if(automatic)readerTick();
+    scheduleCarousel();
+  },{threshold:.25}).observe(desktop);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)clearTimeout(readerTimer);else if(automatic)readerTick();scheduleCarousel();});
   select(0);
+  desktop.dataset.autoplay='playing';
 })();

@@ -15,7 +15,7 @@
 <body>
 <header class="site-nav">
   <a class="brand" href="./"><img src="icon.png" width="40" height="40" alt=""><span>一切在岛</span></a>
-  <nav aria-label="主导航"><a href="#demo">上手体验</a><a href="#pages">原生页面</a><a href="#feedback">反馈</a><a href="start.html">使用指南 <span aria-hidden="true">↗</span></a></nav>
+  <nav aria-label="主导航"><button id="open-feedback" type="button" aria-haspopup="dialog" aria-controls="feedback-dialog">反馈</button></nav>
 </header>
 <main>
   <section class="hero" aria-labelledby="hero-title">
@@ -23,22 +23,20 @@
     <p class="hero-copy">你的 Mac 顶部工作台。<br class="mobile-break">飞书消息、Agent 状态、待办和中台，抬眼就能看到。</p>
     <div class="download-actions" id="install">
       <a class="download-button" id="download" href="feishu-island-0.11.1-build90-arm64.dmg" download><svg class="vx-icon" data-icon="download" aria-hidden="true"></svg>下载 Mac 版</a>
-      <p class="compatibility">Apple M 系列 · macOS 15 或更高版本</p>
-      <p class="compatibility">内含图文安装指引 · 六步完成初次设置<br><a href="start.html#install88">尚无 Apple 证书，首次打开请看安装说明</a></p>
       <p class="download-alternative"><a href="https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.11.1-build90" target="_blank" rel="noopener">GitHub 备用下载（需仓库权限）</a></p>
       <p id="download-feedback" class="download-feedback" role="status" hidden>打开 DMG，将“一切在岛”拖入应用程序。<a href="start.html">查看安装帮助</a></p>
     </div>
   </section>
 
   <section class="showcase" id="demo" aria-label="体验一切在岛">
-    <div class="demo-toolbar"><span>0.11.1 · build 90</span><div><label for="hover-mode">移入时</label><select id="hover-mode"><option value="full">完整展开</option><option value="peek">先露出胶囊</option></select><button id="demo-theme" aria-pressed="false">切换浅色</button></div></div>
+    <div class="demo-toolbar"><div><label for="hover-mode">移入时</label><select id="hover-mode"><option value="full">完整展开</option><option value="peek">先露出胶囊</option></select><button id="demo-theme" aria-pressed="false">切换浅色</button></div></div>
     <div class="demo-desktop" id="demo-desktop" data-phase="open" data-theme="dark">
       <div class="desktop-menubar" aria-hidden="true"><span><strong>一切在岛</strong><i>文件</i><i>编辑</i></span><span>星期四　10:24</span></div>
       <div class="desktop-paper" aria-hidden="true"><span>留一点空间，给专注。</span><div></div><div></div><div></div></div>
       <div class="island" id="island">
         <button class="compact-island" id="expand-island" aria-label="展开灵动岛" aria-expanded="true"><img src="icon.png" width="24" height="24" alt=""><span id="compact-title">一切在岛</span><span class="compact-status">移入展开</span></button>
         <div class="island-content" id="island-content">
-          <div class="island-topline"><div class="island-navigation" aria-label="岛内模块"><button data-module="0" aria-label="飞书消息" aria-pressed="true">飞书</button><button data-module="1" aria-label="Agent 状态" aria-pressed="false">Agent</button><button data-module="2" aria-label="待办和日程" aria-pressed="false">待办</button><button data-module="3" aria-label="个人中台卡片" aria-pressed="false">中台</button></div><div class="island-actions"><button id="pin-island" aria-pressed="false" aria-label="固定展开" title="固定展开"><svg class="vx-icon" data-icon="lock" aria-hidden="true"></svg></button><button id="open-settings" aria-label="查看当前模块的原生设置" title="原生设置"><svg class="vx-icon" data-icon="settings" aria-hidden="true"></svg></button></div></div>
+          <div class="island-topline"><div class="island-navigation" aria-label="岛内模块"><button data-module="0" aria-label="飞书消息" aria-pressed="true">飞书</button><button data-module="1" aria-label="Agent 状态" aria-pressed="false">Agent</button><button data-module="2" aria-label="待办和日程" aria-pressed="false">待办</button><button data-module="3" aria-label="个人中台卡片" aria-pressed="false">中台</button></div><div class="island-actions"><button id="pin-island" aria-pressed="false" aria-label="固定展开" title="固定展开"><svg class="vx-icon" data-icon="lock" aria-hidden="true"></svg></button></div></div>
           <div class="demo-panel" id="demo-panel" role="tabpanel" aria-labelledby="tab-0"></div>
         </div>
       </div>
@@ -52,32 +50,21 @@
       <button id="tab-2" role="tab" aria-controls="demo-panel" aria-selected="false" tabindex="-1" data-slide="2"><span class="tab-title">待办与日程</span><span class="tab-copy">记下，提醒，再完成</span></button>
       <button id="tab-3" role="tab" aria-controls="demo-panel" aria-selected="false" tabindex="-1" data-slide="3"><span class="tab-title">虚实中台</span><span class="tab-copy">个人卡片，就在手边</span></button>
     </div>
-    <div class="demo-controls"><span>交互体验 · 合成数据，仅在本页生效</span><div><button id="open-wheel">试试快捷轮盘</button><button id="reset-demo">重置体验</button></div></div>
+    <div class="demo-controls"><span>交互体验 · 合成数据，仅在本页生效</span><div><button id="autoplay-toggle" type="button">暂停轮播</button><button id="open-wheel">试试快捷轮盘</button><button id="reset-demo">重置体验</button></div></div>
     <p class="experience-note" id="experience-note">和 App 一样：移入展开，移开收起；需要停留时点小锁。</p>
   </section>
 
-  <section class="native-pages" id="pages" aria-labelledby="pages-title">
-    <div class="section-heading"><div><span class="eyebrow">看得见的设置</span><h2 id="pages-title">每一页，都来自现在的 App。</h2></div><div class="gallery-controls"><button id="gallery-theme" aria-pressed="false">查看深色</button><button id="gallery-zoom">放大查看 ↗</button></div></div>
-    <div class="page-tabs" role="tablist" aria-label="原生设置页面">
-      <button id="page-messages" role="tab" aria-controls="native-panel" aria-selected="true" tabindex="0" data-page="messages">飞书消息</button><button id="page-agents" role="tab" aria-controls="native-panel" aria-selected="false" tabindex="-1" data-page="agents">Agent 状态</button><button id="page-todos" role="tab" aria-controls="native-panel" aria-selected="false" tabindex="-1" data-page="todos">待办</button><button id="page-platform" role="tab" aria-controls="native-panel" aria-selected="false" tabindex="-1" data-page="platform">中台</button><button id="page-rest" role="tab" aria-controls="native-panel" aria-selected="false" tabindex="-1" data-page="rest">休息提醒</button><button id="page-appearance" role="tab" aria-controls="native-panel" aria-selected="false" tabindex="-1" data-page="appearance">外观与交互</button><button id="page-guide" role="tab" aria-controls="native-panel" aria-selected="false" tabindex="-1" data-page="guide">新手引导</button>
-    </div>
-    <div class="guide-steps" id="guide-steps" aria-label="新手引导步骤" hidden><button data-guide-step="1" aria-pressed="true">1 展开</button><button data-guide-step="2" aria-pressed="false">2 外观</button><button data-guide-step="3" aria-pressed="false">3 飞书</button><button data-guide-step="4" aria-pressed="false">4 弹幕</button><button data-guide-step="5" aria-pressed="false">5 提醒</button><button data-guide-step="6" aria-pressed="false">6 Agent</button></div>
-    <figure id="native-panel" role="tabpanel" aria-labelledby="page-messages"><img id="native-image" src="native-messages.jpg" width="1530" height="1140" loading="lazy" alt="build 90 原生飞书消息设置，使用合成账号与示例数据"><figcaption><span id="native-caption">消息连接、提醒规则和弹幕样式，都在同一页。</span><span>build 90 原生组件 · 合成示例</span></figcaption></figure>
-    <div class="page-story" id="page-story"><p>私聊、群聊按你选择的规则提醒。消息只在内存里处理，不修改飞书已读状态。</p><a href="start.html">查看连接与使用说明 ↗</a></div>
-  </section>
-
-  <section class="feedback-section" id="feedback" aria-labelledby="feedback-title">
-    <div><span class="eyebrow">一起把岛做好</span><h2 id="feedback-title">哪里不顺手，告诉我。</h2><p>一个小问题，一个新想法，都可以。<br>反馈会发到宰治的飞书邮箱。</p><a href="mailto:zaizhi@virxact.com">zaizhi@virxact.com</a><button class="text-button" id="copy-email">复制邮箱</button></div>
-    <form id="feedback-form"><label for="feedback-type">反馈类型</label><select id="feedback-type"><option>使用问题</option><option>功能建议</option><option>其他反馈</option></select><label for="feedback-content">你想说的</label><textarea id="feedback-content" rows="4" maxlength="800" required placeholder="在哪个页面、做了什么、希望它怎样回应……"></textarea><div class="feedback-actions"><a class="mail-button" id="feedback-mail" href="mailto:zaizhi@virxact.com" target="_blank" rel="noopener">用邮箱发送 ↗</a><button type="button" id="copy-feedback">复制反馈</button></div><p class="feedback-help" id="feedback-status" role="status">会打开你的邮件应用，确认后发送。若没有打开，可复制内容手动发邮件。</p></form>
-  </section>
-
-  <section class="closing" aria-labelledby="closing-title">
-    <div><h2 id="closing-title">少切几个窗口，多留一点专注。</h2><p>原生 Mac 应用，使用你自己的账号连接。<br>飞书消息仅在内存中处理，待办与完成历史保存在本机。</p></div>
-    <a class="download-link" href="feishu-island-0.11.1-build90-arm64.dmg" download>下载一切在岛 <span aria-hidden="true">↗</span></a>
-  </section>
 </main>
-<footer class="site-footer"><span>一切在岛 · 柚子开发灵动岛，宰治开发飞书弹幕</span><div><a href="start.html">安装与使用</a><a href="#feedback">意见反馈</a><a href="agent-guide.html">Agent 接入</a><a href="SHA256SUMS">版本 0.11.1 · build 90</a></div></footer>
-<dialog id="image-dialog" aria-labelledby="image-dialog-title"><div class="dialog-toolbar"><strong id="image-dialog-title">原生设置页面</strong><button id="close-image" autofocus>关闭 ×</button></div><img id="zoom-image" alt="原生设置页面大图"><p>可横向滚动查看细节。按 Esc 关闭。</p></dialog>
-<noscript><p class="noscript-note">页面交互需要 JavaScript。你仍可下载应用、阅读使用指南，或发邮件到 <a href="mailto:zaizhi@virxact.com">zaizhi@virxact.com</a>。</p></noscript>
+<dialog id="feedback-dialog" aria-labelledby="feedback-title" aria-describedby="feedback-recipient">
+  <div class="dialog-toolbar"><h2 id="feedback-title">反馈</h2><button id="close-feedback" type="button" aria-label="关闭反馈">×</button></div>
+  <p class="feedback-recipient" id="feedback-recipient">发给 <a href="mailto:zaizhi@virxact.com">zaizhi@virxact.com</a></p>
+  <form id="feedback-form">
+    <label for="feedback-type">反馈类型</label><select id="feedback-type"><option>使用问题</option><option>功能建议</option><option>其他反馈</option></select>
+    <label for="feedback-content">你想说的</label><textarea id="feedback-content" rows="5" maxlength="800" required autofocus placeholder="在哪个页面、做了什么、希望它怎样回应……"></textarea>
+    <div class="feedback-actions"><a class="mail-button" id="feedback-mail" href="mailto:zaizhi@virxact.com" target="_blank" rel="noopener">用邮箱发送 ↗</a><button type="button" id="copy-feedback">复制反馈</button></div>
+    <p class="feedback-help" id="feedback-status" role="status">会打开你的邮件应用，确认后发送。也可复制内容手动发邮件。</p>
+  </form>
+</dialog>
+<noscript><p class="noscript-note">页面交互需要 JavaScript。你仍可下载应用，或发邮件到 <a href="mailto:zaizhi@virxact.com">zaizhi@virxact.com</a>。</p></noscript>
 </body>
 </html>
