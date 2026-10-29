@@ -165,7 +165,7 @@ struct WorkspaceReminderLibrary: View {
             ScreenReminderDismissalSettings()
             Text("视频会先在本机分离主体、生成透明背景，再加入素材库。出现 3 秒后可点击鼠标或按任意键关闭提醒。").font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if !importError.isEmpty { Text(importError).font(.system(size: 12)).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true) }
-            Text("支持MP4、MOV，最长2分钟。透明视频直接呈现，普通视频保留原画面。素材只保存在这台Mac；此处播放不会触发桌面提醒。")
+            Text("支持MP4、MOV，最长2分钟。透明视频直接加入，普通视频先在本机分离主体。素材只保存在这台Mac；此处播放不会触发桌面提醒。")
                 .font(.system(size: 12)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
         }.onDisappear { playing = false }
         .onChange(of:selected) {_,_ in playing=false;previewGeneration += 1}

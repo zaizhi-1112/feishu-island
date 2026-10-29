@@ -235,14 +235,14 @@ enum ScreenReminderMedia {
             let watchdog=DispatchWorkItem { [weak self] in guard self?.current?.id == entry.id else{return};self?.dismiss() }
             dismissalWatchdog=watchdog
             DispatchQueue.main.asyncAfter(deadline:.now()+ScreenReminderRules.playbackSeconds(request)+1,execute:watchdog)
-            localEscape=NSEvent.addLocalMonitorForEvents(matching:[.keyDown,.leftMouseDown,.rightMouseDown,.otherMouseDown]) { [weak self] event in
+            localEscape=NSEvent.addLocalMonitorForEvents(matching:[.keyDown,.flagsChanged,.leftMouseDown,.rightMouseDown,.otherMouseDown]) { [weak self] event in
                 guard let self, self.current?.id == entry.id, ScreenReminderRules.canDismiss(elapsed:ProcessInfo.processInfo.systemUptime-self.interactionStarted) else { return event }
                 if event.window === self.windows.last { return event } // Keep the explicit rest actions usable.
                 self.dismiss(); return nil
             }
             // Global key monitoring may be unavailable without system permission. The
             // visible close control and bounded timeout do not depend on that permission.
-            globalEscape=NSEvent.addGlobalMonitorForEvents(matching:[.keyDown,.leftMouseDown,.rightMouseDown,.otherMouseDown]) { [weak self] event in
+            globalEscape=NSEvent.addGlobalMonitorForEvents(matching:[.keyDown,.flagsChanged,.leftMouseDown,.rightMouseDown,.otherMouseDown]) { [weak self] event in
                 Task { @MainActor in
                     guard let self, self.current?.id == entry.id, ScreenReminderRules.canDismiss(elapsed:ProcessInfo.processInfo.systemUptime-self.interactionStarted) else { return }; self.dismiss()
                 }
