@@ -128,7 +128,7 @@
   feedbackDialog.addEventListener('click',event=>{if(event.target===feedbackDialog){const r=feedbackDialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)feedbackDialog.close();}});
   // Mailto hands a reviewed draft to the user's mail client. No fake sent state.
   const recipient='zaizhi@virxact.com';
-  const feedbackBody=()=>`一切在岛反馈\n版本：0.11.1 · build 90\n类型：${$('#feedback-type').value}\n\n${$('#feedback-content').value.trim()}`;
+  const feedbackBody=()=>`一切在岛反馈\n版本：0.11.2 · build 91\n类型：${$('#feedback-type').value}\n\n${$('#feedback-content').value.trim()}`;
   function validFeedback(){if(!$('#feedback-content').value.trim()){$('#feedback-content').setCustomValidity('请先写下你遇到的问题或建议。');}else{$('#feedback-content').setCustomValidity('');}return $('#feedback-form').reportValidity();}
   function updateMailLink(){ $('#feedback-mail').href=`mailto:${recipient}?subject=${encodeURIComponent('一切在岛 · '+$('#feedback-type').value)}&body=${encodeURIComponent(feedbackBody())}`; $('#feedback-status').textContent='会打开你的邮件应用，确认后发送。若没有打开，可复制内容手动发邮件。'; }
   $('#feedback-content').addEventListener('input',()=>{$('#feedback-content').setCustomValidity('');updateMailLink();});

@@ -88,16 +88,18 @@ def stage(package, output, manifest_path=None, web_only=False):
     for filename, text in [('start.html', html), ('start.css', css), ('start.js', js)]:
         (public/filename).write_text(text)
     if web_only:
-        # The already released installer remains on GitHub while the website
-        # can ship independently of the next native package.
+        # Keep the same-origin download button. Its service route resolves to
+        # the audited binary asset, so a click downloads instead of opening GitHub.
         page = (public/'index.html').read_text()
         match = re.search(r'class="download-alternative"><a href="(https://github\.com/[\w.-]+/[\w.-]+/releases/tag/[\w.-]+)"', page)
         if not match or page.count(f'href="{name}" download') != 1:
             raise ValueError('Expected one current download and a fixed GitHub release page')
         release_url = match.group(1)
-        page = page.replace(f'href="{name}" download', f'href="{release_url}" target="_blank" rel="noopener"')
-        (public/'index.html').write_text(page)
-        (public/'download-fallback.json').write_text(json.dumps({'package': name, 'url': release_url}, indent=2)+'\n')
+        expected_tag = f'v{manifest["version"]}-build{manifest["build"]}'
+        if release_url.rsplit('/', 1)[-1] != expected_tag:
+            raise ValueError('GitHub release and audited package differ')
+        asset_url = release_url.replace('/releases/tag/', '/releases/download/')+'/'+name
+        (public/'download-fallback.json').write_text(json.dumps({'package': name, 'url': asset_url}, indent=2)+'\n')
     else:
         copy_regular(package, public/name)
     (public/'download-aliases.json').write_text(json.dumps(aliases, indent=2)+'\n')
@@ -110,6 +112,6 @@ if __name__ == '__main__':
     parser.add_argument('package', type=Path)
     parser.add_argument('output', type=Path)
     parser.add_argument('--manifest', type=Path)
-    parser.add_argument('--web-only', action='store_true', help='Publish only the website; use the existing GitHub release for downloads')
+    parser.add_argument('--web-only', action='store_true', help='Publish the website; download the audited GitHub binary directly')
     args = parser.parse_args()
     print(stage(args.package, args.output, args.manifest, args.web_only))

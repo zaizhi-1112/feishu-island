@@ -10,8 +10,11 @@ async function externalDownload(root,name,alias){
  try{
   const fallback=JSON.parse(await fs.readFile(path.join(root,'download-fallback.json'),'utf8'));
   if(!PACKAGE_NAME.test(fallback.package)||![name,alias].includes(fallback.package))return null;
-  // A build-generated GitHub release page, never a request-supplied redirect.
-  return typeof fallback.url==='string'&&/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/releases\/tag\/[\w.-]+$/.test(fallback.url)?fallback.url:null;
+  // Only the build-generated binary URL for this exact version is accepted.
+  // A release HTML page would navigate away instead of downloading the installer.
+  const asset=typeof fallback.url==='string'&&/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/releases\/download\/([\w.-]+)\/([\w.-]+)$/.exec(fallback.url);
+  const version=/^feishu-island-(\d+\.\d+\.\d+)-build(\d+)-arm64(?:-pilot)?\.(?:zip|dmg)$/.exec(fallback.package);
+  return asset&&version&&asset[1]===`v${version[1]}-build${version[2]}`&&asset[2]===fallback.package?fallback.url:null;
  }catch{return null;}
 }
 function downloadRange(value,size){
@@ -70,7 +73,7 @@ function createServer({broker,origin='https://feishu-island.virxact.net',root=pa
     if(!file){
      const fallback=download&&error.code==='ENOENT'?await externalDownload(root,name,target):null;
      if(!fallback)throw new AuthError(404,'页面不存在');
-     // A cached partial installer must never be appended to a redirected page.
+     // A cached partial installer must never be appended to another version.
      if(req.headers.range)throw new AuthError(409,'下载入口已更新，请回到网页重新下载完整安装包');
      res.writeHead(303,{'Location':fallback,'Content-Length':0,'Accept-Ranges':'none'});return res.end();
     }

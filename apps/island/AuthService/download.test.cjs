@@ -162,10 +162,10 @@ test('product portraits stay public to company users while removed previews are 
  }
 });
 
-test('web-only releases keep named download entrances connected to the configured GitHub release',async t=>{
+test('web-only downloads resolve directly to the exact installer asset, never a GitHub page',async t=>{
  const {root,base}=await fixture(t,{includePackage:false});
  const old='feishu-island-0.7.0-build28-arm64.dmg';
- const url='https://github.com/synthetic-owner/island-downloads/releases/tag/v0.7.0-build29';
+ const url='https://github.com/synthetic-owner/island-downloads/releases/download/v0.7.0-build29/'+name;
  await fs.writeFile(path.join(root,'download-aliases.json'),JSON.stringify({[old]:name}));
  await fs.writeFile(path.join(root,'download-fallback.json'),JSON.stringify({package:name,url}));
  for(const file of [name,old])for(const method of ['GET','HEAD']){
@@ -182,11 +182,12 @@ test('web-only releases keep named download entrances connected to the configure
 
 test('download fallbacks reject arbitrary hosts, credentials, query targets and mismatched packages',async t=>{
  const {root,base}=await fixture(t,{includePackage:false});
- for(const url of ['https://example.com/package','https://github.com@evil.example/releases/tag/v1','http://github.com/owner/repo/releases/tag/v1','https://github.com/owner/repo/releases/tag/v1?next=bad']){
+ const asset='https://github.com/owner/repo/releases/download/v0.7.0-build29/'+name;
+ for(const url of ['https://example.com/package','https://github.com@evil.example/releases/tag/v1','http://github.com/owner/repo/releases/tag/v1','https://github.com/owner/repo/releases/tag/v0.7.0-build29',asset+'?next=bad',asset.replace('build29/','build28/'),asset.replace(name,'another.dmg')]){
   await fs.writeFile(path.join(root,'download-fallback.json'),JSON.stringify({package:name,url}));
   assert.equal((await fetch(base+'/'+name,{headers:owner,redirect:'manual'})).status,404);
  }
- await fs.writeFile(path.join(root,'download-fallback.json'),JSON.stringify({package:'feishu-island-0.7.0-build999-arm64.dmg',url:'https://github.com/owner/repo/releases/tag/v1'}));
+ await fs.writeFile(path.join(root,'download-fallback.json'),JSON.stringify({package:'feishu-island-0.7.0-build999-arm64.dmg',url:asset}));
  assert.equal((await fetch(base+'/'+name,{headers:owner,redirect:'manual'})).status,404);
 });
 

@@ -21,4 +21,4 @@
 
 - build87 的 DeepSeek Harness 只读余额通过 `Resources/deepseek-balance.cjs` 和 `DeepSeekReader.swift` 接入。仅复用本人 Harness 的既有 Platform 登录，固定钱包 GET、拒绝重定向，不取 API Key，不读取对话、不发送任务；凭据不持久化到本应用，不输出原始响应。其他用户默认未启用，新入口不替换现有岛上位置。验证 `node --test Tests/deepseek-balance.test.cjs`、`AgentChecks` 与 `UnifiedProductChecks`；接口随 Harness 升级可能变化，禁止猜测金额或用0代替未知。
 
-- build90 产品网页维护说明见 `docs/product-web-build90.md`。网页交互只用合成数据；当前首页为淡黑背景与公司 Logo 粒子，只保留下载、四模块空闲轮播和反馈弹窗。`package-download-site.py --web-only` 可只发布网页，下载入口沿用配置的 GitHub Release；该模式不包含 DMG，不代表新安装包发布。GitHub 链接可点击不等于匿名可访问，须核对仓库可见性。已移除的原生设置与引导预览来源保留在仓库，来源校验见 `apps/island/Distribution/native-preview-manifest.json`。反馈入口为发往 `zaizhi@virxact.com` 的邮件草稿唤起，不得声称网页已发送或邮箱已收件。网页更新不等于安装包发布或 main 合并。
+- 产品网页维护说明见 `docs/product-web-build90.md`。网页交互只用合成数据；当前按用户纠正恢复白底，公司 Logo 粒子只放首屏右侧，保留下载、四模块空闲轮播和反馈弹窗。下载同步已发布的0.11.2 build91。`package-download-site.py --web-only` 复用已核对的公开GitHub安装包：主按钮直接下载DMG，不能打开GitHub发布页；下方GitHub链接单独保留。此模式不重新上传或发布原生包。已移除的原生设置与引导预览来源保留在仓库，来源校验见 `apps/island/Distribution/native-preview-manifest.json`。反馈入口为发往 `zaizhi@virxact.com` 的邮件草稿唤起，不得声称网页已发送或邮箱已收件。网页更新不等于安装包发布或 main 合并。

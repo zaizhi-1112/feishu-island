@@ -1,82 +1,173 @@
-/* The real Virxact mark, sampled into a quiet field of moving particles. */
+/* Virxact masthead dust: official mark contours, flowing strokes and spring return.
+   Reference: the hub's masthead dust effect, checked on 2026-10-29.
+   This standalone drawing reads only the bundled brand SVG, never hub/user data. */
 (() => {
   const canvas=document.querySelector('#brand-particles');
   const context=canvas?.getContext('2d');
   if(!context)return;
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-  const narrow=matchMedia('(max-width: 700px)');
   const dialog=document.querySelector('#feedback-dialog');
-  let points=[],width=0,height=0,frame=0,previous=0,elapsed=0,ready=false,paused=false;
-  const pointer={x:-1000,y:-1000};
-  const seed=n=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v);};
-  function draw(){
-    context.clearRect(0,0,width,height);
-    context.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--brand-paper').trim();
-    const size=Math.min(width*(narrow.matches?1.05:.64),760);
-    const centerX=width*(narrow.matches?.82:.78),centerY=height*(narrow.matches?.29:.40);
-    const time=elapsed/1000;
-    for(let i=0;i<points.length;i++){
-      const point=points[i],phase=seed(i)*Math.PI*2;
-      const breath=1+Math.sin(time*.22)*.018;
-      let x=centerX+point.x*size*breath+Math.sin(time*.38+phase)*2.8;
-      let y=centerY+point.y*size*breath+Math.cos(time*.31+phase)*2.8;
-      if(!reduced.matches){
-        const dx=x-pointer.x,dy=y-pointer.y,distance=Math.hypot(dx,dy);
-        if(distance>0&&distance<125){const shift=(1-distance/125)*12;x+=dx/distance*shift;y+=dy/distance*shift;}
-      }
-      context.globalAlpha=.10+seed(i+17)*.13;
-      context.beginPath();context.arc(x,y,.7+seed(i+31)*.9,0,Math.PI*2);context.fill();
+  const diagonal=Math.SQRT1_2;
+  const waves=[
+    {kx:.0105,ky:.0175,speed:.22,strength:300,phase:.3},
+    {kx:.019,ky:.008,speed:-.16,strength:240,phase:2.1},
+    {kx:.0062,ky:.026,speed:.13,strength:200,phase:4.2}
+  ];
+  let width=0,height=0,frame=0,previous=0,elapsed=0,visible=false,paused=false,ready=false;
+  let ink='',outlines=[],particles=[],wind=[],bounds,mark={x:0,y:0,radius:1,scale:1};
+  const pointer={x:-10000,y:-10000};
+  let randomState=11;
+  function random(){
+    randomState=(randomState+1831565813)|0;
+    let value=Math.imul(randomState^(randomState>>>15),1|randomState);
+    value^=value+Math.imul(value^(value>>>7),61|value);
+    return ((value^(value>>>14))>>>0)/4294967296;
+  }
+  function resetWind(particle,spread=false){
+    if(spread||random()<.25){particle.x=random()*width;particle.y=random()*height;}
+    else if(random()<height/(width+height)){particle.x=-8;particle.y=random()*height;}
+    else{particle.x=random()*width;particle.y=height+8;}
+    particle.life=5+random()*10;particle.tone=Math.floor(random()*4);
+  }
+  function flow(x,y,time){
+    const dx=x-mark.x,dy=y-mark.y;
+    const along=(dx-dy)*diagonal,across=(dx+dy)*diagonal;
+    const distance=along*along+across*across,radius=mark.radius*mark.radius;
+    let vx=0,vy=0;
+    if(distance>radius){
+      const squared=distance*distance;
+      const forward=1-radius*(along*along-across*across)/squared;
+      const side=-2*radius*along*across/squared;
+      vx=20*(forward+side)*diagonal;vy=20*(-forward+side)*diagonal;
     }
-    // A few loose points carry the same mark into the surrounding empty space.
-    const count=narrow.matches?16:32;
-    for(let i=0;i<count;i++){
-      const x=seed(i+400)*width+Math.sin(time*.15+i)*9;
-      const y=seed(i+800)*height+Math.cos(time*.13+i)*12;
-      context.globalAlpha=.06+seed(i+600)*.10;
-      context.beginPath();context.arc(x,y,.8+seed(i+900)*.7,0,Math.PI*2);context.fill();
+    for(const wave of waves){
+      const a=wave.kx*x+wave.speed*time+wave.phase;
+      const b=wave.ky*y-wave.speed*time+wave.phase*.7;
+      vx+=wave.strength*wave.ky*Math.sin(a)*Math.cos(b);
+      vy-=wave.strength*wave.kx*Math.cos(a)*Math.sin(b);
+    }
+    const px=x-pointer.x,py=y-pointer.y,d=Math.hypot(px,py);
+    if(!reduced.matches&&d>.1&&d<100){
+      const force=160*(1-d/100)**2;vx+=force*px/d;vy+=force*py/d;
+    }
+    return {vx,vy};
+  }
+  function addPoint(x,y,edge,order){
+    const tx=mark.x+(x-bounds.cx)*mark.scale,ty=mark.y+(y-bounds.cy)*mark.scale;
+    const direction=x-y>bounds.cx-bounds.cy?1:-1;
+    const travel=300+random()*260,offset=(random()-.5)*70;
+    const settled=reduced.matches||elapsed>0;
+    particles.push({tx,ty,x:settled?tx:tx+direction*travel*diagonal+offset*diagonal,
+      y:settled?ty:ty-direction*travel*diagonal+offset*diagonal,vx:0,vy:0,edge,order,
+      delay:.1+(edge?order:random())*.55+random()*.12,phase:random()*Math.PI*2});
+  }
+  function rebuild(){
+    randomState=11;particles=[];wind=[];
+    const viewport=document.documentElement.clientWidth;
+    mark.radius=Math.min(110,Math.max(64,64+(viewport-1100)*.2));
+    mark.scale=mark.radius/(bounds.height/2);
+    mark.x=width*.5;mark.y=height*.47;
+    for(const outline of outlines){
+      const length=outline.node.getTotalLength(),count=Math.ceil(length*mark.scale/2);
+      for(let index=0;index<count;index++){
+        const point=outline.node.getPointAtLength(length*index/count);
+        addPoint(point.x,point.y,true,index/count);
+      }
+      const fillCount=Math.round(count*1.2);
+      for(let added=0,attempts=0;added<fillCount&&attempts<fillCount*12;attempts++){
+        const x=bounds.x+random()*bounds.width,y=bounds.y+random()*bounds.height;
+        if(outline.brush.isPointInPath(outline.path,x,y)){addPoint(x,y,false,random());added++;}
+      }
+    }
+    wind=Array.from({length:Math.min(900,Math.round(width*height/240))},()=>{
+      const particle={x:0,y:0,vx:0,vy:0,life:0,tone:0};resetWind(particle,true);return particle;
+    });
+  }
+  function paint(dt){
+    const time=elapsed/1000;
+    context.clearRect(0,0,width,height);
+    context.strokeStyle=ink;context.fillStyle=ink;context.lineWidth=1.1;context.lineCap='round';
+    for(const particle of wind){
+      const velocity=flow(particle.x,particle.y,time);
+      particle.vx=velocity.vx;particle.vy=velocity.vy;
+      particle.x+=particle.vx*dt;particle.y+=particle.vy*dt;particle.life-=dt;
+      const inside=Math.hypot(particle.x-mark.x,particle.y-mark.y)<mark.radius;
+      if(particle.life<=0||particle.x<-12||particle.x>width+12||particle.y<-12||particle.y>height+12||inside){
+        if(dt)resetWind(particle);continue;
+      }
+      const fade=Math.max(0,Math.min(1,particle.x/92,(width-particle.x)/44,particle.y/36,(height-particle.y)/36));
+      context.globalAlpha=[.14,.24,.36,.52][particle.tone]*fade;
+      context.beginPath();context.moveTo(particle.x,particle.y);
+      context.lineTo(particle.x-particle.vx*.26,particle.y-particle.vy*.26);context.stroke();
+    }
+    for(const particle of particles){
+      if(!reduced.matches&&time<particle.delay)continue;
+      if(dt){
+        const drift=time>2.5?.5:0;
+        let ax=30*(particle.tx+Math.sin(time*1.4+particle.phase)*drift-particle.x)-8.5*particle.vx;
+        let ay=30*(particle.ty+Math.cos(time*1.1+particle.phase)*drift-particle.y)-8.5*particle.vy;
+        const dx=particle.x-pointer.x,dy=particle.y-pointer.y,distance=Math.hypot(dx,dy);
+        if(distance>.1&&distance<84){const force=5200*(1-distance/84)**2;ax+=force*dx/distance;ay+=force*dy/distance;}
+        particle.vx+=ax*dt;particle.vy+=ay*dt;particle.x+=particle.vx*dt;particle.y+=particle.vy*dt;
+      }
+      const sweep=(time-2.5)%6/1.4;
+      const highlight=particle.edge&&sweep>0&&sweep<1&&Math.abs(particle.order-sweep)<.06;
+      const size=particle.edge?(highlight?2:1.6):1.15;
+      context.globalAlpha=particle.edge?(highlight?1:.78):.26;
+      context.fillRect(particle.x-size/2,particle.y-size/2,size,size);
     }
     context.globalAlpha=1;
+    canvas.dataset.phase=time>2.5||reduced.matches?'settled':'arriving';
   }
   function tick(now){
     frame=requestAnimationFrame(tick);
     if(previous&&now-previous<1000/30)return;
-    if(previous)elapsed+=Math.min(now-previous,100);
-    previous=now;draw();
+    const dt=previous?Math.min((now-previous)/1000,.05):0;
+    previous=now;elapsed+=dt*1000;paint(dt);
   }
   function sync(){
     cancelAnimationFrame(frame);frame=0;previous=0;
-    if(!ready)return;
-    const hold=reduced.matches||document.hidden||dialog?.open||paused;
+    const hold=!ready||!width||!height||!visible||document.hidden||dialog?.open||paused||reduced.matches;
     canvas.dataset.motion=hold?'paused':'playing';
-    draw();
-    if(!hold)frame=requestAnimationFrame(tick);
+    if(ready&&width&&height){
+      if(reduced.matches)for(const particle of particles)Object.assign(particle,{x:particle.tx,y:particle.ty,vx:0,vy:0});
+      paint(0);if(!hold)frame=requestAnimationFrame(tick);
+    }
   }
   function resize(){
-    width=document.documentElement.clientWidth;height=innerHeight;
+    const box=canvas.getBoundingClientRect(),nextWidth=box.width,nextHeight=box.height;
+    if(nextWidth===width&&nextHeight===height){sync();return;}
+    width=nextWidth;height=nextHeight;
     const ratio=Math.min(devicePixelRatio||1,1.5);
     canvas.width=Math.round(width*ratio);canvas.height=Math.round(height*ratio);
-    context.setTransform(ratio,0,0,ratio,0,0);sync();
+    context.setTransform(ratio,0,0,ratio,0,0);
+    ink=getComputedStyle(document.documentElement).getPropertyValue('--brand-ink').trim();
+    if(ready&&width&&height)rebuild();sync();
   }
-  addEventListener('resize',resize,{passive:true});
-  addEventListener('pointermove',event=>{pointer.x=event.clientX;pointer.y=event.clientY;},{passive:true});
-  document.addEventListener('pointerleave',()=>{pointer.x=-1000;pointer.y=-1000;});
+  new ResizeObserver(resize).observe(canvas);
+  new IntersectionObserver(([entry])=>{visible=entry.isIntersecting;sync();}).observe(canvas);
+  addEventListener('pointermove',event=>{
+    const box=canvas.getBoundingClientRect();pointer.x=event.clientX-box.left;pointer.y=event.clientY-box.top;
+  },{passive:true});
+  document.addEventListener('pointerleave',()=>{pointer.x=-10000;pointer.y=-10000;});
   document.addEventListener('visibilitychange',sync);
   document.addEventListener('island:motion',event=>{paused=Boolean(event.detail?.paused);sync();});
   reduced.addEventListener('change',sync);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{
+    ink=getComputedStyle(document.documentElement).getPropertyValue('--brand-ink').trim();sync();
+  });
   if(dialog)new MutationObserver(sync).observe(dialog,{attributes:true,attributeFilter:['open']});
-  const mark=new Image();
-  mark.onload=()=>{
-    const mask=document.createElement('canvas');mask.width=240;mask.height=240;
-    const brush=mask.getContext('2d',{willReadFrequently:true});
-    if(!brush)return;
-    const markHeight=240*mark.naturalHeight/mark.naturalWidth;
-    brush.drawImage(mark,0,(240-markHeight)/2,240,markHeight);
-    const pixels=brush.getImageData(0,0,240,240).data;
-    for(let y=2;y<240;y+=5)for(let x=2;x<240;x+=5){
-      if(pixels[(y*240+x)*4+3]>128)points.push({x:x/240-.5,y:y/240-.5});
-    }
-    ready=true;resize();
-  };
-  mark.onerror=()=>{canvas.dataset.motion='unavailable';};
-  mark.src='virxact-mark.svg';
+  fetch('virxact-mark.svg').then(response=>{
+    if(!response.ok)throw new Error('Brand asset unavailable');return response.text();
+  }).then(source=>{
+    const svg=new DOMParser().parseFromString(source,'image/svg+xml').documentElement;
+    const [x,y,w,h]=svg.getAttribute('viewBox').split(/\s+/).map(Number);
+    bounds={x,y,width:w,height:h,cx:x+w/2,cy:y+h/2};
+    outlines=[...svg.querySelectorAll('path')].map(node=>({
+      node,path:new Path2D(node.getAttribute('d')),
+      brush:document.createElement('canvas').getContext('2d')
+    }));
+    if(!outlines.length||outlines.some(outline=>!outline.brush)||![x,y,w,h].every(Number.isFinite))throw new Error('Invalid brand geometry');
+    ready=true;width=0;height=0;resize();
+  }).catch(()=>{canvas.dataset.motion='unavailable';});
 })();
