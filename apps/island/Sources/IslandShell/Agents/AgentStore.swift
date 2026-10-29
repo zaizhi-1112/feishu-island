@@ -360,6 +360,14 @@ final class AgentStore: ObservableObject {
         enqueueNotice(notice)
     }
     private func enqueueNotice(_ notice:AgentCompletionNotice) {
+        if let material = preferences.completionScreenMaterialID, allowsLiveReads, !IslandRuntime.isSkinPreview, !sessionIsLocked() {
+            do {
+                let request = try WorkspaceStore.shared.screenReminderRequest(style: ScreenReminderStyle(materialID: material), title: notice.message)
+                try ScreenReminderPresenter.shared.present(request)
+                lastAlert = notice.message
+                return
+            } catch { lastAlert = "屏幕动效暂不可用，已改用灵动岛提醒。" }
+        }
         // Status and quota notices have separate slots, so neither can consume the other.
         if let current=completionNotice, current.profileID != notice.profileID || current.isQuota != notice.isQuota {
             if let index=pendingNotices.firstIndex(where:{$0.profileID==notice.profileID && $0.isQuota==notice.isQuota}) { pendingNotices[index]=notice }

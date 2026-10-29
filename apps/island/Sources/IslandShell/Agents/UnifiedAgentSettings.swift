@@ -62,12 +62,20 @@ struct UnifiedAgentSettings:View {
                 Toggle("收起时显示主用Agent的额度",isOn:setting(\.quotaDisplayEnabled))
                 Text("点击工具切换主用 Agent，用箭头调整岛上的顺序。Codex显示剩余比例，WorkBuddy显示积分，DeepSeek Harness显示余额。查看额度可独立于任务状态读取。").font(.caption).foregroundStyle(.secondary)
             }
-            IslandSettingsCard("什么时候提醒我") {
+            IslandSettingsCard("") {
+                HStack {
+                    Text("什么时候提醒我").font(.system(size:16,weight:.semibold))
+                    Spacer()
+                    Picker("提醒方式", selection: Binding(get: { store.preferences.completionScreenMaterialID != nil }, set: { value in change { $0.completionScreenMaterialID = value ? "cat" : nil } })) {
+                        Text("灵动岛提醒").tag(false)
+                        Text("屏幕动效提醒").tag(true)
+                    }.pickerStyle(.menu).fixedSize().accessibilityIdentifier("agent.reminderMethod")
+                }
                 Toggle("需要我确认或补充信息",isOn:setting(\.attentionAlerts))
                 Toggle("任务完成",isOn:setting(\.completionAlerts))
                 Toggle("正在工作",isOn:setting(\.startAlerts))
                 Toggle("额度不足",isOn:setting(\.quotaAlerts))
-                Text("只在岛上轻提醒。隐藏工具仍按这里的规则提醒；不使用的工具不读取任务状态。额度不足以来源提供的可靠百分比低于20%为准。").font(.caption).foregroundStyle(.secondary)
+                Text("按所选方式提醒。隐藏工具仍按这里的规则提醒；不使用的工具不读取任务状态。额度不足以来源提供的可靠百分比低于20%为准。").font(.caption).foregroundStyle(.secondary)
             }
             IslandSettingsCard("轻提醒预览") {
                 Picker("情境",selection:$demo) {Text("需要确认").tag("attention");Text("任务完成").tag("complete");Text("正在工作").tag("start");Text("额度不足").tag("low")}.pickerStyle(.segmented)

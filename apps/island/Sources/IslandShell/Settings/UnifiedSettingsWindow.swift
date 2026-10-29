@@ -186,7 +186,7 @@ struct IslandSettingsCard<Content:View>:View {
     @ViewBuilder let content:()->Content
     init(_ title:String,@ViewBuilder content:@escaping()->Content) { self.title=title; self.content=content }
     var body:some View {
-        VStack(alignment:.leading,spacing:16) { Text(title).font(.system(size:16,weight:.semibold)); content() }
+        VStack(alignment:.leading,spacing:16) { if !title.isEmpty { Text(title).font(.system(size:16,weight:.semibold)) }; content() }
             .frame(maxWidth:.infinity,alignment:.leading).padding(20).modifier(IslandCard(radius:14))
     }
 }
