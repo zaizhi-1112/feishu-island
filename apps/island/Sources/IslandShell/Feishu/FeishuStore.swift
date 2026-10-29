@@ -51,6 +51,13 @@ public final class FeishuStore: ObservableObject {
     @Published var appearance: [String:Any]
     var allowsDirectoryLookup: Bool { live }
 
+    @Published private(set) var retention = MessageRetention()
+    @Published private(set) var historyError: String?
+    private var archive: MessageArchive?
+    private var archiveSnapshot: MessageArchiveSnapshot?
+    private var pendingDesktop = Set<String>()
+    private var historyDirty = false
+    private var lastHistorySave = Date.distantPast
     private var activities: NookLiveActivities?
     private var timer: Timer?
     private var pendingAlert: Task<Void, Never>?
@@ -81,7 +88,15 @@ public final class FeishuStore: ObservableObject {
         let mute = defaults.double(forKey: "mutedUntil")
         mutedUntil = mute > Date().timeIntervalSince1970 ? Date(timeIntervalSince1970: mute) : nil
         reader = AccountReader(cli:URL(fileURLWithPath:initialConnection.cliPath),profile:initialConnection.profile,localAccount:initialConnection.localAccount)
+        retention = defaults.data(forKey: "messageRetention").flatMap { try? JSONDecoder().decode(MessageRetention.self, from: $0) }.flatMap { $0.valid ? $0 : nil } ?? .init()
         wireReader()
+        playback.onFinished = { [weak self] id in
+            self?.pendingDesktop.remove(id); self?.historyDirty = true
+        }
+        playback.onOpenConversation = { [weak self] id in
+            guard let self, let message = self.messages.first(where: { $0.id == id }) else { return }
+            self.open(message)
+        }
         playback.configure(danmu,appearance:appearance)
         if rulesConfigurationReadable, !defaults.bool(forKey: "unifiedConversationsV1") {
             var next = customRules; next.consolidate(followed: rules.followedChats ? followed : [])
@@ -109,6 +124,26 @@ public final class FeishuStore: ObservableObject {
     }
     #endif
     private func wireReader() {
+        if live {
+            let namespace = connection.localAccount?.appID ?? connection.profile
+            reader.retentionDays = retention.days
+            reader.archiveFactory = { openID in MessageArchive(root: MessageArchive.root, key: CompanyConnection.conversationStorageKey(userID: namespace, openID: openID)) }
+            reader.onRestore = { [weak self] archive, snapshot in
+                guard let self else { return }
+                let sameSession = self.archive?.key == archive.key && self.retention.days == 0
+                self.archive = archive; self.archiveSnapshot = snapshot
+                if !sameSession {
+                    self.messages = snapshot.messages.sorted { $0.created > $1.created }
+                    self.pendingDesktop = snapshot.pending
+                }
+                self.historyDirty = true; self.historyError = nil
+                self.restoreDesktopQueue()
+            }
+            reader.onCheckpoint = { [weak self] chat, date in
+                self?.archiveSnapshot?.checkpoints[chat] = date; self?.historyDirty = true
+            }
+            reader.onArchiveError = { [weak self] in self?.historyError = "本机历史暂时无法读取，原文件已保留；新消息仍会接收。" }
+        }
         reader.onMessage = { [weak self] in self?.receive($0) }
         reader.onStatus = { [weak self] status in
             guard let self else { return }
@@ -124,7 +159,6 @@ public final class FeishuStore: ObservableObject {
         reader.onAccount = { [weak self] in self?.account = $0 }
         playback.checkUnread = { [weak self] id, completion in
             guard let self, self.enabled else { completion(false); return }
-            if self.messages.first(where: { $0.id == id })?.viewed == true { completion(false); return }
             if self.live { self.reader.checkUnread(id,completion:completion) } else { completion(true) }
         }
     }
@@ -132,6 +166,7 @@ public final class FeishuStore: ObservableObject {
     public func updateConnection(_ value: FeishuConnection) -> Bool {
         guard value.valid, rulesConfigurationReadable else { return false }
         if value == connection { return true }
+        saveHistory(force: true); archive = nil; archiveSnapshot = nil; pendingDesktop.removeAll()
         reader.stop(); enabled = false; defaults.set(false,forKey:"enabled")
         playback.resetAccount(); messages.removeAll(); pendingAlert?.cancel(); pendingAlert = nil; pendingCount = 0; activities?.end("messages")
         closeReader(); readingAccepted = 0; readingPages.removeAll()
@@ -158,6 +193,12 @@ public final class FeishuStore: ObservableObject {
     func receiveAgentNotice(id:String,source:String,text:String) {
         guard !isMuted else { return }
         playback.enqueueAgent(id:id,source:source,text:text)
+    }
+    func playMultilinePreview() {
+        let body = "这是一条多行消息，长文字也会从桌面飘过。\n点击文字，让它停下来慢慢看。\n鼠标移开后继续前进。这条示例不会打开真实会话。"
+        let content = String(decoding: try! JSONSerialization.data(withJSONObject: ["text": body]), as: UTF8.self)
+        let message = FeishuMessage(raw: ["message_id": "preview_" + UUID().uuidString, "msg_type": "text", "body": ["content": content]], chatID: "", chatName: "弹幕示例", chatKind: "p2p", ownID: "")
+        _ = playback.enqueue(message, demo: true)
     }
     public func playSynthetic() {
         let message = FeishuMessage(raw:["message_id":"demo_" + UUID().uuidString,"sender":["id":"ou_demo","sender_name":"合成示例"],"msg_type":"text","body":["content":"{\"text\":\"透明试播\"}"]],chatID:"oc_demo",chatName:"演示",chatKind:"p2p",ownID:"")
@@ -297,7 +338,7 @@ public final class FeishuStore: ObservableObject {
             MainActor.assumeIsolated { self?.tick() }
         }
         NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.reader.stop() }
+            MainActor.assumeIsolated { self?.saveHistory(force: true); self?.reader.stop() }
         }
     }
     public var isMuted: Bool { (mutedUntil ?? .distantPast) > Date() }
@@ -309,17 +350,12 @@ public final class FeishuStore: ObservableObject {
         guard enabled, !customRules.blocks(message), !messages.contains(where: { $0.id == message.id }) else { return }
         messages.append(message)
         messages.sort { $0.created > $1.created }
-        if messages.count > 100 {
-            // A burst of new messages must not discard a reminder the user set.
-            let reminders = messages.filter { $0.remindAt != nil || $0.id == readingID }
-            let recent = messages.filter { $0.remindAt == nil && $0.id != readingID }.prefix(max(0, 100 - reminders.count))
-            messages = (reminders + recent).sorted { $0.created > $1.created }
-        }
+        historyDirty = true
         if message.isImportant(followed: followed, rules: rules, custom: customRules) {
             if !isMuted && !playback.suspended {
                 // The island and desktop are independent outputs of one read-only event.
                 // Opening the island must not suppress a short floating message.
-                playback.enqueue(message)
+                if playback.enqueue(message) { pendingDesktop.insert(message.id) }
                 readingQueue = readingQueue.filter { id in messages.contains { $0.id == id } }
                 readingQueue.append(message.id); readingAccepted += 1
                 if readingID == nil { readingID = readingQueue.first; onOpenReader() }
@@ -364,7 +400,7 @@ public final class FeishuStore: ObservableObject {
     }
     public func markViewed(_ id: String) {
         guard let i = messages.firstIndex(where: { $0.id == id }) else { return }
-        messages[i].viewed = true
+        messages[i].viewed = true; historyDirty = true
     }
     public func toggleFollow(_ chatID: String) {
         if followed.contains(chatID) { followed.remove(chatID) } else { followed.insert(chatID) }
@@ -388,7 +424,8 @@ public final class FeishuStore: ObservableObject {
         guard live, enabled, rulesConfigurationReadable else { return }
         guard canResumeSavedConnection else { reader.stop(); status = "请先连接飞书，已有提醒规则已保留。"; return }
         if let conflict = receiveConflict {
-            reader.stop(); enabled = false; defaults.set(false,forKey:"enabled"); playback.clear(); status = conflict; actionError = conflict
+            saveHistory(force: true); archive = nil; archiveSnapshot = nil; pendingDesktop.removeAll()
+        reader.stop(); enabled = false; defaults.set(false,forKey:"enabled"); playback.clear(); status = conflict; actionError = conflict
         } else { reader.start() }
     }
     public func toggleReceiving() {
@@ -424,23 +461,70 @@ public final class FeishuStore: ObservableObject {
         closeReader()
     }
     public func reconnect() {
-        reader.stop(); playback.clear()
+        saveHistory(force: true); reader.stop(); playback.clear()
         startReaderIfAllowed()
     }
     public func remindLater(_ id: String, now: Date = Date()) {
         guard let i = messages.firstIndex(where: { $0.id == id }) else { return }
         messages[i].remindAt = now.addingTimeInterval(600)
-        messages[i].viewed = true
+        messages[i].viewed = true; historyDirty = true
     }
     public func tick(now: Date = Date()) {
+        if retention.days > 0, let last = archiveSnapshot?.lastCleanup, last < retention.cleanupSlot(now: now) {
+            pruneHistory(now: now)
+        }
+        saveHistory(now: now)
+        restoreDesktopQueue()
+
         if let until = mutedUntil, until <= now {
             mutedUntil = nil; defaults.removeObject(forKey: "mutedUntil")
             if waitingCount > 0 { queueAlert() }
         }
         for i in messages.indices where messages[i].remindAt.map({ $0 <= now }) == true {
-            messages[i].remindAt = nil; messages[i].viewed = false; messages[i].reminded = true
+            messages[i].remindAt = nil; messages[i].viewed = false; messages[i].reminded = true; historyDirty = true
             if enabled, !customRules.blocks(messages[i]) { queueAlert() }
         }
+    }
+    func updateRetention(_ value: MessageRetention) {
+        guard value.valid, value != retention else { return }
+        retention = value; defaults.set(try? JSONEncoder().encode(value), forKey: "messageRetention")
+        reader.retentionDays = value.days
+        pruneHistory(now: Date()); saveHistory(force: true); bumpSettingsRevision()
+    }
+    private func pruneHistory(now: Date) {
+        guard var snapshot = archiveSnapshot else { return }
+        snapshot.messages = messages; snapshot.pending = pendingDesktop
+        if retention.days > 0 {
+            snapshot.prune(days: retention.days, now: now)
+            messages = snapshot.messages; pendingDesktop = snapshot.pending
+            playback.overlay?.retainMessages(Set(messages.map(\.id)))
+            readingQueue = readingQueue.filter { id in messages.contains { $0.id == id } }
+            if let readingID, !messages.contains(where: { $0.id == readingID }) { closeReader() }
+        } else { snapshot.lastCleanup = now }
+        archiveSnapshot = snapshot; historyDirty = true
+        if live, let archive {
+            do { try MessageArchive.expireAll(root: archive.file.deletingLastPathComponent(), days: retention.days, now: now) }
+            catch { historyError = "部分过期历史暂时未能清理，将在下次启动重试。" }
+        }
+    }
+    private func restoreDesktopQueue() {
+        guard enabled, danmu.enabled, !isMuted, !playback.suspended else { return }
+        for message in messages.reversed() where pendingDesktop.contains(message.id) {
+            guard message.isImportant(followed: followed, rules: rules, custom: customRules), !customRules.blocks(message) else {
+                pendingDesktop.remove(message.id); historyDirty = true; continue
+            }
+            _ = playback.enqueue(message)
+        }
+    }
+    private func saveHistory(force: Bool = false, now: Date = Date()) {
+        guard live, historyDirty, force || now.timeIntervalSince(lastHistorySave) >= 5,
+              let archive, var snapshot = archiveSnapshot else { return }
+        snapshot.messages = retention.days > 0 ? messages : []
+        snapshot.pending = retention.days > 0 ? pendingDesktop : []
+        if retention.days == 0 { snapshot.checkpoints = [:]; snapshot.startedAt = now }
+        do {
+            try archive.save(snapshot); archiveSnapshot = snapshot; historyDirty = false; lastHistorySave = now; historyError = nil
+        } catch { historyError = "消息暂时未能保存到这台 Mac，请检查可用空间。" }
     }
     public func open(_ message: FeishuMessage) {
         guard let url = message.chatURL else { actionError = "缺少有效会话地址"; return }

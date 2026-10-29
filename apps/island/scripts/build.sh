@@ -43,6 +43,9 @@ else
     ISLAND_SDK="$SDK" bash "$ROOT/scripts/build-hub-helper.sh"
     cp "$ROOT/.build/hub-helper/feishu-hub-helper" "$APP/Contents/Helpers/feishu-hub-helper"
 fi
+mkdir -p "$APP/Contents/Frameworks"
+ditto "$SCRATCH/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
+cp "$ROOT/.build/artifacts/sparkle/Sparkle/LICENSE" "$APP/Contents/Resources/Sparkle-LICENSE"
 cp "$BIN_DIR/YuIsland" "$APP/Contents/MacOS/YuIsland"
 if [[ -n "${ISLAND_AGENT_STATUS_HELPER:-}" ]]; then
     [[ -x "$ISLAND_AGENT_STATUS_HELPER" ]] || { echo 'ISLAND_AGENT_STATUS_HELPER 必须是已核验的可执行文件' >&2; exit 1; }

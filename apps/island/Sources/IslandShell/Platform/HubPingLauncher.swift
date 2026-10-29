@@ -22,6 +22,9 @@ private final class HubPingPanel: NSPanel {
     private var openDirection: ((Int) -> Bool)?
     private var presentationID = UUID()
     private var shortcutDown = false
+    private var releaseWatcher: Timer?
+    private var keyFallback: Any?
+    private var lastPressTime = -Double.greatestFiniteMagnitude
     private var expiry:Task<Void,Never>?
     private var registeredHotkey: NookHotkey?
     func start() {
@@ -48,6 +51,17 @@ private final class HubPingPanel: NSPanel {
         let store = UnifiedPlatformStore.shared
         store.registerHotkey = { [weak self] value in self?.register(value) ?? false }
         if hotkey == nil, !register(store.hotkey) { store.reportShortcutError() }
+        if keyFallback == nil {
+            // App-directed key events may bypass Carbon while a settings or
+            // nonactivating window owns focus. Preserve the same press/release path.
+            keyFallback = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
+                guard let self, let value = self.registeredHotkey, UInt32(event.keyCode) == value.keyCode else { return event }
+                if event.type == .keyUp, self.shortcutDown { self.shortcutReleased(); return nil }
+                guard event.type == .keyDown, HubShortcutInput.matches(event, value) else { return event }
+                if !event.isARepeat { self.shortcutPressed() }
+                return nil
+            }
+        }
     }
     private func register(_ value: NookHotkey) -> Bool {
         if registeredHotkey == value, hotkey != nil { return true }
@@ -63,14 +77,26 @@ private final class HubPingPanel: NSPanel {
         if !register(UnifiedPlatformStore.shared.hotkey) { UnifiedPlatformStore.shared.reportShortcutError() }
     }
     private func shortcutPressed() {
-        guard !shortcutDown else { return }
-        shortcutDown = true
+        let now = ProcessInfo.processInfo.systemUptime
+        guard !shortcutDown, now - lastPressTime > 0.10 else { return }
+        lastPressTime = now
         if panel?.isVisible == true { close(); return }
         show(shortcutHeld: true)
+        shortcutDown = true
+        // Carbon can miss key-up when a nonactivating panel becomes key or a
+        // modifier is released first. Observe physical release while held only.
+        let code = CGKeyCode(registeredHotkey?.keyCode ?? UnifiedPlatformStore.shared.hotkey.keyCode)
+        releaseWatcher = Timer(timeInterval: 0.03, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if !CGEventSource.keyState(.combinedSessionState, key: code) { self.shortcutReleased() }
+            }
+        }
+        RunLoop.main.add(releaseWatcher!, forMode: .common)
     }
     private func shortcutReleased() {
         guard shortcutDown else { return }
-        shortcutDown = false
+        shortcutDown = false; releaseWatcher?.invalidate(); releaseWatcher = nil
         guard let panel, panel.isVisible, let gesture else { return }
         apply(gesture.releaseShortcut(at: pointInWheel(NSEvent.mouseLocation), mouseButtonDown: NSEvent.pressedMouseButtons != 0))
     }
@@ -146,6 +172,7 @@ private final class HubPingPanel: NSPanel {
         }
     }
     func close() {
+        shortcutDown = false; releaseWatcher?.invalidate(); releaseWatcher = nil
         presentationID = UUID()
         gesture?.cancel(); gesture = nil; openDirection = nil
         expiry?.cancel();expiry=nil;panel?.orderOut(nil)
@@ -153,5 +180,17 @@ private final class HubPingPanel: NSPanel {
         if let keys {NSEvent.removeMonitor(keys);self.keys=nil}
         if let localMovement { NSEvent.removeMonitor(localMovement); self.localMovement = nil }
         if let globalMovement { NSEvent.removeMonitor(globalMovement); self.globalMovement = nil }
+    }
+}
+
+@MainActor enum HubShortcutInput {
+    static func matches(_ event: NSEvent, _ value: NookHotkey) -> Bool {
+        guard UInt32(event.keyCode) == value.keyCode else { return false }
+        var modifiers: UInt32 = 0
+        if event.modifierFlags.contains(.command) { modifiers |= UInt32(cmdKey) }
+        if event.modifierFlags.contains(.option) { modifiers |= UInt32(optionKey) }
+        if event.modifierFlags.contains(.control) { modifiers |= UInt32(controlKey) }
+        if event.modifierFlags.contains(.shift) { modifiers |= UInt32(shiftKey) }
+        return modifiers == value.carbonModifiers
     }
 }

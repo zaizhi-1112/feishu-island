@@ -34,6 +34,11 @@ private final class AccountSession {
 // Official CLI owns credentials. Raw GET avoids shortcut thread/media enrichment
 // and preserves the server's millisecond create_time for actual latency measurement.
 final class AccountReader {
+    var retentionDays = 0
+    var archiveFactory: ((String) -> MessageArchive)?
+    var onRestore: ((MessageArchive, MessageArchiveSnapshot) -> Void)?
+    var onCheckpoint: ((String, Date) -> Void)?
+    var onArchiveError: (() -> Void)?
     var onMessage: ((FeishuMessage) -> Void)?
     var onAccount: ((String) -> Void)?
     var onStatus: ((String) -> Void)?
@@ -99,7 +104,18 @@ final class AccountReader {
                 self.post(token) { self.onAccount?(user["userName"] as? String ?? "已连接账号") }
                 try self.clock.refreshIfNeeded()
                 guard self.alive(token) else { return }
-                let session = AccountSession(token: token, ownID: id, started: self.clock.now())
+                let now = self.clock.now()
+                var snapshot: MessageArchiveSnapshot?
+                if let archive = self.archiveFactory?(id) {
+                    do {
+                        try MessageArchive.expireAll(root: archive.file.deletingLastPathComponent(), days: self.retentionDays, now: now)
+                        let restored = try archive.load(days: self.retentionDays, now: now)
+                        snapshot = restored
+                        self.post(token) { self.onRestore?(archive, restored) }
+                    } catch { self.post(token) { self.onArchiveError?() } }
+                }
+                let session = AccountSession(token: token, ownID: id, started: snapshot?.startedAt ?? now)
+                session.checkpoints = snapshot?.checkpoints ?? [:]
                 self.background.async { self.backfill(session) }
                 self.cycle(session)
             } catch {
@@ -314,12 +330,12 @@ final class AccountReader {
         defer { session.lock.lock(); session.inFlight.remove(flightKey); session.windows.removeValue(forKey: flightKey); session.lock.unlock() }
         try clock.refreshIfNeeded()
         let end = clock.now()
-        // Allow late API visibility without replaying pre-start history. IDs dedupe.
+        // Resume only the retained account window; completed messages dedupe in the store.
         var pageToken: String?; var pageCount = 0
         repeat {
             var params = ["container_id_type":"chat", "container_id":chat.id,
                           "start_time":String(Int(start.timeIntervalSince1970)), "end_time":String(Int(end.timeIntervalSince1970)),
-                          "sort_type":"ByCreateTimeDesc", "page_size":"50", "with_sender_name":"true", "only_thread_root_messages":"false"]
+                          "sort_type":"ByCreateTimeDesc", "page_size":"50", "with_sender_name":"true", "only_thread_root_messages":"false", "card_msg_content_type":"user_card_content"]
             if let cursor = pageToken { params["page_token"] = cursor }
             let json = String(data: try JSONSerialization.data(withJSONObject:params),encoding:.utf8)!
             let result = try data(["api", "GET", "/open-apis/im/v1/messages", "--params", json], session.token)
@@ -383,7 +399,8 @@ final class AccountReader {
             if fast && pageCount >= 2 && pageToken != nil { return }
             if pageCount >= 1000 && pageToken != nil { throw AccountFailure(detail:"消息补读尚未完成") }
         } while pageToken != nil
-        session.lock.lock(); session.unresolvedChats.remove(chat.id); session.checkpoints[chat.id] = max(session.checkpoints[chat.id] ?? session.started, end); session.lock.unlock()
+        session.lock.lock(); session.unresolvedChats.remove(chat.id); session.checkpoints[chat.id] = max(session.checkpoints[chat.id] ?? session.started, end); let committed = session.checkpoints[chat.id]!; session.lock.unlock()
+        post(session.token) { self.onCheckpoint?(chat.id, committed) }
     }
 }
 
@@ -411,15 +428,26 @@ func accountMessageText(_ message: [String: Any]) -> String {
             default: return ""
             }
         }.joined() }
-        return ([title] + lines).filter { !$0.isEmpty }.joined(separator:" ")
+        return ([title] + lines).filter { !$0.isEmpty }.joined(separator:"\n")
     }
     if kind == "interactive" {
         // Preserve inline card copy without fetching linked content/resources.
         func copy(_ value: Any) -> [String] {
+            if let text = value as? String { return [text] }
             if let list = value as? [Any] { return list.flatMap { copy($0) } }
             guard let object = value as? [String: Any] else { return [] }
+            // Select one language instead of duplicating every translation.
+            for key in ["i18n_elements", "i18n_body", "i18n_content"] {
+                if let locales = object[key] as? [String: Any],
+                   let localized = locales["zh_cn"] ?? locales["en_us"] ?? locales.sorted(by: { $0.key < $1.key }).first?.value {
+                    var rest = object; rest.removeValue(forKey: key)
+                    rest.removeValue(forKey: key.replacingOccurrences(of: "i18n_", with: ""))
+                    return copy(rest) + copy(localized)
+                }
+            }
+            if let localized = object["zh_cn"] ?? object["en_us"] { return copy(localized) }
             var parts: [String] = []
-            for key in ["header", "title", "text", "content", "elements", "fields", "columns", "items", "body"] {
+            for key in ["header", "title", "subtitle", "text", "content", "elements", "fields", "columns", "items", "body", "rows"] {
                 guard let value = object[key] else { continue }
                 if let text = value as? String, !text.isEmpty { parts.append(text) }
                 else { parts += copy(value) }
@@ -427,7 +455,7 @@ func accountMessageText(_ message: [String: Any]) -> String {
             return parts
         }
         let parts = copy(content)
-        if !parts.isEmpty { return parts.joined(separator:" ") }
+        if !parts.isEmpty { return accountPlainText(parts.joined(separator:"\n")) }
     }
     let labels = ["image":"图片", "file":"文件", "audio":"语音", "media":"视频", "video":"视频", "sticker":"表情", "interactive":"卡片", "merge_forward":"合并转发", "share_chat":"分享会话", "share_user":"分享联系人"]
     let label = labels[kind] ?? kind

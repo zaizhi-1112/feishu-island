@@ -5,6 +5,27 @@ final class PassThroughWindow: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 final class FlyingText: NSView {
+    var motionY: CGFloat = 0
+    var motionPanel: PassThroughWindow?
+    var motionMessage: DanmuMessage?
+    var motionPages: [String] = []
+    var clickedPause = false
+    var motionOpen: (() -> Void)?
+    private var tracking: NSTrackingArea?
+    let openButton = CardPagingButton(title: "打开会话", target: nil, action: nil)
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) {
+        guard motionMessage != nil else { return }; clickedPause = true
+        openButton.isHidden = motionOpen == nil; needsDisplay = true
+    }
+    override func mouseExited(with event: NSEvent) { resumeMotion() }
+    func resumeMotion() { clickedPause = false; openButton.isHidden = true; needsDisplay = true }
+    @objc func openMotionConversation() { motionOpen?() }
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas(); if let tracking { removeTrackingArea(tracking) }
+        let area = NSTrackingArea(rect: bounds, options: [.activeAlways, .mouseEnteredAndExited, .inVisibleRect], owner: self, userInfo: nil)
+        tracking = area; addTrackingArea(area)
+    }
     var card = false
     var pages: [NSAttributedString] = []
     var pageIndex = 0
@@ -25,7 +46,12 @@ final class FlyingText: NSView {
             NSBezierPath(roundedRect: bounds, xRadius: corner, yRadius: corner).fill()
         }
         if let borderColor { borderColor.setStroke(); let edge = NSBezierPath(roundedRect:bounds.insetBy(dx:0.5,dy:0.5),xRadius:corner,yRadius:corner);edge.lineWidth=1;edge.stroke() }
-        if card {
+        if let message = motionMessage {
+            content.draw(with: NSRect(x: 14, y: 38, width: bounds.width - 28, height: bounds.height - 50), options: [.usesLineFragmentOrigin, .usesFontLeading])
+            let progress = motionPages.count > 1 ? "\(message.segment + 1)/\(motionPages.count) · " : ""
+            let hint = clickedPause ? "移开继续" : "点击停留"
+            (progress + hint).draw(at: NSPoint(x: 14, y: 12), withAttributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: textColor.withAlphaComponent(0.8)])
+        } else if card {
             content.draw(in: NSRect(x: 20, y: 78, width: bounds.width - 40, height: bounds.height - 100))
             let label = "\(pageIndex + 1) / \(pages.count) 页 · 完整正文"
             label.draw(at: NSPoint(x: 20, y: 52), withAttributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.lightGray])
@@ -58,6 +84,9 @@ final class Overlay: NSObject {
     var skinCorner: CGFloat = 10
     var preferStatic = false
     var allowsCards = true
+    var multilineMotion = false
+    var onFinished: ((String) -> Void)?
+    var onOpenConversation: ((String) -> Void)?
     var timer: Timer?
     private(set) var controlsWindow: PassThroughWindow?
     private(set) var pagingButtons: [NSButton] = []
@@ -67,9 +96,9 @@ final class Overlay: NSObject {
     var overflow = 0
     var verifyUnread: ((String, @escaping (Bool?) -> Void) -> Void)?
     var onUnreadCheck: ((Bool?) -> Void)?
-    private var checking: UUID?
-    private var verified: UUID?
-    private var retryAt: TimeInterval = 0
+    var checking: UUID?
+    var verified: UUID?
+    var retryAt: TimeInterval = 0
     let showsWindow: Bool
     let frameOverride: NSRect?
     private var screenObserver: NSObjectProtocol?
@@ -82,10 +111,10 @@ final class Overlay: NSObject {
         RunLoop.main.add(timer!, forMode: .common) }
         screenObserver = NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in self?.rebuild() }
     }
-    deinit { timer?.invalidate(); if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }; controlsWindow?.close(); window?.close() }
+    deinit { timer?.invalidate(); if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }; controlsWindow?.close(); flying.forEach { $0.motionPanel?.close() }; window?.close() }
     func rebuild() {
         controlsWindow?.close(); controlsWindow = nil; pagingButtons.removeAll()
-        window?.close(); flying.removeAll()
+        window?.close(); flying.forEach { $0.motionPanel?.close() }; flying.removeAll()
         let frame = frameOverride ?? NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         window = PassThroughWindow(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         window.isOpaque = false; window.backgroundColor = .clear
@@ -100,12 +129,18 @@ final class Overlay: NSObject {
         let clean = text.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
 
-        if queue.count >= 500 { queue.removeFirst(); overflow += 1 }
+        if queue.count >= 500 { let dropped = queue.removeFirst(); if let id = dropped.messageID { onFinished?(id) }; overflow += 1 }
         var message = DanmuMessage(text: clean, receivedAt: receivedAt ?? Date(), demo: demo, gray: gray, createdAt: createdAt)
         message.messageID = messageID; queue.append(message)
         onChange?()
     }
-    func clear() { queue.removeAll(); checking = nil; verified = nil; overflow = 0; flying.forEach { $0.removeFromSuperview() }; flying.removeAll(); controlsWindow?.orderOut(nil); onChange?() }
+    func clear() { queue.removeAll(); checking = nil; verified = nil; overflow = 0; flying.forEach { $0.motionPanel?.close(); $0.removeFromSuperview() }; flying.removeAll(); controlsWindow?.orderOut(nil); onChange?() }
+    func retainMessages(_ ids: Set<String>) {
+        queue.removeAll { $0.messageID.map { !ids.contains($0) } ?? false }
+        for view in flying where view.motionMessage?.messageID.map({ !ids.contains($0) }) == true { view.motionPanel?.close() }
+        flying.removeAll { $0.motionMessage?.messageID.map({ !ids.contains($0) }) == true }
+        checking = nil; verified = nil
+    }
     func cancelVerification() { checking = nil; verified = nil; retryAt = 0 }
     private var currentCard: FlyingText? { flying.first { $0.card } }
     @objc func previousPage() { turnPage(-1) }
@@ -172,8 +207,9 @@ final class Overlay: NSObject {
         if showsWindow { panel.orderFrontRegardless() }
     }
     func tick(now: TimeInterval = ProcessInfo.processInfo.systemUptime) {
-        let dt = min(now - last, 0.1); last = now
+        let dt = max(0, min(now - last, 0.1)); last = now
         guard !paused else { return }
+        if multilineMotion { tickMotion(now: now, dt: dt); return }
         let scale = window.backingScaleFactor
         for view in flying {
             if view.card {

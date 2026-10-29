@@ -32,7 +32,7 @@ public enum IslandHost {
         )
         host.chromeTheme = IslandDesign.chrome
         host.chromeThemeSource = MainActor.assumeIsolated {
-            DispatchQueue.main.async { HubPingLauncher.shared.start() }
+            DispatchQueue.main.async { HubPingLauncher.shared.start(); AppUpdater.shared.start() }
             return AgentStore.shared.themeSource
         }
         host.chromeBehavior.backdrop = { context in

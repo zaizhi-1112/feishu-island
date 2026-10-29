@@ -46,6 +46,7 @@ struct UnifiedFeishuSettingsContent: View {
             accountCard
             reminderSection
             displaySection
+            historySection
             HStack(spacing: 5) {
                 Image(systemName: "checkmark").font(.system(size: 11))
                 Text("设置自动保存在这台 Mac；自定义配色点「应用配色」后生效。").font(.system(size: 12))
@@ -81,6 +82,38 @@ struct UnifiedFeishuSettingsContent: View {
         .onChange(of: query) { _, value in if !value.isEmpty { expanded = true } }
         .onDisappear { preview = false; model.stop() }
         .task(id: feedback) { if feedback != nil { try? await Task.sleep(for: .seconds(6)); if !Task.isCancelled { clearFeedback() } } }
+    }
+
+    private var historySection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("消息保留").font(.system(size: 16, weight: .semibold))
+            HStack {
+                Text("在这台 Mac 上保留")
+                Spacer()
+                Picker("保留时间", selection: Binding(get: { store.retention.days }, set: { days in
+                    var value = store.retention; value.days = days; store.updateRetention(value)
+                })) {
+                    Text("仅本次使用").tag(0)
+                    ForEach(MessageRetention.choices.filter { $0 > 0 }, id: \.self) { Text("\($0) 天").tag($0) }
+                }.labelsHidden().frame(width: 150).accessibilityIdentifier("feishu.history.days")
+            }
+            if store.retention.days > 0 {
+                HStack {
+                    Text("每天清理过期消息")
+                    Spacer()
+                    DatePicker("清理时间", selection: Binding(get: {
+                        Calendar.current.startOfDay(for: Date()).addingTimeInterval(Double(store.retention.cleanupMinute) * 60)
+                    }, set: { date in
+                        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+                        var value = store.retention; value.cleanupMinute = (c.hour ?? 3) * 60 + (c.minute ?? 0); store.updateRetention(value)
+                    }), displayedComponents: .hourAndMinute).labelsHidden().frame(width: 150)
+                }
+                Text("更新或重新打开应用后，消息列表和未播完的弹幕会继续保留。").font(.system(size: 12)).foregroundStyle(theme.secondaryLabel)
+            } else {
+                Text("退出后不保留消息，下次打开从新消息开始。").font(.system(size: 12)).foregroundStyle(theme.secondaryLabel)
+            }
+            if let error = store.historyError { Text(error).font(.system(size: 12)).foregroundStyle(theme.warning) }
+        }.padding(22).modifier(FeishuSettingsSurface())
     }
 
     private var accountCard: some View {
@@ -280,7 +313,7 @@ struct UnifiedFeishuSettingsContent: View {
                 HStack(spacing: 15) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("同时显示桌面弹幕").font(.system(size: 14, weight: .medium))
-                        Text("短消息从桌面划过，长消息分页显示。").font(.system(size: 12)).foregroundStyle(theme.secondaryLabel)
+                        Text("长短消息都能飘过；点击停留，移开继续。").font(.system(size: 12)).foregroundStyle(theme.secondaryLabel)
                     }
                     Spacer()
                     Toggle("同时显示桌面弹幕", isOn: Binding(get: { store.danmu.enabled }, set: { value in
@@ -305,6 +338,8 @@ struct UnifiedFeishuSettingsContent: View {
                     FeishuDanmuPreview(appearance: colorDraft ?? store.appearance, playing: colorDraft == nil && preview && !reduceMotion, started: previewStarted, onFinished: { preview = false })
                         .frame(height: 118).background(Color(red: 0.19, green: 0.24, blue: 0.23), in: RoundedRectangle(cornerRadius: 10))
                         .clipShape(RoundedRectangle(cornerRadius: 10)).accessibilityLabel("合成弹幕预览")
+                    Button("在桌面试播多行消息") { store.playMultilinePreview() }.buttonStyle(.link)
+                        .accessibilityIdentifier("feishu.previewMultiline")
                     HStack(spacing: 10) { styleChoice("none", "纯文字"); styleChoice("dark", "深色气泡"); styleChoice("light", "浅色气泡") }
                     HStack(spacing: 12) {
                         Text("字号").frame(width: 34, alignment: .leading); Text("小").font(.system(size: 12)).foregroundStyle(theme.secondaryLabel)

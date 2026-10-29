@@ -3,7 +3,7 @@
 - apps/island：Swift/AppKit/SwiftUI 原生应用、消息接收、日程、待办、Agent 和个人卡片；apps/danmu：历史弹幕实现；docs：协作与验收说明。历史导入文档不代表当前运行结构。
 - 先读 README.md、docs/融合与协作说明.html；按子目录 AGENTS.md 的适用范围开发。
 - 默认只跑合成数据、编译和测试。禁止真实账号接收、读取真实消息、自动安装登录项、启动 UI 自测、退出飞书或用不透明全屏背景验收，除非用户另行明确授权当前动作。
-- 账号、token、消息正文、聊天历史、日志、个人目录不可提交。不得记录正文、改飞书已读或发送消息。仅使用各自本人授权。
+- 账号、token、消息正文、聊天历史、日志、个人目录不可提交。不得在日志记录正文、改飞书已读或发送消息。仅使用各自本人授权。2026-10-29 用户明确要求更新后保留消息：允许按账号隔离、仅在本机应用目录保存消息与待播进度，默认 7 天，可关闭或调整天数，每日定时清理；不得上传或用于诊断日志。
 - 开发用 codex/功能名 分支，通过 PR 说明变化、用户影响、验证与未验证项；不要直接提交 main，不 force push，不自动合并或部署。
 - 核心接收/授权/过滤及正式发布由仓库维护者宰治确认；普通用户 Agent 只可通过外观白名单改个人外观，拥有源码不等于运行时接口可改核心。
 - 不擅自把本机与服务器数据边界混合，不扩大应用访问范围。2026-10-29 宰治明确授权将 `zaizhi-1112/feishu-island` 从私有改为公开；该授权仅改变 GitHub 仓库可见性，不授权修改中台访问范围、公开个人数据或合并 main。现有第三方许可保留，整体开源许可证尚未另设。
@@ -21,4 +21,4 @@
 
 - build87 的 DeepSeek Harness 只读余额通过 `Resources/deepseek-balance.cjs` 和 `DeepSeekReader.swift` 接入。仅复用本人 Harness 的既有 Platform 登录，固定钱包 GET、拒绝重定向，不取 API Key，不读取对话、不发送任务；凭据不持久化到本应用，不输出原始响应。其他用户默认未启用，新入口不替换现有岛上位置。验证 `node --test Tests/deepseek-balance.test.cjs`、`AgentChecks` 与 `UnifiedProductChecks`；接口随 Harness 升级可能变化，禁止猜测金额或用0代替未知。
 
-- 产品网页维护说明见 `docs/product-web-build90.md`。网页交互只用合成数据；保持白底，公司 Logo 在首屏右侧，轻淡粒子铺到整页空白处并避开文字与按钮。保留下载、四模块空闲轮播和反馈弹窗。下载为已发布的0.11.2 build91，对用户显示的文件名固定为“一切在岛.dmg”，不带版本。`package-download-site.py --web-only --download-asset <GitHub资产元数据JSON>` 核对公开资产的版本、大小、SHA-256和地址；小网站包在中台正式构建时下载并验证该安装包，运行时由同源服务设置中文附件名，不能跳转GitHub发布页。旧版本文件与链接继续兼容；不重建或另发原生版本。已移除的原生预览来源留在仓库，来源校验见 `apps/island/Distribution/native-preview-manifest.json`。反馈唤起发往 `zaizhi@virxact.com` 的邮件草稿，不得声称网页已发送或已收件。网页更新不等于main合并。
+- 产品网页维护说明见 `docs/product-web-build90.md`。网页交互只用合成数据；保持白底，公司 Logo 在首屏右侧，轻淡粒子铺到整页空白处并避开文字与按钮。保留下载、四模块空闲轮播和反馈弹窗。下载为已发布的0.12.0 build94，对用户显示的文件名固定为“一切在岛.dmg”，不带版本。`package-download-site.py --web-only --download-asset <GitHub资产元数据JSON>` 核对公开资产的版本、大小、SHA-256和地址；小网站包在中台正式构建时下载并验证该安装包，运行时由同源服务设置中文附件名，不能跳转GitHub发布页。旧版本文件与链接继续兼容；不重建或另发原生版本。已移除的原生预览来源留在仓库，来源校验见 `apps/island/Distribution/native-preview-manifest.json`。反馈唤起发往 `zaizhi@virxact.com` 的邮件草稿，不得声称网页已发送或已收件。网页更新不等于main合并。
