@@ -163,6 +163,7 @@ private struct UnifiedSettingsLayout:View {
                 Text("交互方式").tag("interaction")
                 Text("显示屏").tag("display")
             }.pickerStyle(.segmented).labelsHidden().accessibilityIdentifier("unified.appearance.tabs")
+            IslandSettingsCard("岛内字号") { IslandTextSizeControls() }
             switch appearancePage {
             case "interaction":
                 IslandSettingsCard("快捷键") { IslandShortcutRecorder(appState: appState) }

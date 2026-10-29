@@ -12,8 +12,8 @@ final class UnifiedPlatformModule: NookModule {
     init(context: NookModuleContext) { HubPingLauncher.shared.start() }
     func makeConfiguration() -> NookConfiguration {
         var config = IslandHost.baseConfiguration(title: "中台", symbol: "square.grid.2x2")
-        config.setCompactTrailing { Text("虚实中台").font(.system(size: 10, weight: .medium)) }
-        config.setHome { UnifiedPlatformPanel(workspace: .shared) }
+        config.setCompactTrailing { Text("虚实中台").islandFont(size: 10, weight: .medium) }
+        config.setHome { UnifiedPlatformPanel(workspace: .shared).islandTextSize() }
         return config
     }
 }
@@ -29,19 +29,19 @@ struct UnifiedPlatformPanel: View {
             VStack(alignment: .leading, spacing: 12) {
                 if !workspace.hub.connected {
                     Text("连接后，在这里查看本人中台卡片。")
-                        .font(.system(size: 12)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
+                        .islandFont(size: 12).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
                     Button("连接中台") { connect() }.buttonStyle(IslandButtonStyle())
                 }
                 if !workspace.hub.error.isEmpty {
-                    Text(workspace.hub.error).font(.system(size: 12)).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true)
+                    Text(workspace.hub.error).islandFont(size: 12).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true)
                 }
                 if workspace.hub.connected && workspace.visibleCards.isEmpty {
                     Text("还没有选择卡片。点右上角齿轮，在“中台”中选择要放在岛里的内容。")
-                        .font(.system(size: 12)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
+                        .islandFont(size: 12).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
                 }
                 if !workspace.visibleCards.isEmpty {
                     HStack {
-                        Text("我的卡片").font(.system(size: 18, weight: .semibold)); Spacer()
+                        Text("我的卡片").islandFont(size: 18, weight: .semibold); Spacer()
                         Button { Task { await workspace.refreshHub() } } label: { Image(systemName: "arrow.clockwise") }.buttonStyle(.plain).accessibilityLabel("刷新中台")
                     }
                     ForEach(workspace.visibleCards) { card in
@@ -52,7 +52,7 @@ struct UnifiedPlatformPanel: View {
                                     Button("打开中台原页") { _ = launcher.activate(.init(id: 0, title: card.title, url: url)) }.buttonStyle(IslandButtonStyle())
                                 }
                             }.padding(.top, 8)
-                        } label: { Text(HubCardPresentation.title(card)).font(.system(size: 17, weight: .semibold)) }
+                        } label: { Text(HubCardPresentation.title(card)).islandFont(size: 17, weight: .semibold) }
                         .padding(13).modifier(IslandCard(radius: 12))
                     }
                 }
@@ -91,10 +91,10 @@ struct UnifiedPlatformSettings: View {
                 IslandSettingsCard("把常看的内容放在岛上") {
                     Toggle("在灵动岛主栏显示中台", isOn: Binding(get: { launcher.showInMainBar }, set: { _ = launcher.setMainBar($0) }))
                     Text("选择要展示的卡片，用箭头调整顺序。隐藏栏目会保留连接和选择。")
-                        .font(.system(size: 12)).foregroundStyle(theme.secondaryLabel)
+                        .islandFont(size: 12).foregroundStyle(theme.secondaryLabel)
                     if workspace.hub.cards.isEmpty {
                         Text(workspace.hub.connected ? "还没有可展示的卡片，可以在“连接与状态”刷新。" : "先在“连接与状态”连接自己的中台。")
-                            .font(.system(size: 13)).foregroundStyle(theme.secondaryLabel).padding(.vertical, 12)
+                            .islandFont(size: 13).foregroundStyle(theme.secondaryLabel).padding(.vertical, 12)
                     }
                     HubCardOptionsLayout {
                         ForEach(orderedCards) { card in cardOption(card) }
@@ -107,7 +107,7 @@ struct UnifiedPlatformSettings: View {
                     Label(workspace.hub.connected ? "已连接本人中台" : "尚未连接中台", systemImage: workspace.hub.connected ? "checkmark.circle.fill" : "link")
                         .foregroundStyle(workspace.hub.connected ? Color.green : theme.secondaryLabel)
                     Text("按本人的权限读取首页与数据卡片，每10分钟更新。正文只在内存中缓存，快捷入口只打开链接。")
-                        .font(.system(size: 12)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
+                        .islandFont(size: 12).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal: false, vertical: true)
                     HStack {
                         Button(workspace.hub.connected ? "重新连接" : "连接中台") {
                             if let address = SettingsServer.shared.address { workspace.connectHub(callback: address + "/oauth/virxact/callback") }
@@ -116,11 +116,11 @@ struct UnifiedPlatformSettings: View {
                         Button(workspace.hubBusy ? "刷新中…" : "刷新卡片") { Task { await workspace.refreshHub() } }
                             .disabled(workspace.hubBusy).buttonStyle(IslandButtonStyle())
                     }
-                    if !workspace.hub.error.isEmpty { Text(workspace.hub.error).font(.system(size: 12)).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true) }
-                    if !workspace.error.isEmpty { Text(workspace.error).font(.system(size: 12)).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true) }
+                    if !workspace.hub.error.isEmpty { Text(workspace.hub.error).islandFont(size: 12).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true) }
+                    if !workspace.error.isEmpty { Text(workspace.error).islandFont(size: 12).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true) }
                 }
             }
-            if !launcher.error.isEmpty { Text(launcher.error).font(.system(size: 12)).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true) }
+            if !launcher.error.isEmpty { Text(launcher.error).islandFont(size: 12).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true) }
         }.foregroundStyle(theme.primaryLabel).accessibilityIdentifier("island.platform.settings")
     }
     private func cardOption(_ card: HubCard) -> some View {

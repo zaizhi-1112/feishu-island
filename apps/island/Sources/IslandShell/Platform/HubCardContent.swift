@@ -9,7 +9,7 @@ struct HubCardContent: View {
                     HubSectionView(section: section, depth: 0)
                 }
             } else {
-                Text(HubCardPresentation.text(card)).font(.system(size: 14)).lineSpacing(5)
+                Text(HubCardPresentation.text(card)).islandFont(size: 14).lineSpacing(5)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }.frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
@@ -31,9 +31,9 @@ private struct HubSectionView: View {
                             Text(section.title).foregroundStyle(.secondary)
                             Text(section.text)
                         }
-                    }.font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
-                } else { Text(section.title).font(.system(size: depth == 0 ? 15 : 13, weight: .semibold)).fixedSize(horizontal: false, vertical: true) }
-            } else if !section.text.isEmpty { Text(section.text).font(.system(size: 13)).fixedSize(horizontal: false, vertical: true) }
+                    }.islandFont(size: 13).fixedSize(horizontal: false, vertical: true)
+                } else { Text(section.title).islandFont(size: depth == 0 ? 15 : 13, weight: .semibold).fixedSize(horizontal: false, vertical: true) }
+            } else if !section.text.isEmpty { Text(section.text).islandFont(size: 13).fixedSize(horizontal: false, vertical: true) }
             ForEach(Array(section.children.enumerated()), id: \.offset) { index, child in
                 AnyView(HubSectionView(section: child, depth: depth + 1))
                 if depth == 0 && index < section.children.count - 1 && !child.children.isEmpty { Divider() }

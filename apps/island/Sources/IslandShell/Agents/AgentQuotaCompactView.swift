@@ -96,7 +96,7 @@ struct AgentPersistentCompactSlot:View,Sendable {
 struct AgentPersistentExpanded:View,Sendable {
     @ObservedObject var store:AgentStore
     var body:some View {
-        UnifiedAgentIslandView(store:store)
+        UnifiedAgentIslandView(store:store).islandTextSize()
     }
 }
 

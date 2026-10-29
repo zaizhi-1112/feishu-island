@@ -50,7 +50,7 @@ struct UnifiedTodoPanel: View {
 
     private func todoTab(_ title: String, symbol: String, page: String) -> some View {
         Button {store.todoPage=page} label: {
-            Label(title + (page == "calendar" && store.hasUnviewedScheduleReminder ? " · 待查看" : ""),systemImage:symbol).font(.system(size:13,weight:.medium)).frame(maxWidth:.infinity).frame(height:32)
+            Label(title + (page == "calendar" && store.hasUnviewedScheduleReminder ? " · 待查看" : ""),systemImage:symbol).islandFont(size:13,weight:.medium).frame(maxWidth:.infinity).frame(height:32)
                 .foregroundStyle(theme.primaryLabel)
                 .background(store.todoPage==page ? theme.subtleFill:Color.clear,in:RoundedRectangle(cornerRadius:10))
                 .shadow(color:store.todoPage==page ? .black.opacity(0.07):.clear,radius:4,y:2)
@@ -61,13 +61,13 @@ struct UnifiedTodoPanel: View {
         VStack(alignment: .leading, spacing: 14) {
             if compact {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("待办").font(.system(size: 20, weight: .semibold))
+                    Text("待办").islandFont(size: 20, weight: .semibold)
                     Spacer()
-                    Text("\(store.pendingTodos.count)项待完成").font(.system(size: 12)).foregroundStyle(theme.secondaryLabel)
+                    Text("\(store.pendingTodos.count)项待完成").islandFont(size: 12).foregroundStyle(theme.secondaryLabel)
                 }
                 HStack(spacing: 8) {
                     TextField("接下来要做的事", text: Binding(get: { store.todoDraft }, set: { store.todoDraft = $0 })).textFieldStyle(.plain)
-                        .font(.system(size: 14)).focused($inputFocused).onSubmit(add)
+                        .islandFont(size: 14).focused($inputFocused).onSubmit(add)
                         .accessibilityIdentifier("unified.todo.input")
                     Button(action: add) { Image(systemName: "plus").frame(width: 26, height: 26) }
                         .buttonStyle(IslandButtonStyle(prominent: true))
@@ -75,32 +75,32 @@ struct UnifiedTodoPanel: View {
                         .accessibilityLabel("添加待办")
                 }.padding(12).modifier(IslandCard(radius: 12))
                 if !store.error.isEmpty {
-                    Text(store.error).font(.system(size: 12)).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true)
+                    Text(store.error).islandFont(size: 12).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true)
                 }
                 if !notice.isEmpty {
                     HStack {
-                        Text(notice).font(.system(size: 11)).foregroundStyle(theme.secondaryLabel)
+                        Text(notice).islandFont(size: 11).foregroundStyle(theme.secondaryLabel)
                         Spacer(minLength: 4)
                         if let id = restoredTask {
                             Button("撤销完成") { store.reopenTodo(id); if store.disk.items.first(where:{$0.id==id})?.state != "done" {restoredTask = nil; recentCompletion = nil; notice = ""} }
-                                .buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(theme.accent)
+                                .buttonStyle(.plain).islandFont(size: 11).foregroundStyle(theme.accent)
                         }
                         if let id = deletedTask {
                             Button("撤销删除") { store.restoreItem(id); if store.disk.items.contains(where:{$0.id==id}) {deletedTask = nil; notice = ""} }
-                                .buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(theme.accent)
+                                .buttonStyle(.plain).islandFont(size: 11).foregroundStyle(theme.accent)
                         }
                     }
                 }
                 if store.pendingTodos.isEmpty && recentCompletion == nil {
                     VStack(spacing:10) {
-                        Image(systemName:"checkmark.circle").font(.system(size:38,weight:.light)).foregroundStyle(theme.secondaryLabel)
-                        Text("暂无待办事项").font(.system(size:14)).foregroundStyle(theme.secondaryLabel)
+                        Image(systemName:"checkmark.circle").islandFont(size:38,weight:.light).foregroundStyle(theme.secondaryLabel)
+                        Text("暂无待办事项").islandFont(size:14).foregroundStyle(theme.secondaryLabel)
                     }.frame(maxWidth:.infinity).padding(.vertical,26)
                 }
                 ForEach(store.pendingTodos) { item in taskRow(item) }
                 if store.disk.todoCompletionEncouragement != true, let id=recentCompletion,let item=store.completedTodos.first(where:{$0.id==id}) {taskRow(item)}
                 if recentCompletion != nil && store.disk.todoCompletionEncouragement == true {
-                    Label("又完成一件事",systemImage:"checkmark.circle.fill").font(.system(size:17,weight:.medium)).foregroundStyle(theme.accent).frame(maxWidth:.infinity).padding(.vertical,20)
+                    Label("又完成一件事",systemImage:"checkmark.circle.fill").islandFont(size:17,weight:.medium).foregroundStyle(theme.accent).frame(maxWidth:.infinity).padding(.vertical,20)
                 }
 
 
@@ -129,9 +129,9 @@ struct UnifiedTodoPanel: View {
                 if !store.completedTodos.isEmpty {Button("全部归档") {
                     if store.archiveCompletedTodos() {showCompleted=false;notice="已归档，可在设置的完成记录中查看。"} else {notice=""}
                 }.buttonStyle(.plain).foregroundStyle(theme.accent)}
-            }.font(.system(size:12))
+            }.islandFont(size:12)
             if showCompleted {
-                if store.completedTodos.isEmpty {Text("完成的事项会显示在这里。").font(.system(size:11)).foregroundStyle(theme.secondaryLabel)}
+                if store.completedTodos.isEmpty {Text("完成的事项会显示在这里。").islandFont(size:11).foregroundStyle(theme.secondaryLabel)}
                 else {ScrollView {ForEach(store.completedTodos){item in taskRow(item)}}.frame(maxHeight:130)}
             }
         }
@@ -150,48 +150,48 @@ struct UnifiedTodoPanel: View {
                     }
                 } label: {
                     Image(systemName:item.state == "done" ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size:21)).frame(width:24,height:24,alignment:.center).foregroundStyle(item.state == "done" ? theme.accent : theme.secondaryLabel)
+                        .islandFont(size:21).frame(width:24,height:24,alignment:.center).foregroundStyle(item.state == "done" ? theme.accent : theme.secondaryLabel)
                 }.buttonStyle(.plain).disabled(["running","queued","dot_running"].contains(item.state))
                     .accessibilityLabel((item.state == "done" ? "重新打开：" : "完成：")+item.title)
                 VStack(alignment:.leading,spacing:5) {
-                    Text(item.title).font(.system(size:14,weight:.medium))
+                    Text(item.title).islandFont(size:14,weight:.medium)
                         .foregroundStyle(theme.primaryLabel)
                         .fixedSize(horizontal:false,vertical:true)
                     if let deadline=item.deadline {
-                        Text("完成期限 · "+deadline.formatted(date:.abbreviated,time:.shortened)).font(.system(size:11))
+                        Text("完成期限 · "+deadline.formatted(date:.abbreviated,time:.shortened)).islandFont(size:11)
                             .foregroundStyle(deadline<Date() && item.state != "done" ? theme.warning:theme.secondaryLabel)
                     }
                     if let completed=item.completedAt, item.state == "done" {
-                        Text("完成于 "+completed.formatted(date:.abbreviated,time:.shortened)).font(.system(size:11)).foregroundStyle(theme.secondaryLabel)
+                        Text("完成于 "+completed.formatted(date:.abbreviated,time:.shortened)).islandFont(size:11).foregroundStyle(theme.secondaryLabel)
                     } else if item.state == "done" {
-                        Text("旧记录 · 完成时间未记录").font(.system(size:11)).foregroundStyle(theme.secondaryLabel)
+                        Text("旧记录 · 完成时间未记录").islandFont(size:11).foregroundStyle(theme.secondaryLabel)
                     } else if let due=item.due {
                         Text(reminderSummary(item))
-                            .font(.system(size:11)).foregroundStyle(due < Date() && !item.reminded ? theme.warning : theme.secondaryLabel)
+                            .islandFont(size:11).foregroundStyle(due < Date() && !item.reminded ? theme.warning : theme.secondaryLabel)
                     }
                 }.frame(maxWidth:.infinity,alignment:.leading)
                 if item.state != "done" {
                     Button("编辑") { inputFocused=false; editingID=item.id }
-                        .font(.system(size:12)).foregroundStyle(theme.accent).fixedSize()
+                        .islandFont(size:12).foregroundStyle(theme.accent).fixedSize()
                         .buttonStyle(.plain).disabled(!WorkspaceStore.canEdit(item)).accessibilityLabel("编辑："+item.title)
                     Button("删除", role: .destructive) {
                             store.deleteItem(item.id)
                             if !store.disk.items.contains(where: { $0.id == item.id }) { deletedTask = item.id; restoredTask = nil; notice = "已移到设置中的最近删除。" }
-                    }.buttonStyle(.plain).font(.system(size: 12)).fixedSize().disabled(!WorkspaceStore.canEdit(item))
+                    }.buttonStyle(.plain).islandFont(size: 12).fixedSize().disabled(!WorkspaceStore.canEdit(item))
                     .accessibilityLabel("删除待办：" + item.title)
                 }
             }
             if !WorkspaceStore.canEdit(item), item.archive != nil {
-                Button("旧归档待核对 · 查看记录") {detail=item}.buttonStyle(.plain).foregroundStyle(theme.accent).font(.system(size:12))
+                Button("旧归档待核对 · 查看记录") {detail=item}.buttonStyle(.plain).foregroundStyle(theme.accent).islandFont(size:12)
             }
             if item.state == "done" {
                 HStack(spacing:14) {
                     Spacer()
-                    Button("查看详情") {detail=item}.buttonStyle(.plain).font(.system(size:12)).foregroundStyle(theme.accent)
+                    Button("查看详情") {detail=item}.buttonStyle(.plain).islandFont(size:12).foregroundStyle(theme.accent)
                     Button("重新打开") {
                         store.reopenTodo(item.id)
                         if store.disk.items.first(where:{$0.id==item.id})?.state != "done" {recentCompletion=nil;restoredTask=nil;notice="已恢复待办，旧提醒已关闭。"}
-                    }.buttonStyle(.plain).font(.system(size:12)).foregroundStyle(theme.accent)
+                    }.buttonStyle(.plain).islandFont(size:12).foregroundStyle(theme.accent)
                         .accessibilityIdentifier("unified.todo.reopen.\(item.id)")
                     Button {
                         store.archiveItem(item.id)

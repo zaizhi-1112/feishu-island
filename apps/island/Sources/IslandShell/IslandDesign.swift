@@ -38,7 +38,7 @@ struct IslandButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 11, weight: .medium))
+            .islandFont(size: 11, weight: .medium)
             .padding(.vertical, 8).padding(.horizontal, 11)
             .foregroundStyle(prominent ? theme.accent : theme.secondaryLabel)
             .background(prominent ? theme.accent.opacity(0.12) : theme.subtleFill, in: RoundedRectangle(cornerRadius: 7))
@@ -51,7 +51,7 @@ struct IslandCompactGlyph: View {
     let symbol: String
     @Environment(\.nookResolvedTheme) private var theme
     var body: some View {
-        Image(systemName: symbol).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.accent)
+        Image(systemName: symbol).islandFont(size: 12, weight: .medium).foregroundStyle(theme.accent)
     }
 }
 
@@ -61,7 +61,7 @@ struct IslandAlertLabel: View {
     @Environment(\.nookResolvedTheme) private var theme
     var body: some View {
         Text(expanded ? "\(count)条重要消息 · 点击查看" : "\(count)条")
-            .font(.system(size: expanded ? 12 : 11, weight: .medium))
+            .islandFont(size: expanded ? 12 : 11, weight: .medium)
             .foregroundStyle(theme.primaryLabel)
             .padding(.horizontal, expanded ? 12 : 0).padding(.vertical, expanded ? 8 : 0)
     }

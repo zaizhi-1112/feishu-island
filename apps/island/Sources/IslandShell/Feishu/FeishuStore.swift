@@ -395,7 +395,7 @@ public final class FeishuStore: ObservableObject {
         } compactTrailing: {
             Text("\(self.readingQueue.count)条").font(.system(size: 10))
         } minimal: { IslandCompactGlyph(symbol: "paperplane.fill") }
-        activity.setExpanded { FeishuView(store:self) }
+        activity.setExpanded { FeishuView(store:self).islandTextSize() }
         activities?.start(activity)
     }
     var deliveryDiagnostics: [String: Any] {
@@ -574,7 +574,7 @@ public final class FeishuStore: ObservableObject {
         }
         // Keep the activity alive once opened so the timed alert cannot remove a reading view.
         activity.setExpanded {
-            FeishuView(store:self)
+            FeishuView(store:self).islandTextSize()
                 .onAppear { self.activities?.end("messages", after: .seconds(3600)) }
                 .onDisappear { self.activities?.end("messages") }
         }
