@@ -29,6 +29,8 @@ import SwiftUI
         if CommandLine.arguments.contains("--todo-review") {try showTodoReview();return}
         var count=0
         func check(_ value:Bool,_ label:String) { guard value else {fputs("FAIL: \(label)\n",stderr);exit(1)};count += 1 }
+        try runMessageContinuityChecks(check: check)
+        if CommandLine.arguments.contains("--message-continuity-only") { print("PASS \(count) message continuity checks"); return }
         try await runPlatformSettingsLayoutChecks(check: check)
         if CommandLine.arguments.contains("--platform-settings-only") { print("PASS \(count) platform settings checks; isolated data, no live accounts"); return }
         try await runOnboardingChecks(check: check)

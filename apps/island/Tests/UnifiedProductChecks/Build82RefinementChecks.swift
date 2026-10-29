@@ -34,8 +34,8 @@ import NookApp
     overlay.tick(); overlay.tick()
     check(store.playback.accepted == 1 && store.playback.presented == 1, "long incoming message reaches desktop renderer")
     let card = overlay.flying.first!
-    check(card.card && card.pages.count > 1, "long message uses bounded paging")
-    check(card.pages.map(\.string).joined() == long.danmuText.trimmingCharacters(in: .whitespacesAndNewlines), "paging preserves every paragraph and character")
+    check(!card.card && card.motionPages.count > 1, "long message uses bounded moving segments")
+    check(card.motionPages.joined() == long.danmuText.trimmingCharacters(in: .whitespacesAndNewlines), "paging preserves every paragraph and character")
     check(!overlay.window.isVisible && overlay.window.ignoresMouseEvents && !overlay.window.isOpaque && !overlay.window.canBecomeKey, "synthetic desktop reader stays hidden and transparent")
     store.playback.clear()
 

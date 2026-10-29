@@ -92,18 +92,18 @@ final class UnifiedPlatformStore: ObservableObject {
         }
     }
 
-    func reportShortcutError() { error="快捷键\(hotkey.display)未能注册，可能已被其他应用占用。请更换组合键。" }
+    func reportShortcutError() { error="快捷键\(hotkey.display)未能注册，可能已被其他应用占用。请更换按键。" }
 
     static func validHotkey(_ value: NookHotkey) -> Bool {
         let modifiers = UInt32(controlKey | optionKey | cmdKey | shiftKey)
-        return value.keyCode < 128 && value.carbonModifiers & UInt32(controlKey | optionKey | cmdKey) != 0
+        return value.keyCode < 128 && !Set<UInt32>([53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]).contains(value.keyCode)
             && value.carbonModifiers & ~modifiers == 0 && !value.keySymbol.isEmpty && value.keySymbol.count <= 16
             && !value.keySymbol.unicodeScalars.contains { CharacterSet.controlCharacters.contains($0) }
     }
     @discardableResult func setHotkey(_ value: NookHotkey) -> Bool {
-        guard Self.validHotkey(value) else { error = "请使用包含⌘、⌥或⌃的组合键。"; return false }
+        guard Self.validHotkey(value) else { error = "请选择单键或组合键；Esc用于取消。"; return false }
         let previous = hotkey
-        guard registerHotkey?(value) != false else { error = "这个快捷键未能注册，已保留原设置。请换一个组合键。"; return false }
+        guard registerHotkey?(value) != false else { error = "这个快捷键未能注册，已保留原设置。请换一个按键。"; return false }
         var next = preferences; next.hotkey = value
         if persist(next) { return true }
         _ = registerHotkey?(previous)

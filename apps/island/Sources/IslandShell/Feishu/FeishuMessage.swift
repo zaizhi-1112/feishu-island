@@ -84,7 +84,7 @@ public struct FeishuCustomRules: Codable, Equatable, Sendable {
     }
 }
 
-public struct FeishuMessage: Identifiable, Equatable, Sendable {
+public struct FeishuMessage: Identifiable, Equatable, Sendable, Codable {
     public let id: String
     public let chatID: String
     public let chatName: String

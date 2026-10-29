@@ -62,7 +62,7 @@ func runExperienceChecks(check: (Bool, String) -> Void) async throws {
     platform.registerHotkey = { _ in true }
     check(platform.setHotkey(newKey), "available global shortcut is saved")
     check(UnifiedPlatformStore(root: platformRoot).hotkey == newKey, "custom global shortcut survives restart")
-    check(!platform.setHotkey(.init(keyCode: 40, carbonModifiers: 0, keySymbol: "K")), "unmodified key cannot capture normal typing")
+    check(platform.setHotkey(.init(keyCode: 40, carbonModifiers: 0, keySymbol: "K")), "user-selected single key is saved")
     check(FeishuEmptyStatePresentation(enabled: false, connecting: false, status: "旧状态", showAll: false).title == "接收已停止", "stopped receiving has one unambiguous state")
     check(FeishuEmptyStatePresentation(enabled: false, connecting: true, status: "接收已停止", showAll: false).title == "等待你完成飞书授权", "authorization progress takes priority over the stopped receiver")
     check(FeishuEmptyStatePresentation(enabled: true, connecting: false, status: "账号接收中 · 合成", showAll: false).title == "暂时没有重要消息", "healthy empty inbox is distinct from connection failures")

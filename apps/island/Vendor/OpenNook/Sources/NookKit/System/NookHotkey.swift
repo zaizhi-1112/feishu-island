@@ -53,7 +53,7 @@ extension NookHotkey {
     /// Builds a hotkey from a captured `keyDown` event. Returns `nil` if the combination
     /// isn't usable as a global hotkey - it must include at least one of ⌘/⌥/⌃ (a
     /// shift-only or modifier-less key makes a poor, conflict-prone global shortcut).
-    public init?(event: NSEvent) {
+    public init?(event: NSEvent, allowUnmodified: Bool = false) {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         var carbon: UInt32 = 0
         if flags.contains(.command) { carbon |= UInt32(cmdKey) }
@@ -62,7 +62,7 @@ extension NookHotkey {
         if flags.contains(.shift) { carbon |= UInt32(shiftKey) }
 
         let primaryModifiers = UInt32(cmdKey) | UInt32(optionKey) | UInt32(controlKey)
-        guard carbon & primaryModifiers != 0 else { return nil }
+        guard allowUnmodified || carbon & primaryModifiers != 0 else { return nil }
 
         let symbol = NookHotkey.keySymbol(for: event)
         guard !symbol.isEmpty else { return nil }
@@ -89,6 +89,7 @@ extension NookHotkey {
         49: "Space", 36: "↩", 48: "⇥", 51: "⌫", 117: "⌦",
         123: "←", 124: "→", 125: "↓", 126: "↑",
         122: "F1", 120: "F2", 99: "F3", 118: "F4", 96: "F5", 97: "F6",
+        105: "F13", 107: "F14", 113: "F15", 106: "F16", 64: "F17", 79: "F18", 80: "F19",
         98: "F7", 100: "F8", 101: "F9", 109: "F10", 103: "F11", 111: "F12",
     ]
 }

@@ -119,6 +119,7 @@ private struct UnifiedSettingsLayout:View {
                         .accessibilityIdentifier("unified.settings.\(section.rawValue)").accessibilityAddTraits(model.section==section ? .isSelected:[])
                 }
                 Spacer()
+                AppUpdateControls().foregroundStyle(theme.secondaryLabel)
                 Button { if let store = FeishuStore.active { IslandOnboardingWindow.shared.open(appState: appState, store: store) } } label: {
                     Label("重新体验引导", systemImage: "sparkles").font(.system(size: 12)).padding(10)
                 }.buttonStyle(.plain).foregroundStyle(theme.secondaryLabel)

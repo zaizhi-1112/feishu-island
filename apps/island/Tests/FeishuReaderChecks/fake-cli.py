@@ -48,6 +48,7 @@ if 'api' in args and '/open-apis/im/v1/messages' in args:
     for required in ['start_time','end_time','sort_type','with_sender_name']:
         if required not in params:state['bad'].append(required)
     if params.get('sort_type') != 'ByCreateTimeDesc':state['bad'].append('sort_type')
+    if params.get('card_msg_content_type') != 'user_card_content':state['bad'].append('original card content missing')
     state['read'].append(chat)
     key=chat+page;state['attempts'][key]=state['attempts'].get(key,0)+1
     if chat=='oc_1' and page=='next' and state['attempts'][key]==1:

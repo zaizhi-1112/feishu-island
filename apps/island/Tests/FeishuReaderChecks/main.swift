@@ -1,4 +1,5 @@
 import Foundation
+@testable import IslandShell
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let reader = AccountReader(cli: root.appendingPathComponent("Tests/FeishuReaderChecks/fake-cli.py"), profile: "synthetic-island", pollDelay: 0.01, pageDelay: 0, concurrency: 3, clock: ServerClock(probe: { .local() }))
 var received: [FeishuMessage] = []

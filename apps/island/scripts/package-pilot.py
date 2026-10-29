@@ -59,7 +59,14 @@ def install_layout(root, app_name):
     return metadata
 
 
+SPARKLE_FILES = json.loads((Path(__file__).resolve().parents[1] / "Vendor/Sparkle/runtime-files.json").read_text())
+
 def allowed(path):
+    if path.as_posix() == "Contents/Resources/Sparkle-LICENSE":
+        return True
+    if path.parts[:3] == ("Contents", "Frameworks", "Sparkle.framework"):
+        return "/".join(path.parts[3:]) in SPARKLE_FILES
+
     parts = path.parts
     name = path.as_posix()
     if any(p.startswith('.') for p in parts):
@@ -93,8 +100,15 @@ def inspect(app):
     entries = []
     for item in sorted(app.rglob('*')):
         relative = item.relative_to(app)
+        framework = relative.parts[:3] == ('Contents', 'Frameworks', 'Sparkle.framework')
+        expected = SPARKLE_FILES.get('/'.join(relative.parts[3:])) if framework else None
         if item.is_symlink():
-            raise ValueError('Application symlinks are not permitted')
+            if not expected or expected.get('link') != str(item.readlink()) or not item.resolve().is_relative_to((app/'Contents/Frameworks/Sparkle.framework').resolve()):
+                raise ValueError('Unexpected application symlinks')
+            entries.append({'path': relative.as_posix(), 'symlink': str(item.readlink())})
+            continue
+        if framework and item.is_file() and (not expected or expected.get('sha256') != hashlib.sha256(item.read_bytes()).hexdigest()):
+            raise ValueError('Sparkle framework differs from the pinned official runtime')
         if item.is_dir():
             continue
         if not item.is_file() or not allowed(relative):
@@ -112,6 +126,12 @@ def inspect(app):
         raise ValueError('Required runtime helpers or resources are missing')
     with (app / 'Contents/Info.plist').open('rb') as f:
         info = plistlib.load(f)
+    if info.get('SUFeedURL'):
+        expected_paths = {'Contents/Frameworks/Sparkle.framework/' + x for x in SPARKLE_FILES}
+        if not expected_paths.issubset({e['path'] for e in entries}):
+            raise ValueError('Sparkle runtime is incomplete')
+        if info.get('SUFeedURL') != 'https://github.com/zaizhi-1112/feishu-island/releases/latest/download/appcast.xml' or info.get('SUPublicEDKey') != 'Ie5jh8XLKtdMSEBPc3rgUcxuIaj0EJouUgfKe0n47AM=':
+            raise ValueError('Update feed or public signing key differs from the release contract')
     if info.get('CFBundleIdentifier') != 'local.zaizhi.feishu-island.preview':
         raise ValueError('Unexpected application identity')
     return info, entries
@@ -119,7 +139,7 @@ def inspect(app):
 
 def verify_runtime(app):
     """Read-only verification; preserve the app and every helper's signing bytes."""
-    subprocess.run(['codesign', '--verify', '--strict', str(app)], check=True, capture_output=True)
+    subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True, capture_output=True)
     architectures = set(subprocess.check_output(['lipo', '-archs', str(app/'Contents/MacOS/YuIsland')], text=True).split())
     for name in sorted(HELPERS):
         subprocess.run(['codesign', '--verify', '--strict', str(app/'Contents/Helpers'/name)], check=True, capture_output=True)

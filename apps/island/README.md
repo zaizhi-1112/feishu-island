@@ -1,4 +1,4 @@
-# 一切在岛 0.11.2 build91
+# 一切在岛 0.12.0 build93
 
 macOS桌面APP：飞书消息、Agent状态、待办与提醒、中台入口和原生设置。当前只使用悬浮模式。
 
@@ -17,7 +17,7 @@ export ISLAND_LARK_CLI="/absolute/path/to/official/lark-cli"
 bash scripts/build.sh
 ```
 
-输出为`dist/一切在岛.app`。Vendor包含所需Swift依赖与第三方许可证，构建不依赖弹幕子项目、网页服务或个人文件。安装包适用于Apple芯片Mac，尚未做Apple公证；每位使用者需要自己的账号授权。
+输出为`dist/一切在岛.app`。Vendor包含OpenNook依赖与第三方许可，Sparkle 2.10.1由锁定版本与校验值的SwiftPM下载，构建不依赖弹幕子项目、网页服务或个人文件。安装包适用于Apple芯片Mac，尚未做Apple公证；每位使用者需要自己的账号授权。
 
 ## 检查与打包
 
@@ -57,3 +57,21 @@ build89 将默认冲屏素材换为用户提供的透明「猫咪走动」，新
 build90 将内置视频副本压缩至中台50 MB发布限制以内，保留完整时长与透明通道；原始素材不改动。下载打包增加体积预检，避免上传后才失败。
 
 build91 修复设置侧栏的残留蓝色焦点框，保留键盘整行焦点提示。中台岛内卡片按实际控件宽度排列，短项并排、长项独行，保持选择与显示顺序。布局与原生截图检查：`UnifiedProductChecks --skin-preview --platform-settings-only --render-platform-settings /absolute/output`。
+
+## GitHub 应用内更新
+
+安装包内置 Sparkle 2.10.1，默认每 4 小时检查 GitHub Release；用户点击后才下载、安装、重启。更新包和更新说明均验证 Ed25519 签名。密钥只存在发布者 Mac 的钥匙串 `feishu-island-release`；不要导出或上传。build91 及以前需要先手动安装一次新版本。
+
+上传源码不会产生可安装更新。每次完成检查、提高 Info.plist 的 build 号后，先打包，再用正式脚本准备和发布。必须保留现有公钥，并把签名 feed 和 DMG 放入同一个非预览 Release；发布过程先上传草稿的全部资源，再将该版本设为 latest。
+
+```sh
+python3 scripts/release-github-update.py --manifest /path/to/package-manifest.json --output /new/local/release-folder
+# 下列命令仅在本次版本已获发布授权、源码已提交且工作区干净时执行。
+python3 scripts/release-github-update.py --prepared /new/local/release-folder/prepared.json --publish
+```
+
+固定 feed：https://github.com/zaizhi-1112/feishu-island/releases/latest/download/appcast.xml 。GitHub 的开发分支同步与 main 合并仍是不同操作。本脚本不合并 main，也不修改公司网站。
+
+## 消息保留
+
+默认 7 天，可选 1/3/7/14/30 天或仅本次使用，默认每天 03:00 清理过期内容；启动时补做过期清理。私有目录 `~/Library/Application Support/FeishuIsland/MessageHistory` 按验证后的账号 hash 隔离，目录 0700、文件 0600。只保留本人消息、阅读状态、待播集合与会话读取进度，不存凭据，不写正文日志、不上传。首次升级补读最近 24 小时仍未读的消息，无法恢复旧版已丢失且已读的历史。原有免打扰、提醒和飞书只读边界继续生效。

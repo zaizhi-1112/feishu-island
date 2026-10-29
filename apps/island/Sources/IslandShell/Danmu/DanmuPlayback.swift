@@ -21,6 +21,8 @@ public final class DanmuPlayback {
     private var observers: [NSObjectProtocol] = []
     var options = DanmuOptions()
     var appearance = AppearanceMCP.defaults
+    var onFinished: ((String) -> Void)?
+    var onOpenConversation: ((String) -> Void)?
     var checkUnread: ((String, @escaping (Bool?) -> Void) -> Void)?
     public init(headless: Bool = true) {
         self.headless = headless
@@ -53,10 +55,12 @@ public final class DanmuPlayback {
         case "light": overlay.skinBackground = color("background") ?? NSColor.white.withAlphaComponent(0.94); overlay.skinForeground = color("foreground") ?? NSColor(srgbRed: 0.1, green: 0.12, blue: 0.15, alpha: 1)
         default: break
         }
-        // Short text moves across the desktop. Long/multiline text uses the
-        // existing paged reader; never silently discard it at an arbitrary length.
+        // Every length uses moving, bounded multiline segments. No message blocks the desktop queue.
         overlay.preferStatic = false
-        overlay.allowsCards = true
+        overlay.allowsCards = false
+        overlay.multilineMotion = true
+        overlay.onFinished = { [weak self] id in self?.onFinished?(id) }
+        overlay.onOpenConversation = { [weak self] id in self?.onOpenConversation?(id) }
         overlay.backdrop = bubble != "none" && appearance["backgroundEnabled"] as? Bool != false
         if bubble == "none" || appearance["borderEnabled"] as? Bool == false { overlay.skinBorder = nil }
     }
@@ -111,7 +115,7 @@ public final class DanmuPlayback {
         accepted += 1; agentAccepted += 1
         return true
     }
-    func clear() { overlay?.clear() }
+    func clear() { overlay?.clear(); seen.removeAll(); order.removeAll() }
     func suspend(_ value: Bool) { suspended = value; if value { clear(); overlay?.window.orderOut(nil) }; overlay?.paused = value || options.paused; if !value, !headless, options.enabled { overlay?.window.orderFrontRegardless() } }
     func resetAccount() { clear(); seen.removeAll(); order.removeAll(); accepted = 0; presented = 0; skippedRead = 0; unreadRetries = 0 }
     public var queued: Int { overlay?.queue.count ?? 0 }

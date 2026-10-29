@@ -9,6 +9,8 @@ struct DanmuMessage {
     var enqueuedUptime: TimeInterval = ProcessInfo.processInfo.systemUptime
     var identity = UUID()
     var messageID: String? = nil
+    var segment = 0
+    var segments: [String] = []
 }
 
 // No message is persisted. Dedupe by notification element identity, not body:
