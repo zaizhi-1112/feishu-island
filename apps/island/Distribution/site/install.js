@@ -173,6 +173,7 @@
   $('#autoplay-toggle').addEventListener('click',()=>{
     carouselEnabled=!carouselEnabled;
     $('#autoplay-toggle').textContent=carouselEnabled?'暂停轮播':'继续轮播';
+    document.dispatchEvent(new CustomEvent('island:motion',{detail:{paused:!carouselEnabled}}));
     if(carouselEnabled){lastInteraction=-idleDelay;openIsland();desktop.dataset.autoplay='playing';}
     scheduleCarousel();
   });

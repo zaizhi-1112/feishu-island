@@ -10,9 +10,11 @@
   <link rel="stylesheet" href="virxact-ui.css">
   <link rel="stylesheet" href="landing.css">
   <script src="vx.js" defer></script>
+  <script src="brand-particles.js" defer></script>
   <script src="install.js" defer></script>
 </head>
 <body>
+<canvas id="brand-particles" aria-hidden="true"></canvas>
 <header class="site-nav">
   <a class="brand" href="./"><img src="icon.png" width="40" height="40" alt=""><span>一切在岛</span></a>
   <nav aria-label="主导航"><button id="open-feedback" type="button" aria-haspopup="dialog" aria-controls="feedback-dialog">反馈</button></nav>
@@ -23,7 +25,7 @@
     <p class="hero-copy">你的 Mac 顶部工作台。<br class="mobile-break">飞书消息、Agent 状态、待办和中台，抬眼就能看到。</p>
     <div class="download-actions" id="install">
       <a class="download-button" id="download" href="feishu-island-0.11.1-build90-arm64.dmg" download><svg class="vx-icon" data-icon="download" aria-hidden="true"></svg>下载 Mac 版</a>
-      <p class="download-alternative"><a href="https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.11.1-build90" target="_blank" rel="noopener">GitHub 备用下载（需仓库权限）</a></p>
+      <p class="download-alternative"><a href="https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.11.1-build90" target="_blank" rel="noopener">GitHub 下载 ↗</a></p>
       <p id="download-feedback" class="download-feedback" role="status" hidden>打开 DMG，将“一切在岛”拖入应用程序。<a href="start.html">查看安装帮助</a></p>
     </div>
   </section>

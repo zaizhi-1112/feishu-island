@@ -10,7 +10,7 @@ import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = {'index.html', 'install.js', 'install.css', 'landing.css', 'agent-guide.html',
-          'icon.png', 'mascot.png', 'virxact-ui.css', 'virxact-story.css', 'vx.js',
+          'icon.png', 'mascot.png', 'brand-particles.js', 'virxact-mark.svg', 'virxact-ui.css', 'virxact-story.css', 'vx.js',
           'native-agent-codex.png', 'native-agent-workbuddy.png', 'native-agent-deepseek.png', }
 MAX_DMG_BYTES = 48_000_000  # Reserve room within the backend's 50 MB upload limit.
 SERVICE = {'server.cjs', 'core.cjs', 'desktop.cjs', 'package.json', 'package-lock.json', 'virxact.json'}
@@ -73,7 +73,7 @@ def web_guide(source):
     return html, css, js
 
 
-def stage(package, output, manifest_path=None):
+def stage(package, output, manifest_path=None, web_only=False):
     manifest = json.loads((manifest_path or package.parent/'package-manifest.json').read_text())
     name, digest, aliases = validate(package, manifest)
     output.mkdir(parents=True, exist_ok=False)
@@ -87,7 +87,19 @@ def stage(package, output, manifest_path=None):
     html, css, js = web_guide((ROOT/'Distribution/开始使用.html').read_text())
     for filename, text in [('start.html', html), ('start.css', css), ('start.js', js)]:
         (public/filename).write_text(text)
-    copy_regular(package, public/name)
+    if web_only:
+        # The already released installer remains on GitHub while the website
+        # can ship independently of the next native package.
+        page = (public/'index.html').read_text()
+        match = re.search(r'class="download-alternative"><a href="(https://github\.com/[\w.-]+/[\w.-]+/releases/tag/[\w.-]+)"', page)
+        if not match or page.count(f'href="{name}" download') != 1:
+            raise ValueError('Expected one current download and a fixed GitHub release page')
+        release_url = match.group(1)
+        page = page.replace(f'href="{name}" download', f'href="{release_url}" target="_blank" rel="noopener"')
+        (public/'index.html').write_text(page)
+        (public/'download-fallback.json').write_text(json.dumps({'package': name, 'url': release_url}, indent=2)+'\n')
+    else:
+        copy_regular(package, public/name)
     (public/'download-aliases.json').write_text(json.dumps(aliases, indent=2)+'\n')
     (public/'SHA256SUMS').write_text(digest+'  '+name+'\n')
     return output
@@ -98,5 +110,6 @@ if __name__ == '__main__':
     parser.add_argument('package', type=Path)
     parser.add_argument('output', type=Path)
     parser.add_argument('--manifest', type=Path)
+    parser.add_argument('--web-only', action='store_true', help='Publish only the website; use the existing GitHub release for downloads')
     args = parser.parse_args()
-    print(stage(args.package, args.output, args.manifest))
+    print(stage(args.package, args.output, args.manifest, args.web_only))

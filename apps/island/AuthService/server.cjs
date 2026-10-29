@@ -3,9 +3,17 @@ const http=require('node:http'),fs=require('node:fs/promises'),path=require('nod
 const {constants:fsConstants}=require('node:fs');
 const {Vault,Broker,AuthError}=require('./core.cjs');
 const {DesktopAccess}=require('./desktop.cjs');
-const PUBLIC_ASSETS=new Set(['index.html','start.html','start.css','start.js','connect.html','connect.js','desktop.html','desktop.js','desktop.css','install.css','install.js','landing.css','demo-feishu-compact.png','demo-feishu-expanded.png','demo-agent-idle.png','demo-agent-working.png','demo-agent-waiting.png','demo-agent-completed.png','demo-materials.png','demo-result.png','agent-guide.html','agent-guide.js','icon.png','mascot.png','icon.svg','virxact-ui.css','virxact-story.css','vx.js','SHA256SUMS','native-agent-codex.png', 'native-agent-workbuddy.png', 'native-agent-deepseek.png', ]);
+const PUBLIC_ASSETS=new Set(['index.html','start.html','start.css','start.js','connect.html','connect.js','desktop.html','desktop.js','desktop.css','install.css','install.js','landing.css','brand-particles.js','virxact-mark.svg','demo-feishu-compact.png','demo-feishu-expanded.png','demo-agent-idle.png','demo-agent-working.png','demo-agent-waiting.png','demo-agent-completed.png','demo-materials.png','demo-result.png','agent-guide.html','agent-guide.js','icon.png','mascot.png','icon.svg','virxact-ui.css','virxact-story.css','vx.js','SHA256SUMS','native-agent-codex.png', 'native-agent-workbuddy.png', 'native-agent-deepseek.png', ]);
 const PACKAGE_NAME=/^feishu-island-\d+\.\d+\.\d+-build\d+-arm64(?:-pilot)?\.(?:zip|dmg)$/;
 const STATIC_TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.jpg':'image/jpeg','.png':'image/png','.svg':'image/svg+xml','.zip':'application/zip','.dmg':'application/x-apple-diskimage'};
+async function externalDownload(root,name,alias){
+ try{
+  const fallback=JSON.parse(await fs.readFile(path.join(root,'download-fallback.json'),'utf8'));
+  if(!PACKAGE_NAME.test(fallback.package)||![name,alias].includes(fallback.package))return null;
+  // A build-generated GitHub release page, never a request-supplied redirect.
+  return typeof fallback.url==='string'&&/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/releases\/tag\/[\w.-]+$/.test(fallback.url)?fallback.url:null;
+ }catch{return null;}
+}
 function downloadRange(value,size){
  const match=/^bytes=(\d*)-(\d*)$/.exec(value.trim());
  if(!match||(!match[1]&&!match[2])||size===0)return null;
@@ -47,17 +55,25 @@ function createServer({broker,origin='https://feishu-island.virxact.net',root=pa
    let file,stat,previousRelease=false;
    try{file=await fs.open(path.join(root,name),fsConstants.O_RDONLY|fsConstants.O_NOFOLLOW);stat=await file.stat();}
    catch(error){
-    if(file)await file.close();
+    if(file){await file.close();file=undefined;}
     // A long-lived Feishu tab may still request an earlier published filename.
     // Only build-generated, same-origin aliases may resolve a missing package.
     let target;
     if(download&&error.code==='ENOENT'){
      try{target=JSON.parse(await fs.readFile(path.join(root,'download-aliases.json'),'utf8'))[name];}catch{}
     }
-    if(typeof target!=='string'||target===name||!PACKAGE_NAME.test(target))throw new AuthError(404,'页面不存在');
-    try{file=await fs.open(path.join(root,target),fsConstants.O_RDONLY|fsConstants.O_NOFOLLOW);stat=await file.stat();}
-    catch{if(file)await file.close();throw new AuthError(404,'页面不存在');}
-    name=target;previousRelease=true;
+    if(typeof target==='string'&&target!==name&&PACKAGE_NAME.test(target)){
+     try{file=await fs.open(path.join(root,target),fsConstants.O_RDONLY|fsConstants.O_NOFOLLOW);stat=await file.stat();}
+     catch{if(file)await file.close();file=undefined;}
+     if(file){name=target;previousRelease=true;}
+    }
+    if(!file){
+     const fallback=download&&error.code==='ENOENT'?await externalDownload(root,name,target):null;
+     if(!fallback)throw new AuthError(404,'页面不存在');
+     // A cached partial installer must never be appended to a redirected page.
+     if(req.headers.range)throw new AuthError(409,'下载入口已更新，请回到网页重新下载完整安装包');
+     res.writeHead(303,{'Location':fallback,'Content-Length':0,'Accept-Ranges':'none'});return res.end();
+    }
    }
    if(!stat.isFile()||!Number.isSafeInteger(stat.size)){await file.close();throw new AuthError(404,'页面不存在');}
    const response={'Content-Type':STATIC_TYPES[path.extname(name)]||'text/plain; charset=utf-8','Content-Length':stat.size};

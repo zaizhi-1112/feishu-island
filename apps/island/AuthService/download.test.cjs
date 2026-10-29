@@ -6,9 +6,9 @@ const {createServer}=require('./server.cjs');
 const name='feishu-island-0.7.0-build29-arm64.dmg';
 const bytes=Buffer.from('abcdefghijklmnopqrstuvwxyz');
 const owner={'X-Auth-User-Id':'synthetic-owner'};
-async function fixture(t){
+async function fixture(t,{includePackage=true}={}){
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'island-download-test-'));
- await fs.writeFile(path.join(root,name),bytes);
+ if(includePackage)await fs.writeFile(path.join(root,name),bytes);
  await fs.writeFile(path.join(root,'index.html'),'<p>synthetic index</p>');
  await fs.writeFile(path.join(root,'SHA256SUMS'),'synthetic-checksum');
  const server=createServer({broker:{},root});
@@ -159,5 +159,45 @@ test('product portraits stay public to company users while removed previews are 
  }
  for(const removed of ['native-messages.jpg','native-guide-1.jpg','native-private.jpg','native-preview-manifest.json','../../workspace.json']){
   assert.equal((await raw(base,'/'+removed)).status,404);
+ }
+});
+
+test('web-only releases keep named download entrances connected to the configured GitHub release',async t=>{
+ const {root,base}=await fixture(t,{includePackage:false});
+ const old='feishu-island-0.7.0-build28-arm64.dmg';
+ const url='https://github.com/synthetic-owner/island-downloads/releases/tag/v0.7.0-build29';
+ await fs.writeFile(path.join(root,'download-aliases.json'),JSON.stringify({[old]:name}));
+ await fs.writeFile(path.join(root,'download-fallback.json'),JSON.stringify({package:name,url}));
+ for(const file of [name,old])for(const method of ['GET','HEAD']){
+  const response=await fetch(base+'/'+file,{method,headers:owner,redirect:'manual'});
+  assert.equal(response.status,303);assert.equal(response.headers.get('location'),url);
+  assert.equal((await response.arrayBuffer()).byteLength,0);
+ }
+ assert.equal((await fetch(base+'/'+name,{redirect:'manual'})).status,401);
+ assert.equal((await fetch(base+'/download-fallback.json',{headers:owner})).status,404);
+ assert.equal((await fetch(base+'/feishu-island-0.7.0-build999-arm64.dmg',{headers:owner,redirect:'manual'})).status,404);
+ const partial=await fetch(base+'/'+old,{headers:{...owner,Range:'bytes=10-'},redirect:'manual'});
+ assert.equal(partial.status,409);assert.equal(partial.headers.get('location'),null);
+});
+
+test('download fallbacks reject arbitrary hosts, credentials, query targets and mismatched packages',async t=>{
+ const {root,base}=await fixture(t,{includePackage:false});
+ for(const url of ['https://example.com/package','https://github.com@evil.example/releases/tag/v1','http://github.com/owner/repo/releases/tag/v1','https://github.com/owner/repo/releases/tag/v1?next=bad']){
+  await fs.writeFile(path.join(root,'download-fallback.json'),JSON.stringify({package:name,url}));
+  assert.equal((await fetch(base+'/'+name,{headers:owner,redirect:'manual'})).status,404);
+ }
+ await fs.writeFile(path.join(root,'download-fallback.json'),JSON.stringify({package:'feishu-island-0.7.0-build999-arm64.dmg',url:'https://github.com/owner/repo/releases/tag/v1'}));
+ assert.equal((await fetch(base+'/'+name,{headers:owner,redirect:'manual'})).status,404);
+});
+
+test('brand motion resources use the same company gate and exact bundled bytes',async t=>{
+ const root=process.env.ISLAND_DOWNLOAD_SITE||path.join(__dirname,'../Distribution/site');
+ const server=createServer({broker:{},root});await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>server.close());
+ const base='http://127.0.0.1:'+server.address().port;
+ for(const [file,type] of [['brand-particles.js','application/javascript; charset=utf-8'],['virxact-mark.svg','image/svg+xml']]){
+  assert.equal((await fetch(base+'/'+file)).status,401);
+  const response=await fetch(base+'/'+file,{headers:owner});assert.equal(response.status,200);
+  assert.equal(response.headers.get('content-type'),type);
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()),await fs.readFile(path.join(__dirname,'../Distribution/site',file)));
  }
 });
