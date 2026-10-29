@@ -4,7 +4,7 @@
 
 把飞书消息、Agent 状态、待办日程和虚实中台放进 Mac 顶部的灵动岛。
 
-**当前版本：0.12.2 · build96（2026-10-29）** · Apple 芯片 Mac · macOS 15 或更高版本
+**当前版本：0.12.3 · build97（2026-10-29）** · Apple 芯片 Mac · macOS 15 或更高版本
 
 [下载最新版本](https://github.com/zaizhi-1112/feishu-island/releases/latest) · [产品网页](https://feishu-island.virxact.net) · [反馈问题](https://github.com/zaizhi-1112/feishu-island/issues)
 
@@ -32,7 +32,7 @@ build94 支持应用内检查更新。发布新的安装包到 GitHub Release �
 
 快捷轮盘支持组合键和单键。轻按后可以滑出目标方向、点击选择；也可以按住快捷键选择方向，再松键打开。方向和入口可在设置中拖动配置。
 
-## build96 更新与验证
+## build97 更新与验证
 
 - 打开安装盘中的 App 后可一键安装并进入七步引导；未完成引导时，消息和提示不能提前唤出岛。
 - Agent 只在本人点击连接后读取；跳过后保持未连接。快捷键通过「自定义快捷键」录制。

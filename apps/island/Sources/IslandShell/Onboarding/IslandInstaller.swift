@@ -11,7 +11,11 @@ import AppKit
         guard isInstallSource(source), source.pathExtension == "app",
               Bundle.main.bundleIdentifier == "local.zaizhi.feishu-island.preview" else { return false }
         let app = NSApplication.shared
-        app.setActivationPolicy(.regular); app.activate(ignoringOtherApps: true)
+        app.setActivationPolicy(.regular)
+        // This entry runs before NookApp.main. Complete AppKit launch before its
+        // modal installer so accessibility and normal activation are available.
+        app.finishLaunching()
+        app.activate(ignoringOtherApps: true)
         let destination = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications/一切在岛.app")
         let alert = NSAlert()
         alert.messageText = "安装一切在岛"
