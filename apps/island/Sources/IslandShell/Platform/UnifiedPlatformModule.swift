@@ -96,19 +96,9 @@ struct UnifiedPlatformSettings: View {
                         Text(workspace.hub.connected ? "还没有可展示的卡片，可以在“连接与状态”刷新。" : "先在“连接与状态”连接自己的中台。")
                             .font(.system(size: 13)).foregroundStyle(theme.secondaryLabel).padding(.vertical, 12)
                     }
-                    ForEach(orderedCards) { card in
-                        HStack(spacing: 10) {
-                            Toggle(card.title, isOn: Binding(get: { workspace.disk.selectedCards.contains(card.id) }, set: { selected in
-                                if selected != workspace.disk.selectedCards.contains(card.id) { workspace.toggleCard(card.id) }
-                            }))
-                            if let index = workspace.disk.selectedCards.firstIndex(of: card.id) {
-                                Button { workspace.moveCard(card.id, direction: -1) } label: { Image(systemName: "arrow.up") }
-                                    .disabled(index == 0).accessibilityLabel("上移：" + card.title)
-                                Button { workspace.moveCard(card.id, direction: 1) } label: { Image(systemName: "arrow.down") }
-                                    .disabled(index == workspace.disk.selectedCards.count - 1).accessibilityLabel("下移：" + card.title)
-                            }
-                        }.buttonStyle(.plain).padding(.vertical, 6)
-                    }
+                    HubCardOptionsLayout {
+                        ForEach(orderedCards) { card in cardOption(card) }
+                    }.accessibilityIdentifier("platform.cards.options")
                 }
             } else if tab == "shortcuts" {
                 HubShortcutSettings(workspace: workspace, launcher: launcher)
@@ -132,5 +122,23 @@ struct UnifiedPlatformSettings: View {
             }
             if !launcher.error.isEmpty { Text(launcher.error).font(.system(size: 12)).foregroundStyle(theme.warning).fixedSize(horizontal: false, vertical: true) }
         }.foregroundStyle(theme.primaryLabel).accessibilityIdentifier("island.platform.settings")
+    }
+    private func cardOption(_ card: HubCard) -> some View {
+        HStack(spacing: 8) {
+            Toggle(isOn: Binding(get: { workspace.disk.selectedCards.contains(card.id) }, set: { selected in
+                if selected != workspace.disk.selectedCards.contains(card.id) { workspace.toggleCard(card.id) }
+            })) {
+                Text(card.title).fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }.toggleStyle(.switch).accessibilityIdentifier("platform.card.\(card.id)")
+            if let index = workspace.disk.selectedCards.firstIndex(of: card.id) {
+                HStack(spacing: 0) {
+                    Button { workspace.moveCard(card.id, direction: -1) } label: { Image(systemName: "arrow.up").frame(width: 24, height: 28) }
+                        .disabled(index == 0).accessibilityLabel("上移：" + card.title)
+                    Button { workspace.moveCard(card.id, direction: 1) } label: { Image(systemName: "arrow.down").frame(width: 24, height: 28) }
+                        .disabled(index == workspace.disk.selectedCards.count - 1).accessibilityLabel("下移：" + card.title)
+                }
+            }
+        }.buttonStyle(.plain).frame(minHeight: 40)
     }
 }

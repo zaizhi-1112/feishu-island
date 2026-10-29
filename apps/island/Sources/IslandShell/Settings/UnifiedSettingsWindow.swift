@@ -5,8 +5,17 @@ import SwiftUI
 /// A utility panel can take text input without activating the app and jumping
 /// back to the Space that previously owned its settings window.
 private final class IslandSettingsPanel: NSPanel {
+    var inputMethodChanged: ((Bool) -> Void)?
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown, event.keyCode == 48 {
+            inputMethodChanged?(true)
+        } else if event.type == .leftMouseDown || event.type == .rightMouseDown {
+            inputMethodChanged?(false)
+        }
+        super.sendEvent(event)
+    }
 }
 
 /// Native settings, adapted from 佑哥 0.9.2. One owner, one window, five destinations.
@@ -19,6 +28,7 @@ private final class IslandSettingsPanel: NSPanel {
     }
     func open(section: UnifiedSettingsSection = .messages) {
         model.section = section
+        model.keyboardNavigation = false
         if window == nil {
             let next = IslandSettingsPanel(contentRect: NSRect(x:0,y:0,width:1020,height:760), styleMask:[.titled,.closable,.miniaturizable,.resizable,.nonactivatingPanel], backing:.buffered,defer:false)
             next.title = "一切在岛 · 设置"; next.identifier = .init("feibao.settings")
@@ -27,6 +37,7 @@ private final class IslandSettingsPanel: NSPanel {
             next.hidesOnDeactivate = false
             next.minSize = NSSize(width:840,height:620); next.isReleasedWhenClosed = false
             next.delegate = self; next.setFrameAutosaveName("FeibaoUnifiedSettings")
+            next.inputMethodChanged = { [weak model] in model?.keyboardNavigation = $0 }
             next.contentView = NSHostingView(rootView: UnifiedSettingsRoot(model:model))
             next.center(); window = next
         }
@@ -64,6 +75,7 @@ enum UnifiedSettingsSection: String, CaseIterable, Identifiable {
     @Published var section:UnifiedSettingsSection = .messages
     @Published var appState:AppState?
     @Published var visible = false
+    @Published var keyboardNavigation = false
 }
 struct UnifiedSettingsRoot:View {
     @ObservedObject var model:UnifiedSettingsModel
@@ -80,6 +92,7 @@ private struct UnifiedSettingsLayout:View {
     @ObservedObject var appState:AppState
     @ObservedObject var agents:AgentStore
     @State private var appearancePage = "skins"
+    @FocusState private var focusedSection: UnifiedSettingsSection?
     private var dark:Bool { appState.appearancePreferences.effectiveColorScheme(systemScheme: NSApp.effectiveAppearance.bestMatch(from:[.darkAqua,.aqua]) == .darkAqua ? .dark:.light) == .dark }
     private var theme:NookResolvedTheme { NookResolvedTheme.resolve(theme:agents.selectedSkin.theme,preferences:appState.appearancePreferences,effectiveColorScheme:dark ? .dark:.light,reduceTransparency:NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency) }
     var body:some View {
@@ -94,7 +107,15 @@ private struct UnifiedSettingsLayout:View {
                         Label(section.title,systemImage:section.symbol).font(.system(size:14,weight:model.section==section ? .semibold:.regular))
                             .frame(maxWidth:.infinity,alignment:.leading).padding(.horizontal,12).padding(.vertical,13)
                             .background(model.section==section ? theme.accent.opacity(0.13):.clear,in:RoundedRectangle(cornerRadius:10))
+                            .contentShape(RoundedRectangle(cornerRadius:10))
+                            .overlay {
+                                RoundedRectangle(cornerRadius:10)
+                                    .strokeBorder(model.keyboardNavigation && focusedSection == section ? theme.accent : .clear, lineWidth:2)
+                            }
                     }.buttonStyle(.plain).foregroundStyle(model.section==section ? theme.accent:theme.secondaryLabel)
+                        // AppKit otherwise leaves its label-sized ring on the first
+                        // button after pointer navigation. Keep a full-row keyboard cue.
+                        .focused($focusedSection, equals: section).focusEffectDisabled()
                         .accessibilityIdentifier("unified.settings.\(section.rawValue)").accessibilityAddTraits(model.section==section ? .isSelected:[])
                 }
                 Spacer()
