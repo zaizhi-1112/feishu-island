@@ -3,6 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 case "${1:-web}" in
  web) npm test --prefix "$ROOT/apps/danmu/Web"; npm test --prefix "$ROOT/apps/danmu/Desktop" ;;
+ windows) npm test --prefix "$ROOT/apps/windows" ;;
  island|island-reader)
   # Prefer the SDK selected by this developer, never another person's machine path.
   export ISLAND_SDK="${ISLAND_SDK:-$(xcrun --sdk macosx --show-sdk-path)}"

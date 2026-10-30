@@ -1,0 +1,13 @@
+一切在岛 Windows 版 · 内置冲屏素材
+
+来源与权利说明同 apps/island/Resources/ScreenReminder/SOURCE.txt（build107）。
+Windows 版无法播放 Mac 的 HEVC Alpha，故由 scripts/convert-reminders.swift 在 macOS 上用 AVFoundation 逐帧解出透明画面，
+再用 ffmpeg 编码为 VP9 Alpha WebM（yuva420p，CRF 34，音轨 Opus 96k）。原 .mov 文件不变。
+- cat-walk.webm ← cat-walk.mov
+- rick-portal.webm ← rick-portal.mov
+- gemini-greeting.webm ← 杰哥提醒.mov（沿用 gemini-greeting 素材 ID）
+- what-a-day.mp4：原文件直接复制，不抠像。
+1c055bbf92df0354065d584b1fbdf144fd609e2532046be862c07f0350c9f0aa  cat-walk.webm
+069d9b825268d415ddfba29eecb213cf03c2287cf525db09a617f419e39c51c8  gemini-greeting.webm
+94e731bf0b91b2ba699e84c8645513bec02bee70be0949793b38d1fa802d3ccd  rick-portal.webm
+afb8949535823a883d667e1733d51878f5b3b99f3ba5ebf59a1b866f491d9d1c  what-a-day.mp4

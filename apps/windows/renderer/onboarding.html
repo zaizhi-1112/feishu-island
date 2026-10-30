@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self' file:">
+<title>欢迎使用一切在岛</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="onboarding.css">
+</head>
+<body>
+<ol id="steps"></ol>
+<h1 id="title"></h1>
+<p id="detail"></p>
+<div id="stage">
+  <div id="preview"></div>
+  <div id="choices"></div>
+</div>
+<footer>
+  <div id="feedback">选中即保存 · 之后可在设置里调整</div>
+  <div class="bar">
+    <button id="later" class="btn link">以后再设置</button>
+    <span class="space"></span>
+    <button id="prev" class="btn">上一步</button>
+    <button id="next" class="btn solid">下一步</button>
+  </div>
+</footer>
+<script src="lib.js"></script>
+<script src="onboarding.js"></script>
+</body>
+</html>
