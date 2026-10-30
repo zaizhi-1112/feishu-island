@@ -85,6 +85,7 @@ bash scripts/check.sh island
 
 ## 感谢与借鉴
 
+- **[Cat Gatekeeper · zokuzoku](https://github.com/zokuzoku/cat-gatekeeper)**：冲屏与休息提醒的灵感来源。原项目在使用选定网站过久时显示猫咪休息画面；一切在岛借鉴这种直观的提醒方式，将其用于桌面上的休息、待办到期和Agent完成提示。这是交互灵感致谢，不表示原作者参与开发；原项目的猫咪视频、图标等视觉素材不属于其MIT代码授权，见[素材许可声明](https://github.com/zokuzoku/cat-gatekeeper/blob/main/ASSETS_LICENSE.md)。
 - **[LOLPingYourAI · ChristianYang37](https://github.com/ChristianYang37/LOLPingYourAI)**：借鉴并移植八方向信号轮盘的角度判定、中心取消区及相关图标和音效，用于一切在岛的快捷轮盘。Mac端适配为SwiftUI实现，未接入原项目的AI代理、录屏或远程控制能力。具体移植范围见[平台来源记录](apps/island/Sources/IslandShell/Platform/SOURCE.md)。
 - **[lolPing · darrenprx](https://github.com/darrenprx/lolPing)**：LOLPingYourAI轮盘代码及部分资源的上游来源。代码许可与原版权声明继续保留，游戏图像和音效归Riot Games，不按本项目MIT许可证重新授权。
 
