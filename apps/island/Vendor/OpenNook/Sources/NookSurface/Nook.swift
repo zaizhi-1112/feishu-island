@@ -52,8 +52,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// `true` while the chrome has a live `NSWindow` mounted. The narrow public
     /// surface area for observing window presence - replaces the previous
     /// `windowController != nil` pattern hosts had to write.
-    /// Only an explicitly pinned expanded island stays above other applications.
-    public var keepsExpandedWindowAboveApplications = false {
+    /// Expanded chrome stays above applications independently of hover-exit locking.
+    public var keepsExpandedWindowAboveApplications = true {
         didSet { updateWindowLevel() }
     }
     public var hasLiveWindow: Bool { windowController?.window != nil }

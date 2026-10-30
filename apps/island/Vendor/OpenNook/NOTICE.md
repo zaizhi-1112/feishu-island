@@ -97,3 +97,5 @@ The host supplies a main-actor presentationAllowed closure, applied before compa
 - build106: shortcut labels resolve the unmodified key via AppKit so Shift+digit and Shift+punctuation remain recordable; modifier registration is unchanged.
 
 - build108: optional host onReopen callback handles Dock/Finder clicks; default framework reopen behavior remains unchanged when absent.
+
+- 2026-10-30 build110: keep expanded island chrome above application windows regardless of hover-exit locking; ordinary settings remain normal-level windows. Regression covers unlocked expansion and independent settings level.

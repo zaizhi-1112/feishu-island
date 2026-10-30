@@ -152,6 +152,55 @@ MainActor.assumeIsolated {
         liveSettings.close()
     }
     Task { @MainActor in
+        if CommandLine.arguments.contains("--layer-only") {
+            let layerState = AppState()
+            layerState.keepNookOpen = true
+            let coordinator = AppCoordinator(appState: layerState, moduleHost: ModuleHost(registry: IslandHost.configuration().makeRegistry()))
+            coordinator.start()
+            await coordinator.drainLifecycleForTesting()
+            try? await Task.sleep(for: .milliseconds(800))
+            let surface = coordinator.surface as! Nook<AnyView, AnyView, AnyView>
+            surface.pointerLocation = { NSPoint(x: screen.frame.midX, y: screen.frame.maxY - 5) }
+            surface.setHoveringWithoutTransition(true)
+            coordinator.toggleKeepNookOpen()
+            coordinator.showNook()
+            await coordinator.drainLifecycleForTesting()
+            check(!layerState.keepNookOpen && surface.state == .expanded, "unlocked island expands")
+            let island = coordinator.nookWindow!
+            check(island.level.rawValue > NSWindow.Level.statusBar.rawValue, "unlocked island is above application and menu-bar windows")
+            check((island as? NSPanel)?.hidesOnDeactivate == false, "island stays visible on app deactivation")
+            UnifiedSettingsWindow.shared.open(section: .appearance)
+            try? await Task.sleep(for: .milliseconds(800))
+            let settings = NSApp.windows.first { $0.identifier?.rawValue == "feibao.settings" }!
+            check(settings.level == .normal, "explicit settings open retains normal window level")
+            let other = NSWindow(contentRect: settings.frame, styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            other.title = "合成普通窗口"
+            other.contentView = NSHostingView(rootView: Text("普通窗口覆盖设置；灵动岛仍在上层").padding())
+            other.makeKeyAndOrderFront(nil)
+            try? await Task.sleep(for: .milliseconds(300))
+            check(other.level == .normal, "comparison window uses ordinary application level")
+            let ordered = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as! [[String: Any]]
+            let ids = ordered.compactMap { $0[kCGWindowNumber as String] as? Int }
+            check(ids.firstIndex(of: other.windowNumber)! < ids.firstIndex(of: settings.windowNumber)!, "ordinary window is ordered in front of settings")
+            check(ids.firstIndex(of: island.windowNumber)! < ids.firstIndex(of: other.windowNumber)!, "expanded island is ordered in front of ordinary foreground window")
+            coordinator.toggleKeepNookOpen()
+            check(layerState.keepNookOpen && island.level.rawValue > NSWindow.Level.statusBar.rawValue, "locking keeps island elevated")
+            coordinator.toggleKeepNookOpen()
+            check(!layerState.keepNookOpen && island.level.rawValue > NSWindow.Level.statusBar.rawValue, "unlocking does not lower island")
+            check(settings.level == .normal, "lock changes never elevate settings")
+            UnifiedSettingsWindow.shared.open(section: .appearance)
+            try? await Task.sleep(for: .milliseconds(300))
+            check(settings.level == .normal, "explicit reopen does not make settings float")
+            surface.pointerLocation = { .zero }
+            surface.setHoveringWithoutTransition(false)
+            await surface.compact(on: screen)
+            check(surface.state == .compact, "unlocked island can retract after pointer exit")
+            let report: [String: Any] = ["checks": checks, "passed": checks.values.allSatisfy { $0 }]
+            try! JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: output.appendingPathComponent("layer-result.json"))
+            settings.close(); other.orderOut(nil)
+            print("PASS: \(checks.count) native window layer checks")
+            exit(0)
+        }
         if CommandLine.arguments.contains("--hover-continuity-only") { await runHoverContinuityChecks(); exit(0) }
         if CommandLine.arguments.contains("--space-review") { await runSettingsSpaceChecks(output: output); return }
         if CommandLine.arguments.contains("--startup-only") {

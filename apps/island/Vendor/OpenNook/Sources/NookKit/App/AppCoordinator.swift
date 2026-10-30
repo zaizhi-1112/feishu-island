@@ -1574,7 +1574,8 @@ public final class AppCoordinator: ObservableObject {
     /// When this turns the hold off after the pointer left during it, the surface collapses
     /// then, as if the pointer had just left.
     func projectStaysExpanded() {
-        surface.keepsExpandedWindowAboveApplications = appState.keepNookOpen
+        // Layering is independent of the lock: hover-open islands must remain visible.
+        surface.keepsExpandedWindowAboveApplications = true
         let stays = appState.keepNookOpen || presentationPinning.isPinned
         if surface.staysExpandedOnHoverExit != stays {
             surface.staysExpandedOnHoverExit = stays
