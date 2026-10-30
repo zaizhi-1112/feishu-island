@@ -95,3 +95,5 @@ The host supplies a main-actor presentationAllowed closure, applied before compa
 - build105: expanded window elevation follows the explicit keep-open preference. Compact edge remains available above ordinary windows; unpinned expanded content uses the normal window level.
 
 - build106: shortcut labels resolve the unmodified key via AppKit so Shift+digit and Shift+punctuation remain recordable; modifier registration is unchanged.
+
+- build108: optional host onReopen callback handles Dock/Finder clicks; default framework reopen behavior remains unchanged when absent.

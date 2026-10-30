@@ -18,6 +18,16 @@ public enum IslandHost {
     public static func configuration() -> NookHostConfiguration {
         MainActor.assumeIsolated { IslandOnboardingPolicy.prepareAtLaunch() }
         var host = NookHostConfiguration()
+        host.onReopen = {
+            if IslandOnboardingPolicy.isNewUser {
+                let window = NSApp.windows.first { $0.identifier?.rawValue == "island.onboarding" }
+                if window?.isMiniaturized == true { window?.deminiaturize(nil) }
+                NSApp.activate(ignoringOtherApps: true)
+                window?.makeKeyAndOrderFront(nil)
+            } else {
+                UnifiedSettingsWindow.shared.open(section: UnifiedSettingsWindow.shared.model.section)
+            }
+        }
         host.branding = NookHostBranding(
             hostName: "一切在岛", hostTagline: "常用功能，抬手即达。",
             mark: NookHostBranding.symbol("capsule.fill"),

@@ -69,7 +69,8 @@ MainActor.assumeIsolated {
         try? await Task.sleep(for: .milliseconds(800))
         check(boot.nookWindow?.isVisible == true && bootState.isNookVisible, "complete startup keeps island visible with settings open")
         let liveSettings = NSApp.windows.first { $0.identifier?.rawValue == "feibao.settings" }!
-        check(liveSettings.styleMask.contains(.nonactivatingPanel) && liveSettings.collectionBehavior.contains(.moveToActiveSpace), "live settings uses current-Space nonactivating policy")
+        check(!liveSettings.styleMask.contains(.nonactivatingPanel) && liveSettings.canBecomeMain && liveSettings.level == .normal, "settings is a normal main-capable window")
+        check(NSApp.isActive && liveSettings.isMainWindow, "explicit settings open activates app and makes settings main")
         check(liveSettings.collectionBehavior.contains(.canJoinAllApplications) && liveSettings.collectionBehavior.contains(.fullScreenAuxiliary), "live settings is eligible for other fullscreen apps")
         let liveField = NSTextField(frame: NSRect(x: 24, y: 24, width: 180, height: 24))
         liveSettings.contentView!.addSubview(liveField)
@@ -144,6 +145,11 @@ MainActor.assumeIsolated {
         print("BOOT: lifecycle drained"); fflush(stdout)
         try? await Task.sleep(for: .milliseconds(800))
         check(bootState.isNookVisible && bootState.keepNookOpen, "complete startup preserves the locked island after settings close")
+        IslandHost.configuration().onReopen?()
+        try? await Task.sleep(for: .milliseconds(800))
+        check(liveSettings.isVisible && liveSettings.isKeyWindow && liveSettings.isMainWindow, "host reopen restores the same closed settings window")
+        check(NSApp.windows.filter { $0.identifier?.rawValue == "feibao.settings" }.count == 1, "reopen does not create duplicate settings windows")
+        liveSettings.close()
     }
     Task { @MainActor in
         if CommandLine.arguments.contains("--hover-continuity-only") { await runHoverContinuityChecks(); exit(0) }
@@ -531,7 +537,7 @@ MainActor.assumeIsolated {
         await fullCoordinator.drainLifecycleForTesting()
         await settle()
         let settingsWindow = NSApp.windows.first { $0.identifier?.rawValue == "feibao.settings" }!
-        check(settingsWindow.styleMask.contains(.nonactivatingPanel), "settings accepts focus without activating another Space")
+        check(!settingsWindow.styleMask.contains(.nonactivatingPanel) && settingsWindow.canBecomeMain && settingsWindow.level == .normal, "explicit settings opens a normal main window")
         check(settingsWindow.collectionBehavior.contains(.moveToActiveSpace) && !settingsWindow.collectionBehavior.contains(.canJoinAllSpaces), "settings follows the active Space rather than sticking to an old desktop")
         check(settingsWindow.collectionBehavior.contains(.fullScreenAuxiliary) && settingsWindow.collectionBehavior.contains(.canJoinAllApplications), "settings can join another app fullscreen Space")
         let settingsField = NSTextField(frame: NSRect(x: 30, y: 30, width: 180, height: 24))

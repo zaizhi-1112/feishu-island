@@ -109,12 +109,14 @@ public enum NookApp {
 
 @MainActor
 private final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let onReopen: (@MainActor @Sendable () -> Void)?
     private let coordinator: AppCoordinator
     private let moduleHost: ModuleHost
     private var statusItem: NSStatusItem?
     private var cancellables = Set<AnyCancellable>()
 
     init(host: NookHostConfiguration) {
+        self.onReopen = host.onReopen
         let moduleHost = ModuleHost(registry: host.makeRegistry())
         self.moduleHost = moduleHost
         // Seed the process-global preferences from the host's launch defaults before the
@@ -131,6 +133,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         coordinator.start()
         installMenuBarFallback()
         NookLaunchSmoke.handleLaunch(coordinator: coordinator)
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if let onReopen { onReopen(); return false }
+        return true
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

@@ -2,12 +2,11 @@ import AppKit
 import NookApp
 import SwiftUI
 
-/// A utility panel can take text input without activating the app and jumping
-/// back to the Space that previously owned its settings window.
-private final class IslandSettingsPanel: NSPanel {
+/// A normal document-style window: explicit opening activates it, switching apps lowers it.
+private final class IslandSettingsPanel: NSWindow {
     var inputMethodChanged: ((Bool) -> Void)?
     override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { false }
+    override var canBecomeMain: Bool { true }
     override func sendEvent(_ event: NSEvent) {
         if event.type == .keyDown, event.keyCode == 48 {
             inputMethodChanged?(true)
@@ -30,11 +29,10 @@ private final class IslandSettingsPanel: NSPanel {
         model.section = section
         model.keyboardNavigation = false
         if window == nil {
-            let next = IslandSettingsPanel(contentRect: NSRect(x:0,y:0,width:1020,height:760), styleMask:[.titled,.closable,.miniaturizable,.resizable,.nonactivatingPanel], backing:.buffered,defer:false)
+            let next = IslandSettingsPanel(contentRect: NSRect(x:0,y:0,width:1020,height:760), styleMask:[.titled,.closable,.miniaturizable,.resizable], backing:.buffered,defer:false)
             next.title = "一切在岛 · 设置"; next.identifier = .init("feibao.settings")
             next.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .canJoinAllApplications]
             next.level = .normal
-            next.isFloatingPanel = false
             next.hidesOnDeactivate = false
             next.minSize = NSSize(width:840,height:620); next.isReleasedWhenClosed = false
             next.delegate = self; next.setFrameAutosaveName("FeibaoUnifiedSettings")
@@ -44,8 +42,9 @@ private final class IslandSettingsPanel: NSPanel {
         }
         model.visible = true
         if window?.isMiniaturized == true { window?.deminiaturize(nil) }
-        // Order onto the user's current Space before taking keyboard focus. Do not
-        // activate NSApp: activation can bring an old desktop/fullscreen Space back.
+        // Move to the active Space first, then activate only for this explicit request.
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
     // Settings and the island are independent windows. Keep the live surface and
