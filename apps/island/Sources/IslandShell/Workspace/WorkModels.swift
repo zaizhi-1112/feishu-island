@@ -79,6 +79,7 @@ struct WorkDisk: Codable {
     var screenMaterials: [ScreenReminderMaterial]?
     var removedScreenMaterialIDs: [String]?
     var restReminder: RestReminderPlan?
+    var todoOrder: [UUID]?
     var todoHistory: [WorkTodoCompletion]?
     var deletedTodoHistoryTasks: [UUID]?
     var feishuSchedule: FeishuScheduleState?

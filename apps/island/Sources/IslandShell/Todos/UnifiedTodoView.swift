@@ -9,6 +9,7 @@ struct UnifiedTodoPanel: View {
     @ObservedObject var store: WorkspaceStore
     var compact = true
     
+    @State private var dropTarget: UUID?
     @State private var showCompleted = false
     @State private var detail:WorkItem?
     @State private var recentCompletion: UUID?
@@ -181,6 +182,19 @@ struct UnifiedTodoPanel: View {
                     .accessibilityLabel("删除待办：" + item.title)
                 }
             }
+            if item.state != "done", store.pendingTodos.count > 1 {
+                HStack(spacing: 14) {
+                    Image(systemName: "line.3.horizontal").foregroundStyle(theme.secondaryLabel)
+                        .frame(width: 26, height: 24).contentShape(Rectangle())
+                        .draggable("todo-order:" + item.id.uuidString)
+                        .help("拖动到另一条待办前面").accessibilityLabel("拖动排序：" + item.title)
+                    Spacer()
+                    Button { _ = store.moveTodo(item.id, by: -1) } label: { Image(systemName: "arrow.up") }
+                        .disabled(store.pendingTodos.first?.id == item.id).accessibilityLabel("上移待办：" + item.title)
+                    Button { _ = store.moveTodo(item.id, by: 1) } label: { Image(systemName: "arrow.down") }
+                        .disabled(store.pendingTodos.last?.id == item.id).accessibilityLabel("下移待办：" + item.title)
+                }.buttonStyle(.plain).islandFont(size: 12)
+            }
             if !WorkspaceStore.canEdit(item), item.archive != nil {
                 Button("旧归档待核对 · 查看记录") {detail=item}.buttonStyle(.plain).foregroundStyle(theme.accent).islandFont(size:12)
             }
@@ -201,6 +215,12 @@ struct UnifiedTodoPanel: View {
                 }
             }
         }.padding(12).modifier(IslandCard(radius:12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(dropTarget == item.id ? theme.accent : .clear, lineWidth: 2))
+            .dropDestination(for: String.self) { values, _ in
+                guard item.state != "done", values.count == 1, let value = values.first,
+                      value.hasPrefix("todo-order:"), let source = UUID(uuidString: String(value.dropFirst(11))) else { return false }
+                return store.moveTodo(source, before: item.id)
+            } isTargeted: { active in dropTarget = active && item.state != "done" ? item.id : nil }
     }
     private func reminderSummary(_ item: WorkItem) -> String {
         guard let due=item.due else{return ""}

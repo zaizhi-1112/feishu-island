@@ -24,9 +24,28 @@ struct WorkTodoCompletion: Codable, Identifiable, Equatable {
 @MainActor
 extension WorkspaceStore {
     var pendingTodos: [WorkItem] {
-        disk.items.enumerated().filter { $0.element.archivedAt == nil && $0.element.state != "done" }.sorted {
-            $0.element.created == $1.element.created ? $0.offset > $1.offset : $0.element.created > $1.element.created
+        let order = disk.todoOrder ?? []
+        var ranks: [UUID: Int] = [:]
+        for (index, id) in order.enumerated() where ranks[id] == nil { ranks[id] = index }
+        return disk.items.enumerated().filter { $0.element.archivedAt == nil && $0.element.state != "done" }.sorted {
+            let left = ranks[$0.element.id] ?? -1, right = ranks[$1.element.id] ?? -1
+            if left != right { return left < right }
+            return $0.element.created == $1.element.created ? $0.offset > $1.offset : $0.element.created > $1.element.created
         }.map(\.element)
+    }
+    @discardableResult func moveTodo(_ id: UUID, by offset: Int) -> Bool {
+        var ids = pendingTodos.map(\.id)
+        guard let from = ids.firstIndex(of: id), ids.indices.contains(from + offset) else { return false }
+        ids.swapAt(from, from + offset)
+        return mutate { $0.todoOrder = ids }
+    }
+    @discardableResult func moveTodo(_ id: UUID, before target: UUID) -> Bool {
+        var ids = pendingTodos.map(\.id)
+        guard id != target, let from = ids.firstIndex(of: id), ids.contains(target) else { return false }
+        ids.remove(at: from)
+        guard let to = ids.firstIndex(of: target) else { return false }
+        ids.insert(id, at: to)
+        return mutate { $0.todoOrder = ids }
     }
     var completedTodos: [WorkItem] {
         disk.items.filter { $0.archivedAt == nil && $0.state == "done" }.sorted {

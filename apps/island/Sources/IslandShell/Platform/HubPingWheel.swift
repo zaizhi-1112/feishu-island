@@ -105,7 +105,7 @@ struct HubPingWheel: View {
         let active = hovered == index
         return VStack(spacing: 4) {
             Group {
-                if let image = HubPingAsset.image(Self.icons[index], gold: true) {
+                if let image = HubShortcutIcon.image(destination?.iconPNG) ?? HubPingAsset.image(Self.icons[index], gold: true) {
                     Image(nsImage: image).resizable().scaledToFit()
                 } else { Image(systemName: "scope").resizable().scaledToFit() }
             }
