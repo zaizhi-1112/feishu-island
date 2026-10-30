@@ -1,5 +1,6 @@
 import Foundation
 import SQLite3
+import NookApp
 @testable import IslandShell
 
 
@@ -47,16 +48,61 @@ final class AgentTests {
         _=tracker.completions([],now:now+3)
         XCTAssertEqual(tracker.completions([done],now:now+4),0)
         var batch=AgentCompletionBatch()
-        let running=session("other",.working,now)
+        let running=session("other",.working,now-1800)
         XCTAssertEqual(batch.ingest(count:1,sessions:[done,running],now:now+5),0)
-        XCTAssertEqual(batch.ingest(count:0,sessions:[done,running],now:now+50),0)
+        XCTAssertEqual(batch.ingest(count:0,sessions:[done,running],now:now+7),1)
         XCTAssertEqual(batch.ingest(count:0,sessions:[],now:now+60),0)
-        XCTAssertEqual(batch.ingest(count:0,sessions:[done],now:now+61),0)
-        let otherDone=session("other",.completed,now+62)
-        XCTAssertEqual(batch.ingest(count:1,sessions:[done,otherDone],now:now+62),0)
-        XCTAssertEqual(batch.ingest(count:0,sessions:[done],now:now+80),0)
-        XCTAssertEqual(batch.ingest(count:0,sessions:[done],now:now+82),2)
+        XCTAssertEqual(batch.ingest(count:1,sessions:[done],now:now+61),0)
+        XCTAssertEqual(batch.ingest(count:1,sessions:[done,running],now:now+62),0)
+        XCTAssertEqual(batch.ingest(count:0,sessions:[],now:now+63),2)
         XCTAssertEqual(batch.ingest(count:0,sessions:[done],now:now+100),0)
+    }
+    func testNewTurnStartsWithoutObservedIdleGap() {
+        var tracker=AgentAlertTracker()
+        let first=AgentSession(id:"same-chat",state:.working,updatedAt:now,startID:"one")
+        let second=AgentSession(id:"same-chat",state:.working,updatedAt:now+2,startID:"two")
+        XCTAssertEqual(tracker.starts([first],now:now),0)
+        XCTAssertEqual(tracker.starts([first],now:now+1),0)
+        XCTAssertEqual(tracker.starts([second],now:now+2),1)
+        XCTAssertEqual(tracker.starts([second],now:now+3),0)
+    }
+
+    @MainActor func testEveryProviderRequestsVisibleStartAndCompletion() throws {
+        let suite="local.island.agent-checks.\(UUID().uuidString)"
+        let defaults=UserDefaults(suiteName:suite)!
+        defer {defaults.removePersistentDomain(forName:suite)}
+        for provider in ["codex","claude","workbuddy"] {
+            let store=AgentStore(defaults:defaults,allowsLiveReads:false,sessionIsLocked:{false})
+            let center=NookActivityCenter()
+            store.start(activities:center.activities(for:"agent-test"))
+            var prefs=store.preferences;prefs.enabled=true;prefs.monitoredIDs=[provider]
+            prefs.startAlerts=true;prefs.completionAlerts=true;prefs.quotaAlerts=false
+            try store.update(prefs)
+            store.ingestSnapshots([provider:.init()],now:now)
+            store.ingestSnapshots([provider:.init(sessions:[session("active",.working,now+1)])],now:now+1)
+            XCTAssertEqual(store.completionNotice?.attention,"running")
+            XCTAssertEqual(center.primary?.activity.alert,.compact(.seconds(6)))
+            XCTAssertTrue(center.primary?.activity.keepsCompactVisible == true)
+            store.finishNotice(store.completionNotice!.id)
+            let snapshot=AgentSnapshot(sessions:[session("active",.completed,now+2),session("abandoned",.working,now-1800)])
+            store.ingestSnapshots([provider:snapshot],now:now+2)
+            store.ingestSnapshots([provider:snapshot],now:now+4)
+            XCTAssertNotNil(store.completionNotice)
+            XCTAssertNil(store.completionNotice?.attention)
+            XCTAssertEqual(center.primary?.activity.alert,.compact(.seconds(6)))
+            store.finishNotice(store.completionNotice!.id)
+            store.ingestSnapshots([provider:snapshot],now:now+6)
+            XCTAssertNil(store.completionNotice)
+        }
+    }
+    func testHookTurnsKeepIdentityAcrossTools() {
+        let input:[String:Any]=["session_id":"synthetic-turns","hook_event_name":"UserPromptSubmit"]
+        let first=AgentHookRecord.reduce(input,previous:nil,now:now)!
+        let tool=AgentHookRecord.reduce(["session_id":"synthetic-turns","hook_event_name":"PostToolUse"],previous:first,now:now+1)!
+        let second=AgentHookRecord.reduce(input,previous:tool,now:now+2)!
+        XCTAssertNotNil(first.startID)
+        XCTAssertEqual(tool.startID,first.startID)
+        XCTAssertTrue(second.startID != first.startID)
     }
     func testFailureNeverCountsAsSuccess() {
         var tracker = AgentAlertTracker()
@@ -202,6 +248,11 @@ final class AgentTests {
         XCTAssertTrue(values[1].label.contains("5小时"))
     }
     func testMissingCodexWindowsAreNotZero() {
+        let guiEnvironment = CodexReader.queryEnvironment(["PATH":"/usr/bin:/bin", "CUSTOM":"keep"])
+        XCTAssertTrue(guiEnvironment["PATH"]!.contains("/opt/homebrew/bin"))
+        XCTAssertTrue(guiEnvironment["PATH"]!.contains("/.local/node/bin"))
+        XCTAssertEqual(guiEnvironment["CUSTOM"], "keep")
+        XCTAssertEqual(CodexReader.queryEnvironment(guiEnvironment), guiEnvironment)
         XCTAssertTrue(CodexReader.parseQuotas([:],now:now).isEmpty)
         XCTAssertTrue(CodexReader.parseQuotas(["rateLimits":["primary":NSNull()]],now:now).isEmpty)
     }
@@ -233,6 +284,12 @@ final class AgentTests {
         XCTAssertEqual(reloaded.visibleIDs,migrated.visibleIDs)
     }
     func testClaudeContextUsageIsNotSubscriptionQuota() {
+        XCTAssertNil(ClaudeQuotaRecord.parse(["context_window":["used_percentage":20]], now:now))
+        XCTAssertNil(ClaudeQuotaRecord.parse(["rate_limits":["five_hour":["used_percentage":20,"resets_at":now-1]]], now:now))
+        XCTAssertNil(ClaudeQuotaRecord.parse(["rate_limits":["five_hour":["used_percentage":101,"resets_at":now+100]]], now:now))
+        let fresh = ClaudeQuotaRecord.parse(["rate_limits":["five_hour":["used_percentage":25,"resets_at":now+100]]], now:now)
+        XCTAssertEqual(fresh?.quotas.first?.remainingPercent,75)
+        XCTAssertEqual(fresh?.quotas.first?.updatedAt,now)
         XCTAssertTrue(AgentBridge.claudeQuotas(["context_window":["used_percentage":99]],now:now).isEmpty)
         let quotas = AgentBridge.claudeQuotas(["five_hour":["used_percentage":80.5,"resets_at":1_010_000]],now:now)
         XCTAssertEqual(quotas.first?.remainingPercent,19.5)
@@ -566,6 +623,7 @@ final class AgentTests {
         let reader = CodexReader(root:root)
         let started = await reader.sessions(now:date)
         XCTAssertEqual(started.count,1); XCTAssertEqual(started.first?.state,.working)
+        XCTAssertEqual(started.first?.startID,"current")
         let handle = try FileHandle(forWritingTo:log); defer { try? handle.close() }
         try handle.seekToEnd(); try handle.write(contentsOf:record("task_complete",turn:"previous",after:1))
         let unrelated = await reader.sessions(now:date.addingTimeInterval(1))
@@ -589,6 +647,9 @@ tests.testStaleRunningCannotTurnGreen()
 tests.testMissingAndFutureDataAreUnknown()
 tests.testCompletionRequiresObservedTransition()
 tests.testCompletionMissingReadsAndIdleBatch()
+tests.testNewTurnStartsWithoutObservedIdleGap()
+tests.testHookTurnsKeepIdentityAcrossTools()
+try await tests.testEveryProviderRequestsVisibleStartAndCompletion()
 tests.testFailureNeverCountsAsSuccess()
 tests.testFastCompletionsBetweenPolls()
 tests.testThresholdStrictlyBelowTwentyAndDeduplicated()

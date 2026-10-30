@@ -92,6 +92,15 @@ func runAuthorizationExperienceChecks(check: (Bool, String) -> Void, renderTo: U
     try await Task.sleep(for: .milliseconds(60))
     check(connection.authorizationGranted && !connection.authorizationBusy, "authorized response updates the native result")
     check(!connection.authorizationConnected && !connection.isEnabled(.receive), "server authorization does not falsely claim desktop activation")
+    connection.reportReceiveConnectionFailure("合成连接失败")
+    check(connection.authorizationFeedback == "合成连接失败" && !connection.authorizationConnected,
+          "desktop connection failure is visible in the authorization window")
+    let previousStore = FeishuStore.active
+    FeishuStore.active = nil
+    connection.continueDesktopConnection()
+    check(connection.authorizationFeedback.contains("尚未就绪") && !connection.authorizationConnected,
+          "missing receive store reports a recoverable error rather than looping")
+    FeishuStore.active = previousStore
     try await capture(connection, "03-authorized")
     let credential = CompanyConnection.Credential(appID: CompanyConnection.Purpose.receive.appID, access: "synthetic", scope: CompanyConnection.Purpose.receive.scopes,
         userID: "fixture", openID: "ou_fixture", userName: "合成账号", expires: Date().addingTimeInterval(3600))

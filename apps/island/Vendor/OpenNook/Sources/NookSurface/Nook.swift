@@ -52,6 +52,10 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// `true` while the chrome has a live `NSWindow` mounted. The narrow public
     /// surface area for observing window presence - replaces the previous
     /// `windowController != nil` pattern hosts had to write.
+    /// Expanded chrome stays above applications independently of hover-exit locking.
+    public var keepsExpandedWindowAboveApplications = true {
+        didSet { updateWindowLevel() }
+    }
     public var hasLiveWindow: Bool { windowController?.window != nil }
 
     /// Applies a configuration block to the currently-mounted `NSWindow`, if one
@@ -83,6 +87,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     @Published public var style: NookStyle
 
     /// Retract compact chrome to a small edge; hover reveals, click expands.
+    public var presentationAllowed: @MainActor () -> Bool = { true }
     @Published public var edgeDocked = false { didSet { updateLayoutForm() } }
     /// A transient host claim can reveal the second stage without simulating hover.
     @Published public var compactRevealActive = false { didSet { updateLayoutForm() } }
@@ -194,6 +199,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     var hasDeferredHoverExit = false
     private var interactionExitTask: Task<Void, Never>?
     private var keyboardPointerTask: Task<Void, Never>?
+    private var transparentEdgeGlobalMonitor: Any?
+    private var transparentEdgeLocalMonitor: Any?
     private var menuTrackingDepth=0
     var chromeFrameInWindow: CGRect = .zero
     var compactHitWidth: CGFloat = 0
@@ -216,7 +223,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         if edgeDocked {
             let layout = NookEdgeDockLayout(state: state, hovering: isHovering || compactRevealActive,
                 peeking: isPeeking, contentHeight: chromeFrameInWindow.height,
-                shownTopInset: topInset, physicalNotchHeight: physicalNotchHeight)
+                shownTopInset: topInset, physicalNotchHeight: physicalNotchHeight,
+                showRetractedEdge: UserDefaults.standard.bool(forKey: "island.showRetractedEdge"))
             let local = NSPoint(x: point.x - (window.frame.midX - chromeFrameInWindow.width / 2),
                                 y: window.frame.maxY - point.y)
             return layout.hoverRects(width: chromeFrameInWindow.width,
@@ -907,6 +915,7 @@ extension Nook {
     /// Expand the chrome. Pass `nil` (the default) to let `resolvedScreen` pick the
     /// target - typically the host's persisted display preference via ``screenProvider``.
     public func expand(on screen: NSScreen? = nil) async {
+        guard presentationAllowed() else { return }
         guard let target = screen ?? resolvedScreen else { return }
         // Preserve the peek owner until the expanded-state observer has selected
         // its activity view. An intermediate hidden state would clear that owner.
@@ -919,6 +928,7 @@ extension Nook {
     /// Collapse the chrome to its compact pill. Pass `nil` (the default) to let
     /// `resolvedScreen` pick the target.
     public func compact(on screen: NSScreen? = nil) async {
+        guard presentationAllowed() else { return }
         guard let target = screen ?? resolvedScreen else { return }
         let skipHide = transitionConfiguration.skipIntermediateHides
         await runTransition(toward: .compact) { [weak self] generation in
@@ -1431,7 +1441,14 @@ extension Nook {
 }
 
 extension Nook {
+    private func updateWindowLevel() {
+        guard let panel = windowController?.window as? NookPanel else { return }
+        let elevated = state != .expanded || keepsExpandedWindowAboveApplications
+        panel.isFloatingPanel = elevated
+        panel.level = elevated ? NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + NookPanel.levelOffsetAboveStatusBar) : .normal
+    }
     private func updateLayoutForm() {
+        updateWindowLevel()
         let form = presentation.resolvedForm(state: state, edgeDocked: edgeDocked,
             screenHasNotch: physicalNotchHeight > 0,
             revealed: isHovering || isPeeking || compactRevealActive)
@@ -1526,6 +1543,17 @@ extension Nook {
         }
 
         windowController = .init(window: panel)
+        updateWindowLevel()
+        // A fully transparent window may receive no SwiftUI hover events. Observe
+        // pointer motion without intercepting clicks or painting a visible bottom lip.
+        if edgeDocked {
+            transparentEdgeGlobalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved]) { [weak self] _ in
+                Task { @MainActor in self?.evaluateTransparentEdgePointer() }
+            }
+            transparentEdgeLocalMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
+                self?.evaluateTransparentEdgePointer(); return event
+            }
+        }
     }
 
     /// Show with the hosting layer starting at opacity 0, then animate to 1. The window itself
@@ -1549,7 +1577,21 @@ extension Nook {
         layer.opacity = 1
     }
 
+    private func evaluateTransparentEdgePointer() {
+        guard edgeDocked, state == .compact, presentationAllowed(), let window = windowController?.window,
+              window.isVisible, let screen = window.screen ?? resolvedScreen else { return }
+        if isHovering {
+            if !pointerInsideChrome && !isDragInFlight { updateChromeHoverState(false) }
+        } else if !compactRevealActive {
+            let entry = NookEdgeDockLayout.entryRect(screen: screen.frame, notchWidth: notchSize.width, notchHeight: physicalNotchHeight)
+            if entry.contains(pointerLocation()) { updateChromeHoverState(true) }
+        }
+    }
+
     fileprivate func deinitializeWindow() {
+        if let transparentEdgeGlobalMonitor { NSEvent.removeMonitor(transparentEdgeGlobalMonitor) }
+        if let transparentEdgeLocalMonitor { NSEvent.removeMonitor(transparentEdgeLocalMonitor) }
+        transparentEdgeGlobalMonitor = nil; transparentEdgeLocalMonitor = nil
         // The views that reported hover are going away with the window, and SwiftUI does
         // not report an exit for a view it tears down.
         resetHoverSources()

@@ -16,7 +16,7 @@ final class TodoModule: NookModule {
     func makeConfiguration() -> NookConfiguration {
         var config = IslandHost.baseConfiguration(title: "待办", symbol: "checklist")
         config.setCompactTrailing { UnifiedTodoCompact(store:.shared) }
-        config.setHome { UnifiedTodoPanel(store:.shared) }
+        config.setHome { UnifiedTodoPanel(store:.shared).islandTextSize() }
         config.onReady = { [context] coordinator in
             let store=WorkspaceStore.shared
             IslandModuleNavigation.shared.bind(coordinator:coordinator)

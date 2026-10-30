@@ -3,6 +3,7 @@ import SwiftUI
 @MainActor struct HubShortcutSettings: View {
     @ObservedObject var workspace: WorkspaceStore
     @ObservedObject var launcher: UnifiedPlatformStore
+    @State private var editing: HubPingDestination?
     @State private var search = ""
     @State private var group = "全部"
     @State private var target: Int?
@@ -80,12 +81,23 @@ import SwiftUI
             Toggle("打开入口时播放信号音效", isOn: Binding(get:{launcher.preferences.soundEnabled},set:{ _ = launcher.setSound($0) }))
             if !launcher.error.isEmpty { Text(launcher.error).font(.system(size: 12)).foregroundStyle(.orange) }
         }.accessibilityIdentifier("platform.shortcutBoard")
+        .sheet(item: $editing) { destination in
+            HubShortcutEditor(store: launcher, index: destination.id, destination: destination)
+        }
     }
     private func slot(_ destination: HubPingDestination) -> some View {
         HStack(spacing: 8) {
             Text(Self.directions[destination.id]).font(.system(size: 12)).foregroundStyle(.secondary).frame(width: 48, alignment: .leading)
+            Button { editing = destination } label: {
+                if let image = HubShortcutIcon.image(destination.iconPNG) {
+                    Image(nsImage: image).resizable().scaledToFit().frame(width: 24, height: 24)
+                } else { Image(systemName: "square.and.pencil").frame(width: 24, height: 24) }
+            }.buttonStyle(.plain).help("编辑名称、网址与图标")
+                .accessibilityLabel("编辑" + Self.directions[destination.id] + "入口与图标")
             Text(destination.title).font(.system(size: 13, weight: .medium)).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
             Menu {
+                Button("编辑入口与图标…") { editing = destination }
+                Divider()
                 ForEach(choices) { choice in Button(choice.title) { _ = launcher.setSlot(destination.id, choice.shortcut) } }
                 Divider()
                 Button("使用这个方向的默认入口") { _ = launcher.setSlot(destination.id, .init()) }

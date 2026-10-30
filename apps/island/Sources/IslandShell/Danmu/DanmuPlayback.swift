@@ -55,7 +55,7 @@ public final class DanmuPlayback {
         case "light": overlay.skinBackground = color("background") ?? NSColor.white.withAlphaComponent(0.94); overlay.skinForeground = color("foreground") ?? NSColor(srgbRed: 0.1, green: 0.12, blue: 0.15, alpha: 1)
         default: break
         }
-        // Every length uses moving, bounded multiline segments. No message blocks the desktop queue.
+        // Each message stays in one moving panel, scrolling long text within it.
         overlay.preferStatic = false
         overlay.allowsCards = false
         overlay.multilineMotion = true
@@ -86,7 +86,7 @@ public final class DanmuPlayback {
         }
         seen.insert(message.id); order.append(message.id)
         if order.count > 1000 { seen.remove(order.removeFirst()) }
-        overlay?.enqueue(message.danmuText,demo:demo,createdAt:message.created,messageID:demo ? nil : message.id)
+        overlay?.enqueue(message.danmuText,demo:demo,createdAt:message.created,messageID:demo ? nil : message.id,sourceMessage:message)
         accepted += 1
         return true
     }

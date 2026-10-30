@@ -33,13 +33,14 @@ struct FeishuScheduleState: Codable, Equatable {
     var calendarID: String?
     var events: [FeishuScheduleEvent] = []
     var lastSync: Date?
+    var removedEventIDs: [String]?
     static func key(_ connection: FeishuConnection) -> String? {
         connection.localAccount.map { $0.appID+":"+$0.openID }
     }
     mutating func apply(_ remote: [FeishuScheduleEvent], calendarID: String, now: Date) {
         let existing=Dictionary(events.map { ($0.id,$0) },uniquingKeysWith: { a,_ in a })
         var result: [FeishuScheduleEvent] = []
-        for var event in remote where event.active && event.end > now {
+        for var event in remote where event.active && event.end > now && !(removedEventIDs ?? []).contains(event.id) {
             if let old=existing[event.id] { event.offsets=old.offsets;event.consumed=old.consumed }
             // Import/reschedule never replays a reminder whose time has already passed.
             if existing[event.id]?.start != event.start { event.consumed=Array(Set(event.consumed+event.reminderDates.filter{$0<=now})).sorted() }
@@ -128,6 +129,25 @@ struct FeishuScheduleClient {
 }
 
 @MainActor extension WorkspaceStore {
+    @discardableResult func removeScheduleEvent(_ id: String) -> Bool {
+        guard disk.feishuSchedule?.events.contains(where: { $0.id == id }) == true else { return false }
+        return mutate { disk in
+            guard disk.feishuSchedule != nil else { return }
+            var removed = disk.feishuSchedule?.removedEventIDs ?? []
+            if !removed.contains(id) { removed.append(id) }
+            disk.feishuSchedule?.removedEventIDs = removed
+            disk.feishuSchedule?.events.removeAll { $0.id == id }
+        }
+    }
+    @discardableResult func restoreScheduleEvent(_ event: FeishuScheduleEvent, accountKey: String) -> Bool {
+        guard disk.feishuSchedule?.accountKey == accountKey,
+              disk.feishuSchedule?.removedEventIDs?.contains(event.id) == true else { return false }
+        return mutate { disk in
+            disk.feishuSchedule?.removedEventIDs?.removeAll { $0 == event.id }
+            if disk.feishuSchedule?.events.contains(where: { $0.id == event.id }) == false { disk.feishuSchedule?.events.append(event) }
+            disk.feishuSchedule?.events.sort { $0.start < $1.start }
+        }
+    }
     var scheduleEvents: [FeishuScheduleEvent] { (disk.feishuSchedule?.events ?? []).filter{$0.active && $0.end>scheduleNow} }
     var calendarAccountName: String { disk.feishuSchedule?.userName ?? LocalFeishuService.shared.connection(.calendar)?.localAccount?.userName ?? "飞书日历" }
     var scheduleAccountMatches: Bool {

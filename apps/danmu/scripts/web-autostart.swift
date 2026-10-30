@@ -2,7 +2,7 @@ import AppKit
 import Network
 
 let bridgePort: UInt16 = 48763
-let webOrigin = "https://feishu-danmu.virxact.net"
+let webOrigin = "https://danmu.example.invalid"
 
 func color(_ raw: Any?) -> NSColor? {
     guard let text = raw as? String, text.range(of: "^#[0-9a-fA-F]{6}$", options: .regularExpression) != nil,

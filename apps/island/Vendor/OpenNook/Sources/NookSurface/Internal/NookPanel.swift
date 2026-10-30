@@ -33,6 +33,8 @@ final class NookPanel: NSPanel {
             backing: backingStoreType,
             defer: flag
         )
+        self.hidesOnDeactivate = false
+        self.isFloatingPanel = true
         self.hasShadow = false
         self.backgroundColor = .clear
         self.level = NSWindow.Level(
@@ -44,6 +46,7 @@ final class NookPanel: NSPanel {
         // `.ignoresCycle` keeps the panel out of Cmd-Tab and the window cycle.
         self.collectionBehavior = [
             .canJoinAllSpaces,
+            .canJoinAllApplications,
             .stationary,
             .fullScreenAuxiliary,
             .ignoresCycle,

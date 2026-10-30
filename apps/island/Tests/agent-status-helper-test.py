@@ -1,5 +1,5 @@
 """Exercise the real passive executable with synthetic hook payloads and config files."""
-import json, subprocess, tempfile, hashlib, os
+import json, subprocess, tempfile, hashlib, os, time
 from pathlib import Path
 import sys
 helper=Path(sys.argv[1]).resolve()
@@ -11,7 +11,7 @@ def check(ok):
  count+=1
 for provider,configdir in [('claude','.claude'),('workbuddy','.workbuddy')]:
  home=root/provider;settings=home/configdir/'settings.json';settings.parent.mkdir(parents=True)
- original={'env':{'SYNTHETIC_SECRET':'not-a-real-key'},'hooks':{'Stop':[{'hooks':[{'type':'command','command':'echo existing-user-hook'}]}]},'permissions':{'deny':['Bash(*)']}}
+ original={'env':{'SYNTHETIC_SECRET':'not-a-real-key'},'hooks':{'Stop':[{'hooks':[{'type':'command','command':'echo existing-user-hook'}]}]},'permissions':{'deny':['Bash(*)']},'statusLine':{'type':'command','command':"printf 'existing status line'",'padding':2}}
  settings.write_text(json.dumps(original));os.chmod(settings,0o600)
  for i in range(2):
   result=subprocess.run([str(helper),'--install',provider,'--test-root',str(home)],capture_output=True)
@@ -57,4 +57,17 @@ output=recordroot/provider/(hashlib.sha256(sid.encode()).hexdigest()+'.json');j=
 check(result.returncode==0 and not result.stdout and not result.stderr)
 check(j['state']=='waiting' and j['attentionReason']=='input' and j['attentionID'].startswith('tool:'))
 check('NEVER-SAVE' not in output.read_text())
+# Official Claude Code quota payload is separated from context usage and private fields.
+home=root/'claude'; state=home/'Library/Application Support/FeishuIsland/AgentStatus'; quota=state/'claude-quota.json'
+for used in [25, 31]:
+ payload={'rate_limits':{'five_hour':{'used_percentage':used,'resets_at':time.time()+3600}}, 'context_window':{'used_percentage':90},'cwd':'PRIVATE-PATH','session_id':'PRIVATE-SESSION'}
+ result=subprocess.run([str(helper),'--statusline','claude','--test-root',str(home)],input=json.dumps(payload).encode(),capture_output=True)
+ check(result.returncode==0 and result.stdout==b'existing status line')
+ j=json.loads(quota.read_text());check(j['quotas'][0]['remainingPercent']==100-used)
+ check('PRIVATE' not in quota.read_text() and 'context_window' not in quota.read_text())
+before=quota.read_bytes()
+for payload in [{}, {'rate_limits':{'five_hour':{'used_percentage':20,'resets_at':1}}}, {'context_window':{'used_percentage':30}}]:
+ result=subprocess.run([str(helper),'--statusline','claude','--test-root',str(home)],input=json.dumps(payload).encode(),capture_output=True)
+ check(result.stdout==b'existing status line' and quota.read_bytes()==before)
+check(quota.stat().st_mode&0o777==0o600)
 print(f'{count} passive helper checks passed; only synthetic fixtures used')

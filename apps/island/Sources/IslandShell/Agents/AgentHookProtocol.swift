@@ -7,6 +7,7 @@ struct AgentHookRecord: Codable, Equatable {
     var state: String
     var updatedAt: Double
     var completionID: String?
+    var startID: String?
     var attentionID: String?
     var attentionReason: String?
     static func digest(_ value: String) -> String {
@@ -43,6 +44,7 @@ struct AgentHookRecord: Codable, Equatable {
         }
         let attention = state == "waiting" ? (previous?.state == "waiting" && previous?.attentionReason == reason ? previous?.attentionID : UUID().uuidString) : nil
         return Self(id: id, state: state, updatedAt: now, completionID: state == "completed" ? UUID().uuidString : previous?.completionID,
+                    startID: event == "UserPromptSubmit" ? UUID().uuidString : previous?.startID,
                     attentionID: attention, attentionReason: reason)
     }
 }
@@ -74,5 +76,20 @@ struct AgentHookPolicy: Codable {
         let url = root.appendingPathComponent("policy.json")
         try JSONEncoder().encode(Self(enabled: enabled, visibleIDs: visibleIDs)).write(to: url, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+}
+
+/// Only subscription windows leave the status-line payload. No paths, model prompts or credentials.
+struct ClaudeQuotaRecord: Codable {
+    var quotas: [AgentQuota]
+    static func parse(_ input: [String: Any], now: Double) -> Self? {
+        guard let limits = input["rate_limits"] as? [String: Any] else { return nil }
+        let quotas = [("five_hour", "5小时额度"), ("seven_day", "周额度")].compactMap { key, title -> AgentQuota? in
+            guard let window = limits[key] as? [String: Any],
+                  let used = window["used_percentage"] as? Double, used.isFinite, (0...100).contains(used),
+                  let reset = window["resets_at"] as? Double, AgentTimestamp.isValid(reset), reset > now else { return nil }
+            return AgentQuota(id: key, label: title, remainingPercent: 100-used, resetsAt: reset, updatedAt: now)
+        }
+        return quotas.isEmpty ? nil : Self(quotas: quotas)
     }
 }

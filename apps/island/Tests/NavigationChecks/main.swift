@@ -10,6 +10,24 @@ func check(_ value: Bool, _ label: String, line: Int = #line) {
     passed += 1
 }
 
+final class ShortcutFixture: NSEvent {
+    var base = "9"
+    var shifted = "("
+    var flags: NSEvent.ModifierFlags = [.control, .option, .shift]
+    override var type: NSEvent.EventType { .keyDown }
+    override var keyCode: UInt16 { 25 }
+    override var modifierFlags: NSEvent.ModifierFlags { flags }
+    override var charactersIgnoringModifiers: String? { shifted }
+    override func characters(byApplyingModifiers modifiers: NSEvent.ModifierFlags) -> String? { base }
+}
+let shortcutFixture = ShortcutFixture()
+check(NookHotkey(event: shortcutFixture)?.keySymbol == "9", "Shift plus digit records the base key")
+check(NookHotkey(event: shortcutFixture)?.modifierSymbols == ["⌃", "⌥", "⇧"], "recorded shortcut retains every modifier")
+shortcutFixture.base = "="; shortcutFixture.shifted = "+"
+check(NookHotkey(event: shortcutFixture)?.keySymbol == "=", "Shift plus punctuation remains recordable")
+shortcutFixture.flags = [.shift]
+check(NookHotkey(event: shortcutFixture) == nil, "Shift alone still cannot register a global shortcut")
+
 // The view receives real NSEvent fields; fixtures make phase, axis and region
 // isolation reproducible without claiming that physical fingers were exercised.
 final class ScrollFixture: NSEvent {

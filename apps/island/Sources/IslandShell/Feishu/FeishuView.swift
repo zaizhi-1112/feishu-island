@@ -46,15 +46,21 @@ struct FeishuView: View {
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
                             IslandContentScroll(height: IslandHost.panelHeight - 2 * IslandHost.panelPadding - 28 - 24 - 20) {
-                            VStack(spacing: 8) {
+                            LazyVStack(spacing: 8) {
                                 ForEach(list) { message in
+                                    VStack(spacing: 5) {
                                     Button { store.openReader(message.id) } label: { row(message) }
                                         .buttonStyle(.plain)
                                         .accessibilityIdentifier("feishu.message.\(message.id)")
+                                    if message.hasImageContent {
+                                        FeishuImageGallery(message: message, connection: store.connection, compact: true)
+                                            .padding(.horizontal, 8).padding(.bottom, 5)
+                                    }
+                                    }
                                 }
                             }
                             if !store.status.hasPrefix("账号接收中") && !store.status.hasPrefix("演示模式") {
-                                Text(store.status).font(.system(size: 12)).fixedSize(horizontal:false,vertical:true)
+                                Text(store.status).islandFont(size: 12).fixedSize(horizontal:false,vertical:true)
                                     .foregroundStyle(store.status.contains("失败") || store.status.contains("异常") || store.status.contains("暂缓") ? theme.warning : theme.tertiaryLabel)
                             }
                             errorBanner
@@ -72,7 +78,7 @@ struct FeishuView: View {
 
     @ViewBuilder private var errorBanner: some View {
         if let error = store.actionError {
-            Text(error).font(.system(size: 11)).foregroundStyle(theme.warning)
+            Text(error).islandFont(size: 11).foregroundStyle(theme.warning)
                 .onTapGesture { store.actionError = nil }
         }
     }
@@ -93,9 +99,9 @@ struct FeishuView: View {
     private func tab(_ title: String, count: Int?, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Text(title).font(.system(size: 11, weight: active ? .semibold : .medium))
+                Text(title).islandFont(size: 11, weight: active ? .semibold : .medium)
                 if let count {
-                    Text("\(count)").font(.system(size: 9, weight: .medium)).monospacedDigit()
+                    Text("\(count)").islandFont(size: 9, weight: .medium).monospacedDigit()
                         .padding(.horizontal, 4).padding(.vertical, 1)
                         .background(theme.accent.opacity(active ? 0.12 : 0), in: RoundedRectangle(cornerRadius: 3))
                 }
@@ -110,13 +116,13 @@ struct FeishuView: View {
         let presentation = FeishuEmptyStatePresentation(enabled: store.enabled, connecting: store.connecting, status: store.status, showAll: showAll)
         return VStack(spacing: 10) {
             Image(systemName: presentation.symbol)
-                .font(.system(size: 19, weight: .regular)).foregroundStyle(theme.accent)
+                .islandFont(size: 19, weight: .regular).foregroundStyle(theme.accent)
                 .frame(width: 40, height: 40)
                 .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 11))
             Text(presentation.title)
-                .font(.system(size: 13, weight: .medium)).foregroundStyle(theme.primaryLabel)
+                .islandFont(size: 13, weight: .medium).foregroundStyle(theme.primaryLabel)
             Text(presentation.detail)
-                .font(.system(size: 10)).foregroundStyle(theme.tertiaryLabel)
+                .islandFont(size: 10).foregroundStyle(theme.tertiaryLabel)
                 .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
             errorBanner
         }
@@ -126,7 +132,7 @@ struct FeishuView: View {
 
     private func row(_ message: FeishuMessage) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            Text(String(message.source.prefix(1))).font(.system(size: 12, weight: .medium))
+            Text(String(message.source.prefix(1))).islandFont(size: 12, weight: .medium)
                 .foregroundStyle(theme.accent).frame(width: 29, height: 29)
                 .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
                 .overlay(alignment: .topTrailing) {
@@ -134,21 +140,21 @@ struct FeishuView: View {
                 }
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 5) {
-                    Text(message.source).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                    Text(message.source).islandFont(size: 12, weight: .semibold).lineLimit(1)
                     Spacer(minLength: 2)
-                    Text(message.created, style: .time).font(.system(size: 9)).foregroundStyle(theme.tertiaryLabel)
+                    Text(message.created, style: .time).islandFont(size: 9).foregroundStyle(theme.tertiaryLabel)
                 }
-                Text(message.text)
-                    .font(.system(size: 14)).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal:false,vertical:true)
+                Text(message.displayText)
+                    .islandFont(size: 14).foregroundStyle(theme.secondaryLabel).fixedSize(horizontal:false,vertical:true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 5) {
                     if let reason = message.importanceReason(followed: store.followed, rules: store.rules, custom: store.customRules) {
-                        Text(reason).font(.system(size: 8, weight: .medium))
+                        Text(reason).islandFont(size: 8, weight: .medium)
                             .foregroundStyle(theme.accent).padding(.horizontal, 5).padding(.vertical, 2)
                             .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
                     }
                     if message.remindAt != nil {
-                        Label("稍后提醒已设", systemImage: "clock").font(.system(size: 8)).foregroundStyle(theme.tertiaryLabel)
+                        Label("稍后提醒已设", systemImage: "clock").islandFont(size: 8).foregroundStyle(theme.tertiaryLabel)
                     }
                 }
             }
@@ -167,7 +173,7 @@ struct FeishuView: View {
                 .accessibilityIdentifier("feishu.mute")
             Spacer()
         }
-        .font(.system(size: 10, weight: .medium)).padding(.top, 10)
+        .islandFont(size: 10, weight: .medium).padding(.top, 10)
         .overlay(alignment: .top) { Rectangle().fill(theme.subtleStroke).frame(height: 0.5) }
     }
 
@@ -180,7 +186,7 @@ struct FeishuView: View {
                             onRemind: { store.remindLater(message.id); store.finishReading() },
                             onOpen: { store.open(message) },
                             initialPage: store.readingPages[message.id] ?? 0,
-                            onPageChange: { store.rememberReadingPage($0, for: message.id) })
+                            onPageChange: { store.rememberReadingPage($0, for: message.id) }, connection: store.connection)
             .id(message.id)
     }
 }

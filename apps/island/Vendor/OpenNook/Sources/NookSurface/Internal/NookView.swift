@@ -28,6 +28,7 @@ private struct EdgeDockHitShape: Shape {
 struct NookView<Expanded, CompactLeading, CompactTrailing>: View
 where Expanded: View, CompactLeading: View, CompactTrailing: View {
     @ObservedObject private var nook: Nook<Expanded, CompactLeading, CompactTrailing>
+    @AppStorage("island.showRetractedEdge") private var showRetractedEdge = false
     @State private var compactLeadingWidth: CGFloat = 0
     @State private var compactTrailingWidth: CGFloat = 0
     @State private var trackedExpandedSize: CGSize = .zero
@@ -177,7 +178,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// clipped chrome, where it can spill past the edge.
     private var chrome: some View {
         notchContent()
-            // Retraction leaves a 4pt shell, never the bottom of an avatar or status dot.
+            // Hide all artwork while retracted; the camera area remains an invisible hover target.
             .opacity(nook.edgeDocked && edgeLayout.isRetracted ? 0 : 1)
             .background { NookBackdropFill(backdrop: nook.backdrop, shape: notchShape) }
             .overlay { rimLine() }
@@ -202,7 +203,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             state: nook.state, hovering: nook.isHovering || nook.compactRevealActive, peeking: nook.isPeeking,
             contentHeight: nook.state == .expanded ? max(measuredChromeHeight, compactHeight) : compactHeight,
             shownTopInset: floatingTopInset,
-            physicalNotchHeight: nook.physicalNotchHeight
+            physicalNotchHeight: nook.physicalNotchHeight,
+            showRetractedEdge: showRetractedEdge
         )
     }
 
@@ -212,6 +214,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             let layout = edgeLayout
             chrome
                 .overlay { companionLayer() }
+                .opacity(layout.isRetracted && !showRetractedEdge ? 0 : 1)
                 .offset(y: layout.contentOffset)
                 .frame(height: layout.containerHeight, alignment: .top)
                 .background(alignment: .top) {

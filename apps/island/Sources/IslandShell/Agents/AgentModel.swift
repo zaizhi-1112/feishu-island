@@ -18,11 +18,12 @@ public struct AgentSession: Codable, Equatable, Sendable {
     public var state: AgentState
     public var updatedAt: Double
     public var completionID: String?
+    public var startID: String?
     public var attentionID:String?
     public var attentionReason:String?
-    public init(id: String, state: AgentState, updatedAt: Double, completionID: String? = nil, attentionID:String? = nil, attentionReason:String? = nil) {
+    public init(id: String, state: AgentState, updatedAt: Double, completionID: String? = nil, attentionID:String? = nil, attentionReason:String? = nil, startID:String? = nil) {
         self.id = id; self.state = state; self.updatedAt = updatedAt; self.completionID = completionID
-        self.attentionID=attentionID;self.attentionReason=attentionReason
+        self.attentionID=attentionID;self.attentionReason=attentionReason;self.startID=startID
     }
 }
 
@@ -179,6 +180,11 @@ public struct AgentPreferences: Codable, Sendable {
         visibleIDs = ids
         if !ids.contains(primaryID), let first = visibleProfiles.first { primaryID = first.id }
     }
+    public mutating func moveVisibleID(_ id: String, by offset: Int) {
+        guard let index = visibleIDs.firstIndex(of: id), (-1...1).contains(offset), offset != 0,
+              visibleIDs.indices.contains(index + offset) else { return }
+        visibleIDs.swapAt(index, index + offset)
+    }
     public var validationError: String? {
         guard ["auto", "codex", "claude", "workbuddy", "virxact", "deepseek"].contains(skinID) else { return "请选择可用的皮肤。" }
         let builtins = Set(["codex", "claude", "workbuddy"])
@@ -205,9 +211,10 @@ public struct AgentAlertTracker {
     private var runningInitialized = false
     public mutating func starts(_ sessions: [AgentSession], now: Double) -> Int {
         let running = sessions.filter { $0.state == .working && now - $0.updatedAt < 900 && $0.updatedAt <= now + 60 }
-        defer { previousRunning = Set(running.map(\.id)); runningInitialized = true }
+        func key(_ session:AgentSession)->String { session.id + "/" + (session.startID ?? "running") }
+        defer { previousRunning = Set(running.map(key)); runningInitialized = true }
         guard runningInitialized else { return 0 }
-        return running.filter { !previousRunning.contains($0.id) && now - $0.updatedAt < 60 }.count
+        return running.filter { !previousRunning.contains(key($0)) && now - $0.updatedAt < 60 }.count
     }
     public var notifiedQuotaCycles: Set<String> = []
     private var previousAttention:[String:String]=[:]
@@ -261,24 +268,18 @@ public struct AgentAlertTracker {
     }
 }
 
-/// Coalesce completion events until the monitored Agent is stably idle.
+/// Briefly coalesce confirmed completions without waiting for unrelated work.
 struct AgentCompletionBatch {
     private var pending=0
-    private var quietSince:Double?
-    private var unfinished=Set<String>()
+    private var firstCompletionAt:Double?
     mutating func ingest(count:Int,sessions:[AgentSession],now:Double)->Int {
-        for session in sessions {
-            if session.state == .working || session.state == .waiting {unfinished.insert(session.id)}
-            else if session.state == .completed || session.state == .failed {unfinished.remove(session.id)}
+        // Count comes only from verified, deduplicated completion events. Other chats,
+        // missing reads and abandoned sessions must never veto an actual completion.
+        if count > 0 {
+            if pending == 0 { firstCompletionAt=now }
+            pending += count
         }
-        pending += count
-        if count > 0 {quietSince=nil}
-        guard pending > 0 else {return 0}
-        // Empty/missing reads and stale running sessions are not proof of completion.
-        guard !sessions.isEmpty,unfinished.isEmpty,
-              sessions.contains(where:{$0.state == .completed && now-$0.updatedAt<900}) else {quietSince=nil;return 0}
-        if quietSince == nil {quietSince=now}
-        guard now-(quietSince ?? now)>=20 else {return 0}
-        let result=pending;pending=0;quietSince=nil;return result
+        guard pending > 0, now-(firstCompletionAt ?? now)>=2 else {return 0}
+        let result=pending;pending=0;firstCompletionAt=nil;return result
     }
 }

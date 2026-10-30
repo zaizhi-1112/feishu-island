@@ -18,6 +18,6 @@
   },
   "sha256": "35931cf04833651d9e1b270404ebefe83c0e7d675666af10530f6982b2702e83",
   "background": "background.tiff",
-  "backgroundSha256": "3be458f32441be0bf9263f26a191b30fa433952b2648c6e2f2ff8e6d0a119847",
+  "backgroundSha256": "6cf5450b6c6ccfb44c901b8eea8f35696996c46ed34f19be0a8a914812309477",
   "generator": "ds_store==1.3.1 / mac_alias==2.2.2"
 }

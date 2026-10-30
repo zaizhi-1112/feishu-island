@@ -95,6 +95,7 @@ public struct FeishuMessage: Identifiable, Equatable, Sendable, Codable {
     public let created: Date
     public let mentionsMe: Bool
     public let mentionsAll: Bool
+    public var imageKeys: [String] = []
     public var viewed = false
     public var remindAt: Date?
     public var reminded = false
@@ -139,7 +140,26 @@ public struct FeishuMessage: Identifiable, Equatable, Sendable, Codable {
             }
         }
         text = body
+        imageKeys = accountMessageImageKeys(raw)
     }
+
+    enum CodingKeys: String, CodingKey {
+        case id, chatID, chatName, chatKind, senderName, senderID, text, created, mentionsMe, mentionsAll
+        case viewed, remindAt, reminded, imageKeys
+    }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id); chatID = try c.decode(String.self, forKey: .chatID)
+        chatName = try c.decode(String.self, forKey: .chatName); chatKind = try c.decode(String.self, forKey: .chatKind)
+        senderName = try c.decode(String.self, forKey: .senderName); senderID = try c.decode(String.self, forKey: .senderID)
+        text = try c.decode(String.self, forKey: .text); created = try c.decode(Date.self, forKey: .created)
+        mentionsMe = try c.decode(Bool.self, forKey: .mentionsMe); mentionsAll = try c.decode(Bool.self, forKey: .mentionsAll)
+        viewed = try c.decodeIfPresent(Bool.self, forKey: .viewed) ?? false
+        remindAt = try c.decodeIfPresent(Date.self, forKey: .remindAt)
+        reminded = try c.decodeIfPresent(Bool.self, forKey: .reminded) ?? false
+        imageKeys = (try c.decodeIfPresent([String].self, forKey: .imageKeys) ?? []).filter(validFeishuImageKey)
+    }
+    var hasImageContent: Bool { !imageKeys.isEmpty || text.contains("[图片]") }
 
     public func importanceReason(followed: Set<String>, rules: FeishuReminderRules = .init(), custom: FeishuCustomRules = .init()) -> String? {
         if custom.blocks(self) { return nil }
@@ -173,11 +193,45 @@ public struct FeishuMessage: Identifiable, Equatable, Sendable, Codable {
         return components.url
     }
     public var source: String { chatKind == "p2p" ? senderName : chatName }
+    // Keep the original message for history and rules; format only its presentation.
+    var displayText: String { feishuDisplayText(text) }
     var danmuText: String {
         let chat = chatName.trimmingCharacters(in: .whitespacesAndNewlines)
         let sender = senderName.trimmingCharacters(in: .whitespacesAndNewlines)
         let label = chatKind == "p2p" || chat == sender || chat.isEmpty ? sender : sender.isEmpty ? chat : "\(chat) · \(sender)"
-        return label.isEmpty ? text : "\(label)：\(text)"
+        return label.isEmpty ? displayText : "\(label)：\(displayText)"
     }
     public var reason: String { importanceReason(followed: [chatID]) ?? "关注" }
+}
+
+func feishuDisplayText(_ source: String) -> String {
+    let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+    var inCodeBlock = false
+    return source.components(separatedBy: "\n").map { line in
+        if line.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+            inCodeBlock.toggle()
+            return line
+        }
+        guard !inCodeBlock else { return line }
+        // Strip only Feishu presentation tags, leaving code and ordinary comparisons intact.
+        let readable = feishuPresentationTags(line)
+            .replacingOccurrences(of: #"^(\s{0,3})\*\s+"#, with: "$1• ", options: .regularExpression)
+            .replacingOccurrences(of: #"^\s{0,3}#{1,6}\s+"#, with: "", options: .regularExpression)
+        guard let formatted = try? AttributedString(markdown: readable, options: options) else { return readable }
+        return String(formatted.characters)
+    }.joined(separator: "\n")
+}
+
+private func feishuPresentationTags(_ line: String) -> String {
+    // Inline code is literal, just like fenced code. Never use a general HTML renderer.
+    let pattern = #"(`+)[^`]*?\1|(?i:</?(?:font|text_tag)(?:\s+[^<>]*?)?\s*>|<br\s*/?>)"#
+    guard let regex = try? NSRegularExpression(pattern: pattern) else { return line }
+    let original = line as NSString
+    var result = line
+    for match in regex.matches(in: line, range: NSRange(location: 0, length: original.length)).reversed() {
+        let token = original.substring(with: match.range)
+        guard !token.hasPrefix("`"), let range = Range(match.range, in: result) else { continue }
+        result.replaceSubrange(range, with: token.lowercased().hasPrefix("<br") ? "\n" : "")
+    }
+    return result
 }

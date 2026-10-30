@@ -57,7 +57,7 @@ actor HubBackend {
         }
     }
     private func http(_ url: String, json: [String:Any]? = nil, form: [String:String]? = nil, bearer: String? = nil, extra: [String:String] = [:]) async throws -> (Data,HTTPURLResponse) {
-        guard let u = URL(string:url), u.scheme == "https", u.host == "virxact.net" else { throw WorkError.message("中台地址不合法。") }
+        guard let u = URL(string:url), u.scheme == "https", u.host == "hub.example.invalid" else { throw WorkError.message("中台地址不合法。") }
         var r = URLRequest(url:u); r.httpMethod = "POST"
         r.setValue("application/json, text/event-stream",forHTTPHeaderField:"Accept")
         if let json { r.httpBody = try JSONSerialization.data(withJSONObject:json); r.setValue("application/json",forHTTPHeaderField:"Content-Type") }
@@ -70,19 +70,19 @@ actor HubBackend {
         for (key,value) in extra { r.setValue(value,forHTTPHeaderField:key) }
         let (data,response) = try await Self.perform(request:r)
         guard let response = response as? HTTPURLResponse else { throw WorkError.message("中台响应无效。") }
-        guard response.url?.host == "virxact.net", data.count < 4_000_000 else { throw WorkError.message("中台响应超出范围。") }
+        guard response.url?.host == "hub.example.invalid", data.count < 4_000_000 else { throw WorkError.message("中台响应超出范围。") }
         guard (200..<300).contains(response.statusCode) else { throw WorkError.message(response.statusCode == 401 ? "中台授权已失效，请重新连接。" : "中台暂时无法读取（\(response.statusCode)），请稍后重试。") }
         return (data,response)
     }
     func begin(callback: String) async throws -> URL {
         guard let c = URL(string:callback), c.host == "127.0.0.1", c.path == "/oauth/virxact/callback", c.scheme == "http" else { throw WorkError.message("授权回调地址无效。") }
-        let (data,_) = try await http("https://virxact.net/oauth/register",json:["client_name":"飞书工作岛 · 本机个人卡片","redirect_uris":[callback],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_method":"none"])
+        let (data,_) = try await http("https://hub.example.invalid/oauth/register",json:["client_name":"飞书工作岛 · 本机个人卡片","redirect_uris":[callback],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_method":"none"])
         guard let value = try JSONSerialization.jsonObject(with:data) as? [String:Any], let client = value["client_id"] as? String else { throw WorkError.message("中台未返回客户端编号。") }
         let state = try random(), verifier = try random()
         let challenge = Data(SHA256.hash(data:Data(verifier.utf8))).base64EncodedString().replacingOccurrences(of:"+",with:"-").replacingOccurrences(of:"/",with:"_").replacingOccurrences(of:"=",with:"")
         pending = (state,verifier,client,callback,Date())
-        var url = URLComponents(string:"https://virxact.net/oauth/authorize")!
-        url.queryItems = ["client_id":client,"redirect_uri":callback,"response_type":"code","scope":"hub","state":state,"code_challenge":challenge,"code_challenge_method":"S256","resource":"https://virxact.net/mcp"].map{URLQueryItem(name:$0.key,value:$0.value)}
+        var url = URLComponents(string:"https://hub.example.invalid/oauth/authorize")!
+        url.queryItems = ["client_id":client,"redirect_uri":callback,"response_type":"code","scope":"hub","state":state,"code_challenge":challenge,"code_challenge_method":"S256","resource":"https://hub.example.invalid/mcp"].map{URLQueryItem(name:$0.key,value:$0.value)}
         return url.url!
     }
     private nonisolated static func sameState(_ a:String,_ b:String) -> Bool {
@@ -95,7 +95,7 @@ actor HubBackend {
         guard Set(query.map(\.name)).count == query.count, Self.sameState(query.first(where:{$0.name == "state"})?.value ?? "",p.state) else { throw WorkError.message("授权校验未通过。") }
         pending = nil
         guard let code = query.first(where:{$0.name == "code"})?.value, !code.isEmpty else { throw WorkError.message("未完成中台授权。") }
-        let (data,_) = try await http("https://virxact.net/oauth/token",form:["grant_type":"authorization_code","client_id":p.client,"code":code,"redirect_uri":p.callback,"code_verifier":p.verifier,"resource":"https://virxact.net/mcp"])
+        let (data,_) = try await http("https://hub.example.invalid/oauth/token",form:["grant_type":"authorization_code","client_id":p.client,"code":code,"redirect_uri":p.callback,"code_verifier":p.verifier,"resource":"https://hub.example.invalid/mcp"])
         guard generation == epoch else{throw WorkError.message("连接已断开，授权未保存。") }
         try save(decodeToken(data,client:p.client,previous:nil)); session = nil; epoch = UUID()
     }
@@ -108,7 +108,7 @@ actor HubBackend {
         guard var grant = try readGrant() else { throw WorkError.message("请先连接本人虚实中台，读取你的飞书首页与数据。") }
         if grant.expires.timeIntervalSinceNow < 60 {
             guard let refresh = grant.refresh else { throw WorkError.message("中台授权已过期，请重新连接。") }
-            let (data,_) = try await http("https://virxact.net/oauth/token",form:["grant_type":"refresh_token","client_id":grant.clientID,"refresh_token":refresh])
+            let (data,_) = try await http("https://hub.example.invalid/oauth/token",form:["grant_type":"refresh_token","client_id":grant.clientID,"refresh_token":refresh])
             guard generation == epoch else{throw WorkError.message("连接已断开。")};grant = try decodeToken(data,client:grant.clientID,previous:refresh); try save(grant)
         }
         return grant.access
@@ -120,7 +120,7 @@ actor HubBackend {
         if !notification { object["id"] = requestID }
         var headers = ["MCP-Protocol-Version":"2025-03-26"]
         if let session { headers["Mcp-Session-Id"] = session }
-        let (data,response) = try await http("https://virxact.net/mcp",json:object,bearer:token,extra:headers)
+        let (data,response) = try await http("https://hub.example.invalid/mcp",json:object,bearer:token,extra:headers)
         if let sid = response.value(forHTTPHeaderField:"Mcp-Session-Id") { session = sid }
         if notification { return [:] }
         let raw: Data
@@ -171,7 +171,7 @@ actor HubBackend {
             for (index,entry) in ((page["data"] as? [[String:Any]]) ?? []).enumerated() {
                 let title = entry["title"] as? String ?? "个人卡片"
                 let result = entry["result"] as? [String:Any] ?? entry
-                snapshot.cards.append(HubCard(id:"\(kind):\(title):\(index)",title:title,kind:result["type"] as? String ?? "",text:Self.readable(result),href:page["view"] as? String))
+                snapshot.cards.append(HubCard(id:"\(kind):\(title):\(index)",title:title,kind:result["type"] as? String ?? "",text:Self.readable(result),href:page["view"] as? String,sections:HubStructured.sections(result)))
             }
         }
         do {

@@ -24,6 +24,9 @@ struct AgentSetupOption: Identifiable {
         .init(id:"other",name:"其他Agent",website:"",appNames:[])
     ]
     var installedApplication:URL? {
+        // Codex can be installed under the ChatGPT display name or moved by its owner.
+        if id == "codex", let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.openai.codex"),
+           Bundle(url: url)?.bundleIdentifier == "com.openai.codex" { return url }
         for directory in ["/Applications",FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications").path] {
             for name in appNames {
                 let url=URL(fileURLWithPath:directory).appendingPathComponent(name+".app")

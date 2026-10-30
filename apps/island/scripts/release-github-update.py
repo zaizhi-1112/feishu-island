@@ -6,6 +6,7 @@ No private key export, token file, app data, or source archive is included.
 """
 import argparse
 import hashlib
+import html
 import json
 from pathlib import Path
 import shutil
@@ -37,7 +38,8 @@ def prepare(manifest, output):
     (output / 'SHA256SUMS').write_text(digest + '  ' + dmg.name + '\n')
     shutil.copy2(manifest, output / 'manifest.json')
     shutil.copy2(ROOT / 'Distribution/开始使用.html', output / 'installation-guide.html')
-    notes = '<p>飞书卡片完整内容、多行移动弹幕、点击停留与打开会话。本机消息按天保留，更新后继续待播；快捷轮盘支持单键。新增应用内更新提醒与点击安装。</p>'
+    release_notes = (ROOT / 'Distribution/release-notes.md').read_text().strip()
+    notes = ''.join('<p>' + html.escape(p) + '</p>' for p in release_notes.split('\n\n'))
     (output / (dmg.stem + '.html')).write_text(notes)
     tool = ROOT / '.build/artifacts/sparkle/Sparkle/bin/generate_appcast'
     run(str(tool), '--account', KEY_ACCOUNT, '--maximum-deltas', '0', '--download-url-prefix', f'https://github.com/{REPO}/releases/download/{tag}/', str(output))
@@ -76,7 +78,7 @@ def publish(prepared):
     if existing.returncode == 0:
         raise ValueError('Release exists; inspect its state before retrying to avoid duplicate publication')
     notes = Path(prepared['directory']) / 'release-notes.md'
-    notes.write_text('飞书卡片内容修复；长消息多行飘过，点击停留、移开继续。消息默认保留 7 天，可调整并定时清理。快捷轮盘支持单键；新增 GitHub 更新提醒和点击安装。\n\nApple 芯片 Mac，macOS 15+。首次安装仍需按安装窗口指引在系统设置允许打开。build91 及更早版本请先手动安装一次。\n')
+    notes.write_text((ROOT/'Distribution/release-notes.md').read_text())
     run('gh', 'release', 'create', tag, '--repo', REPO, '--target', commit, '--draft', '--title', f"一切在岛 {prepared['version']} · build{prepared['build']}", '--notes-file', str(notes))
     run('gh', 'release', 'upload', tag, '--repo', REPO, *prepared['files'])
     run('gh', 'release', 'edit', tag, '--repo', REPO, '--draft=false', '--latest')

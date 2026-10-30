@@ -14,7 +14,8 @@ struct HubShortcutRecorder: View {
                 Text(hint.isEmpty ? "支持单键或组合键，Esc取消。" : hint).font(.system(size: 12)).foregroundStyle(.secondary)
             }
             Spacer()
-            Button(recording ? "按下按键…" : store.hotkey.display) { recording ? stop() : start() }
+            Text(store.hotkey.display).font(.system(size: 15, weight: .medium))
+            Button(recording ? "按下按键…" : "自定义快捷键") { recording ? stop() : start() }
                 .buttonStyle(IslandButtonStyle(prominent: recording)).frame(minWidth: 120)
                 .accessibilityIdentifier("platform.hotkey.recorder")
         }

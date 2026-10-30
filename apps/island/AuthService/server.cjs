@@ -15,10 +15,10 @@ function downloadRange(value,size){
  if(first>=size||(last!==null&&last<first))return null;
  return {start:first,end:last===null?size-1:Math.min(last,size-1)};
 }
-function createServer({broker,origin='https://feishu-island.virxact.net',root=path.join(__dirname,'public')}){
+function createServer({broker,origin='https://island.example.invalid',root=path.join(__dirname,'public')}){
  const desktop=new DesktopAccess(broker);
  return http.createServer(async(req,res)=>{
-  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self' https://virxact.net; base-uri 'none'; form-action 'none'");
+  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self' https://hub.example.invalid; base-uri 'none'; form-action 'none'");
   const send=(status,v)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(v));};
   try{
    const url=new URL(req.url,origin);

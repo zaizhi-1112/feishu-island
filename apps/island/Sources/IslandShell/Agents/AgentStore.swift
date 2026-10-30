@@ -39,7 +39,7 @@ final class AgentStore: ObservableObject {
         let defaults = defaults ?? UserDefaults(suiteName: IslandRuntime.isSkinPreview ? "local.youzi.island.skin-preview.agents" : "local.zaizhi.feishu-island.preview.agents")!
         self.defaults = defaults
         preferences = .init()
-        if defaults.object(forKey: "preferences") == nil, IslandOnboardingPolicy.isNewUser {
+        if defaults.object(forKey: "preferences") == nil, allowsLiveReads {
             preferences = IslandOnboardingPolicy.unselectedAgents(preferences)
             // Persist opting into no tools so skipping stays quiet after restart.
             if let data = try? JSONEncoder().encode(preferences) { defaults.set(data, forKey: "preferences") }
@@ -214,15 +214,24 @@ final class AgentStore: ObservableObject {
         }
         polling = true; defer { polling = false }
         let revision = preferences.revision
-        let codexSessions = preferences.activeMonitorIDs.contains("codex") ? await codex.sessions(now: Date()) : []
-        let workSessions = preferences.activeMonitorIDs.contains("workbuddy") ? await Task.detached { try? WorkBuddyReader.sessions(now: Date().timeIntervalSince1970) }.value : nil
-        let claude = preferences.activeMonitorIDs.contains("claude") ? await Task.detached { ClaudeDesktopReader.snapshot(now: Date().timeIntervalSince1970) }.value : AgentSnapshot()
+        // A large Codex history must not delay the other providers or quota reads.
+        if Date().timeIntervalSince(lastQuotaAttempt) >= 180 { refreshQuotas() }
+        let monitorCodex = preferences.activeMonitorIDs.contains("codex")
+        let monitorWork = preferences.activeMonitorIDs.contains("workbuddy")
+        let monitorClaude = preferences.activeMonitorIDs.contains("claude")
+        async let codexSessions: [AgentSession] = monitorCodex ? codex.sessions(now: Date()) : []
+        async let workResult: Result<[AgentSession], Error> = Task.detached { Result { monitorWork ? try WorkBuddyReader.sessions(now: Date().timeIntervalSince1970) : [] } }.value
+        async let claudeSnapshot: AgentSnapshot = Task.detached { monitorClaude ? ClaudeDesktopReader.snapshot(now: Date().timeIntervalSince1970) : AgentSnapshot() }.value
+        let work = await workResult
+        let claude = await claudeSnapshot
         guard !sessionIsLocked(), preferences.enabled, preferences.revision == revision else { return }
         var received: [String:AgentSnapshot]=[:]
-        var codexValue = snapshots["codex"] ?? .init(source: "Codex本机事件＋官方额度接口", detail: "仅监测这台Mac保存的Codex任务。")
-        codexValue.sessions = codexSessions; received["codex"] = codexValue
-        var workValue = snapshots["workbuddy"] ?? .init(source: "WorkBuddy本机任务＋客户端积分接口", detail: "打开WorkBuddy并保持登录，即可读取当前积分。")
-        workValue.sessions = workSessions ?? []; received["workbuddy"] = workValue
+        var workValue = snapshots["workbuddy"] ?? .init(source: "WorkBuddy本机任务＋客户端积分接口", detail: "打开WorkBuddy并开始新任务后显示状态。")
+        switch work {
+        case .success(let sessions): workValue.sessions = sessions
+        case .failure(let error): workValue.sessions = []; workValue.detail = error.localizedDescription
+        }
+        received["workbuddy"] = workValue
         received["claude"] = claude
         for profile in preferences.profiles where profile.kind == "file" && preferences.activeMonitorIDs.contains(profile.id) {
             let result = await Task.detached { Result { try CustomAgentReader.read(profile) } }.value
@@ -233,7 +242,11 @@ final class AgentStore: ObservableObject {
             }
         }
         ingestSnapshots(received,now:Date().timeIntervalSince1970)
-        if Date().timeIntervalSince(lastQuotaAttempt) >= 180 { refreshQuotas() }
+        let sessions = await codexSessions
+        guard !sessionIsLocked(), preferences.enabled, preferences.revision == revision else { return }
+        var codexValue = snapshots["codex"] ?? .init(source: "Codex本机事件＋官方额度接口", detail: "仅监测这台Mac保存的Codex任务。")
+        codexValue.sessions = sessions
+        ingestSnapshots(["codex":codexValue],now:Date().timeIntervalSince1970)
     }
     /// All readers enter through this gate so a lock or monitoring change cannot consume an alert.
     func ingestSnapshots(_ values: [String:AgentSnapshot], now: Double) {
@@ -337,6 +350,7 @@ final class AgentStore: ObservableObject {
         // Quota is content for the revealed pill, not a permanent reveal request.
         // Explicit selection feedback and task notices reveal briefly, without collapsing a locked/input panel.
         activity.keepsCompactVisible = completionNotice != nil || primarySwitchNotice != nil
+        if completionNotice != nil { activity.alert = .compact(.seconds(6)) }
         activity.setExpanded { AgentPersistentExpanded(store:self) }
         activities?.start(activity)
     }
@@ -347,6 +361,14 @@ final class AgentStore: ObservableObject {
         enqueueNotice(notice)
     }
     private func enqueueNotice(_ notice:AgentCompletionNotice) {
+        if let material = preferences.completionScreenMaterialID, allowsLiveReads, !IslandRuntime.isSkinPreview, !sessionIsLocked() {
+            do {
+                let request = try WorkspaceStore.shared.screenReminderRequest(style: ScreenReminderStyle(materialID: material), title: notice.message)
+                try ScreenReminderPresenter.shared.present(request)
+                lastAlert = notice.message
+                return
+            } catch { lastAlert = "屏幕动效暂不可用，已改用灵动岛提醒。" }
+        }
         // Status and quota notices have separate slots, so neither can consume the other.
         if let current=completionNotice, current.profileID != notice.profileID || current.isQuota != notice.isQuota {
             if let index=pendingNotices.firstIndex(where:{$0.profileID==notice.profileID && $0.isQuota==notice.isQuota}) { pendingNotices[index]=notice }

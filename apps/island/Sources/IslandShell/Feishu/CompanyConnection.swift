@@ -57,13 +57,13 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
     }
     static let profile="company"
     static let shared=CompanyConnection()
-    static let origin="https://feishu-island.virxact.net"
+    static let origin="https://island.example.invalid"
     static let connectURL=URL(string:origin+"/connect.html")!
     private static let storeID=UUID(uuidString:"0CEFF04D-8688-4341-ADBA-B069D6251F20")!
     private static func failure(_ text:String) -> AccountFailure { AccountFailure(detail:text) }
     static func allowed(_ url:URL?) -> Bool {
         guard let u=url else{return false}
-        return u.scheme == "https" && u.host == "feishu-island.virxact.net" && (u.port == nil || u.port == 443) && u.user == nil && u.password == nil
+        return u.scheme == "https" && u.host == "island.example.invalid" && (u.port == nil || u.port == 443) && u.user == nil && u.password == nil
     }
     private let lock=NSLock()
     private let defaults:UserDefaults
@@ -198,7 +198,7 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
             authorizationGranted = state["authorized"] as? Bool == true
             let local = statusJSON()[authorizationPurpose.rawValue] as? [String: Any]
             authorizationConnected = authorizationGranted && local?["connected"] as? Bool == true
-            if !authorizationBusy {
+            if !authorizationBusy && !(purpose == .receive && FeishuStore.active?.connecting == true) {
                 authorizationFeedback = !authorizationConfigured ? "这项连接暂不可用，请联系应用维护者。"
                     : authorizationConnected ? "已核实本人授权，Mac连接已完成。"
                     : authorizationGranted ? "飞书授权已保存。点下方按钮核对Mac连接，成功后会显示连接结果。"
@@ -303,7 +303,13 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
         }
     }
     @MainActor func continueDesktopConnection() {
-        if authorizationPurpose == .receive, let store = FeishuStore.active, !store.connecting {
+        if authorizationPurpose == .receive {
+            guard let store = FeishuStore.active else {
+                reportReceiveConnectionFailure("飞书消息组件尚未就绪，请稍后重新核对连接。")
+                return
+            }
+            authorizationFeedback = "飞书授权已完成，正在核对 Mac 连接…"
+            guard !store.connecting else { return }
             store.completeCompanyConnection()
         } else if authorizationPurpose == .calendar {
             Task {
@@ -311,6 +317,11 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
                 await refreshAuthorizationStatus()
             }
         } else { Task { await refreshAuthorizationStatus() } }
+    }
+    @MainActor func reportReceiveConnectionFailure(_ message: String) {
+        guard authorizationPurpose == .receive else { return }
+        authorizationConnected = false
+        authorizationFeedback = message
     }
     @MainActor func cancelAuthorization() {
         authorizationAttempt = UUID()
@@ -332,6 +343,7 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
     }
     @MainActor func returnToSettings() {
         window?.orderOut(nil)
+        if IslandOnboardingPolicy.isNewUser { return }
         UnifiedSettingsWindow.shared.open(section: authorizationPurpose == .calendar ? .todos : .messages)
     }
     @MainActor func reloadLoginPage() {
@@ -347,7 +359,7 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
         }
         let epoch = generation
         let code = """
-        if (location.origin !== 'https://feishu-island.virxact.net' || location.pathname !== '/connect.html') throw new Error('origin');
+        if (location.origin !== 'https://island.example.invalid' || location.pathname !== '/connect.html') throw new Error('origin');
         const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 16000);
         try {
           const response = await fetch('/api/auth/' + route, {method: payload ? 'POST' : 'GET', credentials: 'same-origin', cache: 'no-store', redirect: 'error', headers: payload ? {'Content-Type': 'application/json', 'X-Island-Auth': '1'} : {}, body: payload ? JSON.stringify(payload) : undefined, signal: controller.signal});
@@ -481,7 +493,7 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
         guard let web,Self.allowed(web.url),web.url?.path == "/connect.html" else {finish(p,.failure(Self.failure("公司登录已过期，请打开连接页完成登录。")));return}
         inflight.insert(p);let epoch=generation;let attempt=attempts[p]
         let code="""
-        if (location.origin !== 'https://feishu-island.virxact.net') throw new Error('origin');
+        if (location.origin !== 'https://island.example.invalid') throw new Error('origin');
         const controller = new AbortController(); const timer=setTimeout(()=>controller.abort(),16000);
         try { const r=await fetch('/api/auth/access',{method:'POST',credentials:'same-origin',cache:'no-store',redirect:'error',headers:{'Content-Type':'application/json','X-Island-Auth':'1'},body:JSON.stringify({purpose}),signal:controller.signal});
           if(!r.ok) {

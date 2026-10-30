@@ -95,6 +95,25 @@ test('calendar access downscopes an existing broad grant before releasing it',as
  assert.equal((await b.access('alice','calendar')).access,'synthetic-narrow');assert.equal(calls,1);
 });
 
+test('receive downscopes inherited permissions before desktop handoff',async()=>{
+ let saved={access:'synthetic-broad',refresh:'synthetic-r1',scope:PURPOSES.receive.scope+' calendar:calendar:read',expires:3600000,refreshExpires:86400000},calls=0;
+ const b=new Broker({vault:{read:async()=>saved,save:async(u,p,v)=>{assert.equal(p,'receive');saved=v;}},env:{FEISHU_RECEIVE_SECRET:'synthetic'},now:()=>0,fetcher:async(url,options)=>{
+  calls++;const body=JSON.parse(options.body);assert.equal(body.scope,PURPOSES.receive.scope);
+  return mock({access_token:'synthetic-narrow',refresh_token:'synthetic-r2',scope:PURPOSES.receive.scope,expires_in:3600,refresh_token_expires_in:86400});
+ }});
+ assert.equal((await b.access('alice','receive')).access,'synthetic-narrow');
+ assert.equal(saved.scope,PURPOSES.receive.scope);
+ assert.equal((await b.access('alice','receive')).access,'synthetic-narrow');assert.equal(calls,1);
+});
+
+test('receive never hands a still-broad token to the desktop',async()=>{
+ let saved={access:'synthetic-broad',refresh:'synthetic-r1',scope:PURPOSES.receive.scope+' calendar:calendar:read',expires:3600000,refreshExpires:86400000};
+ const b=new Broker({vault:{read:async()=>saved,save:async(u,p,v)=>{saved=v;}},env:{FEISHU_RECEIVE_SECRET:'synthetic'},now:()=>0,fetcher:async()=>mock({access_token:'synthetic-still-broad',refresh_token:'synthetic-r2',scope:saved.scope,expires_in:3600,refresh_token_expires_in:86400})});
+ const {DesktopAccess}=require('./desktop.cjs');
+ await assert.rejects(new DesktopAccess(b).access('alice','receive'),e=>e.status===403);
+ assert.equal(saved.refresh,'synthetic-r2');
+});
+
 test('readonly schedule grant is isolated from legacy calendar and excludes writes',async()=>{
  assert.deepEqual(PURPOSES.schedule.scope.split(' ').sort(),['auth:user.id:read','calendar:calendar:read','calendar:calendar.event:read','offline_access'].sort());
  assert(PURPOSES.calendar.scope.includes('calendar:calendar.event:create'));

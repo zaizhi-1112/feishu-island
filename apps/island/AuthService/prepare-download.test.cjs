@@ -46,7 +46,7 @@ test('build rejects untrusted redirects and upstream errors without downloading 
 
 test('build rejects arbitrary URLs, mismatched release metadata, invalid hashes and excessive size',()=>{
  for(const change of [{package:'../private.dmg'},{url:source.url.replace('build99/','build98/')},{url:source.url+'?next=bad'},
-  {url:source.url.replace('github.com','example.com')},{size:48000001},{sha256:'bad'}])assert.throws(()=>validateSource({...source,...change}),/metadata/);
+  {url:source.url.replace('github.com','example.com')},{size:100000001},{sha256:'bad'}])assert.throws(()=>validateSource({...source,...change}),/metadata/);
  for(const assetUrl of ['https://evil.example/file','http://release-assets.githubusercontent.com/file',
   'https://release-assets.githubusercontent.com/file?se=2020-01-01T00%3A00%3A00Z'])assert.throws(()=>validateSource({...source,assetUrl}),/asset/);
 });
@@ -72,4 +72,10 @@ test('out-of-order bounded ranges assemble one exact installer and reject wrong 
  const badRoot=await fixture();
  await assert.rejects(prepareDownload(badRoot,{chunkBytes:4,fetchImpl:async()=>new Response(bytes.subarray(0,4),{status:206,headers:{'content-length':'4','content-range':'bytes 0-3/999'}})}),/range/);
  await assert.rejects(fs.stat(path.join(badRoot,'public',packageName)),{code:'ENOENT'});
+});
+
+test('build download budget is separate from upload size and stays bounded',()=>{
+ assert.doesNotThrow(()=>validateSource({...source,size:48212104}));
+ assert.doesNotThrow(()=>validateSource({...source,size:100000000}));
+ assert.throws(()=>validateSource({...source,size:100000001}),/Invalid audited/);
 });

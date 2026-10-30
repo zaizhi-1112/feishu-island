@@ -29,3 +29,6 @@ auth.json
 *.zip
 *.dmg
 *.tgz
+/apps/windows/vendor/*/lark-cli.exe
+/apps/windows/dist/
+/apps/windows/vendor/*/.verified

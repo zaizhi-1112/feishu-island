@@ -54,6 +54,20 @@ import Darwin
                     if event == "Notification" { entry["matcher"] = "permission_prompt|elicitation_dialog|agent_needs_input|elicitation_complete|elicitation_response" }
                     entries.append(entry); hooks[event] = entries
                 }
+                if provider == "claude" {
+                    let ownCommand = "'" + executable.replacingOccurrences(of: "'", with: "'\\''") + "' --statusline claude"
+                    var statusLine = object["statusLine"] as? [String: Any] ?? [:]
+                    let previous = statusLine["command"] as? String
+                    if previous != ownCommand {
+                        // Preserve the user's original status line and its output.
+                        guard previous?.contains(" --statusline claude") != true else { throw Failure.invalid }
+                        let stateRoot = home.appendingPathComponent("Library/Application Support/FeishuIsland/AgentStatus")
+                        try privateDirectory(stateRoot)
+                        try write(JSONSerialization.data(withJSONObject: ["command": previous ?? ""]), to: stateRoot.appendingPathComponent("claude-statusline-forward.json"))
+                        statusLine["type"] = "command"; statusLine["command"] = ownCommand
+                        object["statusLine"] = statusLine
+                    }
+                }
                 object["hooks"] = hooks
                 let result = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
                 if data != result {
@@ -63,6 +77,37 @@ import Darwin
                     // Refuse to overwrite a concurrent settings edit.
                     guard (try? Data(contentsOf: settings)) == data else { throw Failure.invalid }
                     try write(result, to: settings)
+                }
+            } else if args[1] == "--statusline", provider == "claude" {
+                let home = testRoot ?? FileManager.default.homeDirectoryForCurrentUser
+                let root = home.appendingPathComponent("Library/Application Support/FeishuIsland/AgentStatus")
+                // Claude supplies one bounded JSON object. The original renderer receives identical bytes.
+                var input = Data()
+                while input.count <= 1048576 {
+                    guard let chunk = try FileHandle.standardInput.read(upToCount: 16384), !chunk.isEmpty else { break }
+                    input.append(chunk)
+                    if (try? JSONSerialization.jsonObject(with: input)) != nil { break }
+                }
+                guard input.count <= 1048576 else { return }
+                let policy = (try? Data(contentsOf: root.appendingPathComponent("policy.json"))).flatMap { try? JSONDecoder().decode(AgentHookPolicy.self, from: $0) }
+                if testRoot != nil || (policy?.enabled == true && policy?.visibleIDs.contains("claude") == true),
+                   let object = try? JSONSerialization.jsonObject(with: input) as? [String: Any],
+                   let record = ClaudeQuotaRecord.parse(object, now: Date().timeIntervalSince1970) {
+                    try? privateDirectory(root)
+                    if let data = try? JSONEncoder().encode(record) { try? write(data, to: root.appendingPathComponent("claude-quota.json")) }
+                }
+                let forward = root.appendingPathComponent("claude-statusline-forward.json")
+                try safeFile(forward)
+                if let bytes = try? Data(contentsOf: forward), bytes.count < 65536,
+                   let object = try? JSONSerialization.jsonObject(with: bytes) as? [String: String],
+                   let command = object["command"], !command.isEmpty, !command.contains(" --statusline claude") {
+                    let process = Process(), pipe = Pipe()
+                    process.executableURL = URL(fileURLWithPath: "/bin/sh"); process.arguments = ["-c", command]
+                    process.standardInput = pipe
+                    // stdout and stderr remain the original terminal renderer's streams.
+                    try process.run()
+                    try pipe.fileHandleForWriting.write(contentsOf: input); try pipe.fileHandleForWriting.close()
+                    process.waitUntilExit()
                 }
             } else if args[1] == "--record" {
                 // Passive observers must never stall an interactive tool or ask for a decision.

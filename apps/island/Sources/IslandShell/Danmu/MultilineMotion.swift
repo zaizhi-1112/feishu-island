@@ -1,7 +1,12 @@
 import AppKit
+import SwiftUI
 
 /// Pure text layout shared by the renderer and burst/continuation checks.
 enum MotionTextLayout {
+    static func scrollFraction(position: CGFloat, screenWidth: CGFloat, panelWidth: CGFloat) -> CGFloat {
+        let travel = max(1, screenWidth - panelWidth)
+        return min(1, max(0, (travel - position) / travel))
+    }
     static func segments(_ text: String, font: NSFont, width: CGFloat, height: CGFloat) -> [String] {
         let characters = Array(text)
         var result: [String] = [], index = 0
@@ -27,9 +32,10 @@ extension Overlay {
         for lane in Set(flying.map(\.lane)) {
             var leading: FlyingText?
             for view in flying.filter({ $0.lane == lane }).sorted(by: { $0.position < $1.position }) {
-                var x = view.position - (view.clickedPause ? 0 : (movementSpeed ?? screen.width / duration) * dt)
+                var x = view.position - (view.clickedPause ? 0 : view.speed * dt)
                 if let leading { x = max(x, leading.position + leading.frame.width + 48) }
                 view.position = x
+                view.needsDisplay = true
                 view.motionPanel?.setFrameOrigin(NSPoint(x: screen.minX + (x * scale).rounded() / scale, y: screen.minY + view.motionY))
                 leading = view
             }
@@ -37,19 +43,19 @@ extension Overlay {
         let expired = flying.filter { $0.position + $0.frame.width < 0 }
         for view in expired {
             view.motionPanel?.close()
-            if var message = view.motionMessage {
-                if message.segment + 1 < view.motionPages.count {
-                    message.segment += 1; message.segments = view.motionPages
-                    // Round-robin continuation: a long message cannot monopolize all lanes.
-                    queue.append(message)
-                } else if let id = message.messageID { onFinished?(id) }
-            }
+            if let id = view.motionMessage?.messageID { onFinished?(id) }
         }
         flying.removeAll { $0.position + $0.frame.width < 0 }
         guard !queue.isEmpty else { return }
         let font = NSFont.systemFont(ofSize: fontSize, weight: heavy ? .bold : .medium)
         let textHeight = ceil(font.ascender - font.descender + font.leading) * 4 + 4
-        let rowHeight = textHeight + 56
+        let includesImages = queue.first?.sourceMessage?.hasImageContent == true || flying.contains { $0.imageAreaHeight > 0 }
+        let requiredHeight = textHeight + 56 + (includesImages ? 110 : 0)
+        // Keep a stable lane grid until the current wave clears. A taller image
+        // must not enter a compact text lane and overlap its neighbour.
+        if flying.isEmpty { motionRowHeight = requiredHeight }
+        guard requiredHeight <= motionRowHeight else { return }
+        let rowHeight = motionRowHeight
         let lanes = min(laneCount, max(1, Int((screen.height - 120) / rowHeight)))
         guard let lane = (0..<lanes).first(where: { candidate in !flying.contains { $0.lane == candidate && $0.position + $0.frame.width > screen.width - 60 } }) else { return }
         if let id = queue[0].messageID, let verifyUnread, verified != queue[0].identity {
@@ -74,7 +80,8 @@ extension Overlay {
         let width = min(620, max(280, screen.width * 0.48))
         if message.segments.isEmpty {
             let text = message.demo ? "[演示] " + message.text : message.text
-            message.segments = MotionTextLayout.segments(text, font: font, width: width - 28, height: textHeight)
+            message.segments = [text]
+            message.segment = 0
         }
         guard message.segment < message.segments.count else { if let id = message.messageID { onFinished?(id) }; return }
         let view = FlyingText(frame: .zero)
@@ -85,12 +92,17 @@ extension Overlay {
         if !backdrop { attributes[.strokeColor] = NSColor.black; attributes[.strokeWidth] = -1.5 }
         view.content = NSAttributedString(string: message.segments[message.segment], attributes: attributes)
         let measured = view.content.boundingRect(with: NSSize(width: width - 28, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading])
-        let height = min(rowHeight - 6, ceil(measured.height) + 52)
-        let actualWidth = min(width, max(180, ceil(measured.width) + 28))
+        let hasImages = message.sourceMessage?.hasImageContent == true
+        let height = min(rowHeight - 6, ceil(measured.height) + 52 + (hasImages ? 110 : 0))
+        let actualWidth = min(width, max(hasImages ? 340 : 180, ceil(measured.width) + 28))
+        view.imageAreaHeight = hasImages ? 110 : 0
         let band = CGFloat(lanes) * rowHeight
         let top = position == 1 ? (screen.height + band) / 2 : position == 2 ? band + 32 : screen.height - 64
         view.frame = NSRect(x: screen.width, y: max(20, top - CGFloat(lane + 1) * rowHeight), width: actualWidth, height: height)
         view.position = screen.width; view.lane = lane; view.alphaValue = opacity
+        view.motionScreenWidth = screen.width
+        let readingSeconds = max(1, Double(view.content.string.count) / 8)
+        view.speed = min(movementSpeed ?? screen.width / duration, max(1, screen.width - actualWidth) / readingSeconds)
         let panel = PassThroughWindow(contentRect: view.frame.offsetBy(dx: screen.minX, dy: screen.minY), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = false
         panel.ignoresMouseEvents = false; panel.hidesOnDeactivate = false; panel.isReleasedWhenClosed = false
@@ -101,6 +113,17 @@ extension Overlay {
         panel.contentView = container
         let localFrame = view.frame
         view.frame.origin = .zero; container.addSubview(view)
+        if let source = message.sourceMessage, hasImages {
+            MainActor.assumeIsolated {
+                if let connection = FeishuStore.active?.connection {
+                    let gallery = FeishuImageGallery(message: source, connection: connection, compact: true)
+                        .onHover { [weak view] inside in view?.clickedPause = inside }
+                    let host = NSHostingView(rootView: gallery)
+                    host.frame = NSRect(x: 10, y: 36, width: actualWidth - 20, height: 104)
+                    view.addSubview(host)
+                }
+            }
+        }
         if let id = message.messageID {
             view.motionOpen = { [weak self] in self?.onOpenConversation?(id) }
             view.openButton.target = view; view.openButton.action = #selector(FlyingText.openMotionConversation)

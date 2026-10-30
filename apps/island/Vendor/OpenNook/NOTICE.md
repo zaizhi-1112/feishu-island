@@ -84,3 +84,18 @@ The edge-dock reveal mask uses floating corners while the floating chrome is exp
 2026-10-29 build84: Hover retention includes the hardware camera area within the existing narrow entry bridge. Click hit regions are unchanged. This prevents an upward pointer motion from interrupting full expansion while preserving lateral menu-bar exit and pointer-only behavior. Native regression replays the upward motion and rapid re-entry.
 
 - build92: NookHotkey event initializer accepts opt-in unmodified keys for the hub wheel only; other shortcut editors retain modifier requirements. Added F13–F19 labels.
+
+## 2026-10-29 build95 first-run gate and hidden retraction
+The host supplies a main-actor presentationAllowed closure, applied before compact, expand or peek creates a surface. First-run setup controls this gate. Retracted edge chrome is fully invisible; its hit region ends at the physical camera area (4pt transparent fallback on notchless screens). Existing licenses and pointer handling remain in effect.
+
+2026-10-29: The host runs as a regular macOS application so its Dock icon remains available during onboarding and settings; the status item uses the bundled product icon when present.
+
+2026-10-30: NookPanel explicitly remains visible on app deactivation and joins application spaces, retaining its status-bar-above window level for pinned island use.
+
+- build105: expanded window elevation follows the explicit keep-open preference. Compact edge remains available above ordinary windows; unpinned expanded content uses the normal window level.
+
+- build106: shortcut labels resolve the unmodified key via AppKit so Shift+digit and Shift+punctuation remain recordable; modifier registration is unchanged.
+
+- build108: optional host onReopen callback handles Dock/Finder clicks; default framework reopen behavior remains unchanged when absent.
+
+- 2026-10-30 build110: keep expanded island chrome above application windows regardless of hover-exit locking; ordinary settings remain normal-level windows. Regression covers unlocked expansion and independent settings level.

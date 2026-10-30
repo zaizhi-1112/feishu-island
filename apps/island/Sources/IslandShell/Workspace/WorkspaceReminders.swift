@@ -44,28 +44,34 @@ extension WorkspaceStore {
         let access=source.startAccessingSecurityScopedResource()
         defer { if access { source.stopAccessingSecurityScopedResource() } }
         try ScreenReminderMedia.validateFile(source)
-        let id=UUID().uuidString, filename=id+"."+source.pathExtension.lowercased()
+        let id=UUID().uuidString
         let directory=todoStorageRoot.appendingPathComponent("ScreenReminderMedia",isDirectory:true)
         try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
-        let destination=directory.appendingPathComponent(filename)
+        let original=directory.appendingPathComponent(id+"-original."+source.pathExtension.lowercased())
+        let destination=directory.appendingPathComponent(id+".mov")
         do {
-            // A copy is validated after writing, so a changing external file cannot
-            // turn a valid selection into an unbounded or non-video runtime asset.
             let bytes=try Data(contentsOf:source)
             guard bytes.count <= ScreenReminderMedia.maximumBytes else { throw WorkError.message("视频超过150MB。") }
-            try bytes.write(to:destination,options:.atomic)
+            try bytes.write(to:original,options:.atomic)
+            try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:original.path)
+            let info=try await ScreenReminderMedia.inspect(original)
+            if info.alpha { try FileManager.default.moveItem(at:original,to:destination) }
+            else { try await ScreenReminderMatting.convert(original,to:destination) }
             try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:destination.path)
-            let info=try await ScreenReminderMedia.inspect(destination)
-            guard !Task.isCancelled else { throw CancellationError() }
+            let processed=try await ScreenReminderMedia.inspect(destination)
+            guard processed.alpha else {throw WorkError.message("透明背景处理失败，视频未加入素材库。")}
+            try Task.checkCancellation()
             guard (disk.screenMaterials?.count ?? 0) < 30 else { throw WorkError.message("个人提醒素材最多30个。") }
-            let material=ScreenReminderMaterial(id:id,name:String(source.deletingPathExtension().lastPathComponent.prefix(60)),filename:filename,durationSeconds:info.duration,hasAlpha:info.alpha)
+            let material=ScreenReminderMaterial(id:id,name:String(source.deletingPathExtension().lastPathComponent.prefix(60)),filename:id+".mov",durationSeconds:processed.duration,hasAlpha:true)
             guard mutate({ $0.screenMaterials=($0.screenMaterials ?? [])+[material] }) else { throw WorkError.message(error) }
+            if FileManager.default.fileExists(atPath:original.path) { try? FileManager.default.trashItem(at:original,resultingItemURL:nil) }
             return material
         } catch {
-            if FileManager.default.fileExists(atPath:destination.path) { try? FileManager.default.trashItem(at:destination,resultingItemURL:nil) }
+            for url in [original,destination] where FileManager.default.fileExists(atPath:url.path) { try? FileManager.default.trashItem(at:url,resultingItemURL:nil) }
             throw error
         }
     }
+
     func screenReminderRequest(style: ScreenReminderStyle, title: String) throws -> ScreenReminderRequest {
         var style=style
         if (disk.removedScreenMaterialIDs ?? []).contains(style.materialID), let fallback=screenMaterials.first {style.materialID=fallback.id}
@@ -87,6 +93,7 @@ extension WorkspaceStore {
     func dismissScreenReminder() { if integrationEnabled { ScreenReminderPresenter.shared.dismiss() } }
     func dismissAllScreenReminders() { if integrationEnabled { ScreenReminderPresenter.shared.dismissAll() } }
     func tickReminders(now: Date = Date()) {
+        guard !IslandOnboardingPolicy.isNewUser else { return }
         tickRest(now:now,away:remindersAreLocked() || restSleeping)
         if remindersAreLocked() || restSleeping { return }
         tickFeishuSchedules(now:now)

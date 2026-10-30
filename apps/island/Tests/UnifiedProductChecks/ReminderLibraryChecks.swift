@@ -9,6 +9,8 @@ import NookApp
     let store=WorkspaceStore(root:root,startTimers:false)
     check(store.screenMaterials.count==4 && store.restPlan.materialID=="cat","four bundled effects, walking cat is default")
     check(store.screenMaterials.first?.name=="猫咪走动" && !store.screenMaterials.contains{$0.name.contains("伸懒腰")},"old stretch removed")
+    check(store.screenMaterials.first{$0.id=="gemini-greeting"}?.name=="杰哥提醒","existing Gemini selection migrates to Jie reminder")
+    check(store.screenMaterials.first{$0.id=="what-a-day"}?.hasAlpha==false,"KUN uses original opaque video")
     for material in store.screenMaterials {
         let request=try store.screenReminderRequest(style:.init(materialID:material.id),title:"合成预览")
         let url=request.videoURL!
@@ -17,7 +19,7 @@ import NookApp
         check(info.alpha==material.hasAlpha,"packaged alpha matches: "+material.id)
         let asset=AVURLAsset(url:url)
         check(try await asset.load(.isPlayable),"native player decodes: "+material.id)
-        let generator=AVAssetImageGenerator(asset:asset);generator.appliesPreferredTrackTransform=true
+        let generator=AVAssetImageGenerator(asset:asset);generator.appliesPreferredTrackTransform=true;generator.requestedTimeToleranceBefore = .zero;generator.requestedTimeToleranceAfter = .zero
         let (frame,_)=try await generator.image(at:CMTime(seconds:4,preferredTimescale:600))
         check(frame.width>0 && frame.height>0,"video frame decoded: "+material.id)
         if material.hasAlpha {
@@ -30,6 +32,18 @@ import NookApp
             check(transparent>100 && opaque>10,"real transparent and visible pixels: "+material.id)
         }
     }
+    let opaqueSource=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Resources/ScreenReminder/gemini-greeting.mp4")
+    let sample=root.appendingPathComponent("opaque-import.mp4")
+    let exporter=AVAssetExportSession(asset:AVURLAsset(url:opaqueSource),presetName:AVAssetExportPreset640x480)!
+    exporter.timeRange=CMTimeRange(start:CMTime(seconds:2,preferredTimescale:600),duration:CMTime(seconds:1,preferredTimescale:600))
+    try await exporter.export(to:sample,as:.mp4)
+    let original=try Data(contentsOf:sample)
+    let cutout=try await store.importScreenReminderVideo(sample)
+    let cutoutURL=try ScreenReminderMedia.ownedURL(cutout,root:root)
+    let cutoutInfo=try await ScreenReminderMedia.inspect(cutoutURL)
+    check(cutout.hasAlpha && cutoutInfo.alpha,"opaque custom video is processed into a real alpha movie before saving")
+    check(try Data(contentsOf:sample)==original,"custom video source stays unchanged after local background removal")
+    check(store.removeScreenMaterial(cutout.id),"processed custom video can be removed")
     let presenter=ScreenReminderPresenter(displaysWindows:false,sessionIsLocked:{false})
     let cat=try store.screenReminderRequest(style:.init(),title:"合成猫咪")
     let rick=try store.screenReminderRequest(style:.init(materialID:"rick"),title:"合成传送门")

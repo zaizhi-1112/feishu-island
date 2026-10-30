@@ -26,6 +26,9 @@ import Foundation
 /// top level of a `main.swift` and then handed to `NookApp.main`, which runs setup on
 /// the main actor - a real isolation crossing, so the conformance must be genuine.
 public struct NookHostConfiguration: Sendable {
+    /// Explicit Dock/Finder reopen action, independent of notch visibility.
+    public var onReopen: (@MainActor @Sendable () -> Void)?
+
     private var entries: [NookModuleRegistry.Registration] = []
     private var explicitDefault: String?
 

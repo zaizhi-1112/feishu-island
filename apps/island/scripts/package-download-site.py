@@ -17,14 +17,15 @@ PUBLIC = {'index.html', 'install.js', 'install.css', 'landing.css', 'agent-guide
           'icon.png', 'mascot.png', 'brand-particles.js', 'virxact-mark.svg', 'virxact-ui.css', 'virxact-story.css', 'vx.js',
           'native-agent-codex.png', 'native-agent-workbuddy.png', 'native-agent-deepseek.png', }
 MAX_DMG_BYTES = 48_000_000  # Reserve room within the backend's 50 MB upload limit.
+MAX_REMOTE_DMG_BYTES = 100_000_000  # Build-time download; not part of the 50 MB upload.
 SERVICE = {'server.cjs', 'core.cjs', 'desktop.cjs', 'package.json', 'package-lock.json', 'virxact.json'}
 
 
-def validate(package, manifest, root=ROOT):
+def validate(package, manifest, root=ROOT, *, web_only=False):
     if package.is_symlink() or not package.is_file() or package.suffix != '.dmg':
         raise ValueError('Expected an audited DMG file')
-    if package.stat().st_size > MAX_DMG_BYTES:
-        raise ValueError('DMG exceeds the download service upload budget; compress media before publishing')
+    if package.stat().st_size > (MAX_REMOTE_DMG_BYTES if web_only else MAX_DMG_BYTES):
+        raise ValueError("DMG exceeds the build download budget" if web_only else "DMG exceeds the download service upload budget")
     info = plistlib.loads((root/'Resources/Info.plist').read_bytes())
     version, build = info['CFBundleShortVersionString'], info['CFBundleVersion']
     expected = (version, build, ['arm64'], 'pilot-preparation', 'dmg')
@@ -115,7 +116,7 @@ def resolve_asset(source):
 
 def stage(package, output, manifest_path=None, web_only=False, download_asset=None):
     manifest = json.loads((manifest_path or package.parent/'package-manifest.json').read_text())
-    name, digest, aliases = validate(package, manifest)
+    name, digest, aliases = validate(package, manifest, web_only=web_only)
     source = None
     if web_only:
         if download_asset is None:

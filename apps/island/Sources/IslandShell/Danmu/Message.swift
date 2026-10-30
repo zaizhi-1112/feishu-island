@@ -11,6 +11,7 @@ struct DanmuMessage {
     var messageID: String? = nil
     var segment = 0
     var segments: [String] = []
+    var sourceMessage: FeishuMessage? = nil
 }
 
 // No message is persisted. Dedupe by notification element identity, not body:

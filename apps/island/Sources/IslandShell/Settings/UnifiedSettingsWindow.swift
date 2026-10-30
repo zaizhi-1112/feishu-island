@@ -2,12 +2,11 @@ import AppKit
 import NookApp
 import SwiftUI
 
-/// A utility panel can take text input without activating the app and jumping
-/// back to the Space that previously owned its settings window.
-private final class IslandSettingsPanel: NSPanel {
+/// A normal document-style window: explicit opening activates it, switching apps lowers it.
+private final class IslandSettingsPanel: NSWindow {
     var inputMethodChanged: ((Bool) -> Void)?
     override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { false }
+    override var canBecomeMain: Bool { true }
     override func sendEvent(_ event: NSEvent) {
         if event.type == .keyDown, event.keyCode == 48 {
             inputMethodChanged?(true)
@@ -30,10 +29,10 @@ private final class IslandSettingsPanel: NSPanel {
         model.section = section
         model.keyboardNavigation = false
         if window == nil {
-            let next = IslandSettingsPanel(contentRect: NSRect(x:0,y:0,width:1020,height:760), styleMask:[.titled,.closable,.miniaturizable,.resizable,.nonactivatingPanel], backing:.buffered,defer:false)
+            let next = IslandSettingsPanel(contentRect: NSRect(x:0,y:0,width:1020,height:760), styleMask:[.titled,.closable,.miniaturizable,.resizable], backing:.buffered,defer:false)
             next.title = "一切在岛 · 设置"; next.identifier = .init("feibao.settings")
             next.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .canJoinAllApplications]
-            next.level = .floating
+            next.level = .normal
             next.hidesOnDeactivate = false
             next.minSize = NSSize(width:840,height:620); next.isReleasedWhenClosed = false
             next.delegate = self; next.setFrameAutosaveName("FeibaoUnifiedSettings")
@@ -43,8 +42,9 @@ private final class IslandSettingsPanel: NSPanel {
         }
         model.visible = true
         if window?.isMiniaturized == true { window?.deminiaturize(nil) }
-        // Order onto the user's current Space before taking keyboard focus. Do not
-        // activate NSApp: activation can bring an old desktop/fullscreen Space back.
+        // Move to the active Space first, then activate only for this explicit request.
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
     // Settings and the island are independent windows. Keep the live surface and
@@ -163,8 +163,11 @@ private struct UnifiedSettingsLayout:View {
                 Text("交互方式").tag("interaction")
                 Text("显示屏").tag("display")
             }.pickerStyle(.segmented).labelsHidden().accessibilityIdentifier("unified.appearance.tabs")
+            IslandSettingsCard("岛内字号") { IslandTextSizeControls() }
             switch appearancePage {
-            case "interaction": IslandSettingsCard("主题与交互") { UnifiedAppearanceControls(appState: appState) }
+            case "interaction":
+                IslandSettingsCard("快捷键") { IslandShortcutRecorder(appState: appState) }
+                IslandSettingsCard("主题与交互") { UnifiedAppearanceControls(appState: appState) }
             case "display": IslandSettingsCard("灵动岛显示在哪里") { UnifiedDisplaySettings(appState: appState) }
             default: IslandSkinStudio(store: agents)
             }
@@ -183,12 +186,13 @@ struct IslandSettingsCard<Content:View>:View {
     @ViewBuilder let content:()->Content
     init(_ title:String,@ViewBuilder content:@escaping()->Content) { self.title=title; self.content=content }
     var body:some View {
-        VStack(alignment:.leading,spacing:16) { Text(title).font(.system(size:16,weight:.semibold)); content() }
+        VStack(alignment:.leading,spacing:16) { if !title.isEmpty { Text(title).font(.system(size:16,weight:.semibold)) }; content() }
             .frame(maxWidth:.infinity,alignment:.leading).padding(20).modifier(IslandCard(radius:14))
     }
 }
 struct UnifiedAppearanceControls:View {
     @ObservedObject var appState:AppState
+    @AppStorage("island.showRetractedEdge") private var showRetractedEdge = false
     private func binding<T>(_ key:WritableKeyPath<NookAppearancePreferences,T>)->Binding<T> {
         Binding(get:{appState.appearancePreferences[keyPath:key]},set:{ value in var next=appState.appearancePreferences; next[keyPath:key]=value; appState.replaceAppearancePreferences(next) })
     }
@@ -202,6 +206,10 @@ struct UnifiedAppearanceControls:View {
             Text("完整展开").tag(NookOpenOnHover.immediately)
             Text("先露出胶囊，点击展开").tag(NookOpenOnHover.peekFirst)
         }.pickerStyle(.segmented).accessibilityIdentifier("unified.hoverMode")
+        Picker("收起时", selection: $showRetractedEdge) {
+            Text("完全隐藏").tag(false)
+            Text("露出黑边").tag(true)
+        }.pickerStyle(.segmented)
         Text("统一使用悬浮胶囊。未锁定时空闲移开即收起，输入或操作菜单时保留展开；点齿轮旁的小锁可始终保持展开。").font(.system(size:12)).foregroundStyle(.secondary)
     }
 }

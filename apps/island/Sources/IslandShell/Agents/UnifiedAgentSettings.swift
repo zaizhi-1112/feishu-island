@@ -32,6 +32,7 @@ struct UnifiedAgentSettings:View {
     private var orderedProfiles:[AgentProfile] { store.preferences.visibleProfiles + store.preferences.profiles.filter{ !store.preferences.visibleIDs.contains($0.id) } }
     var body:some View {
         VStack(alignment:.leading,spacing:24) {
+            IslandSettingsCard("获取本机 Agent") { AgentDiscoveryView(store: store) }
             IslandSettingsCard("我的工具") {
                 HStack { Text("选择工具的使用方式，修改后立即生效。").font(.system(size:12)).foregroundStyle(.secondary);Spacer();Button("接入Agent"){editingID=nil;adding=true}.buttonStyle(.borderedProminent) }
                 LazyVGrid(columns:[GridItem(.flexible(),alignment:.top),GridItem(.flexible(),alignment:.top)],alignment:.leading,spacing:16) {
@@ -43,20 +44,56 @@ struct UnifiedAgentSettings:View {
             }
             IslandSettingsCard("岛上怎样显示") {
                 HStack(spacing:12) {
-                    ForEach(store.preferences.visibleProfiles) { profile in
-                        AgentPrimaryChoice(profile:profile,selected:store.primary.id==profile.id,motion:store.preferences.effectsEnabled) {store.selectPrimary(profile.id)}
+                    ForEach(Array(store.preferences.visibleProfiles.enumerated()), id: \.element.id) { index, profile in
+                        VStack(spacing: 6) {
+                            AgentPrimaryChoice(profile:profile,selected:store.primary.id==profile.id,motion:store.preferences.effectsEnabled) {store.selectPrimary(profile.id)}
+                            if store.preferences.visibleProfiles.count > 1 {
+                                HStack(spacing: 12) {
+                                    Button { moveVisible(profile.id, by: -1) } label: { Image(systemName:"arrow.left") }
+                                        .disabled(index == 0).accessibilityLabel("将\(profile.name)向左移动")
+                                    Button { moveVisible(profile.id, by: 1) } label: { Image(systemName:"arrow.right") }
+                                        .disabled(index == store.preferences.visibleProfiles.count - 1).accessibilityLabel("将\(profile.name)向右移动")
+                                }.buttonStyle(.borderless).font(.system(size: 13))
+                            }
+                        }
                     }
                     if store.preferences.visibleIDs.isEmpty { Text("还没有选择显示在岛上的工具").foregroundStyle(.secondary) }
                 }
                 Toggle("收起时显示主用Agent的额度",isOn:setting(\.quotaDisplayEnabled))
-                Text("点击上方工具或岛内工具切换主用Agent。Codex显示剩余比例，WorkBuddy显示积分，DeepSeek Harness显示余额。查看额度可独立于任务状态读取。").font(.caption).foregroundStyle(.secondary)
+                Text("点击工具切换主用 Agent，用箭头调整岛上的顺序。Codex显示剩余比例，WorkBuddy显示积分，DeepSeek Harness显示余额。查看额度可独立于任务状态读取。").font(.caption).foregroundStyle(.secondary)
             }
             IslandSettingsCard("什么时候提醒我") {
-                Toggle("需要我确认或补充信息",isOn:setting(\.attentionAlerts))
-                Toggle("任务完成",isOn:setting(\.completionAlerts))
-                Toggle("正在工作",isOn:setting(\.startAlerts))
-                Toggle("额度不足",isOn:setting(\.quotaAlerts))
-                Text("只在岛上轻提醒。隐藏工具仍按这里的规则提醒；不使用的工具不读取任务状态。额度不足以来源提供的可靠百分比低于20%为准。").font(.caption).foregroundStyle(.secondary)
+                HStack(alignment: .top, spacing: 28) {
+                    VStack(alignment: .leading, spacing: 18) {
+                        Toggle("需要我确认或补充信息",isOn:setting(\.attentionAlerts))
+                        Toggle("任务完成",isOn:setting(\.completionAlerts))
+                        Toggle("正在工作",isOn:setting(\.startAlerts))
+                        Toggle("额度不足",isOn:setting(\.quotaAlerts))
+                    }.fixedSize(horizontal: true, vertical: false)
+                    VStack(spacing: 16) {
+                        Picker("提醒方式", selection: Binding(get: { store.preferences.completionScreenMaterialID != nil }, set: { value in change { $0.completionScreenMaterialID = value ? "cat" : nil } })) {
+                            Text("灵动岛提醒").tag(false)
+                            Text("屏幕动效提醒").tag(true)
+                        }.pickerStyle(.segmented).labelsHidden().accessibilityIdentifier("agent.reminderMethod")
+                        if store.preferences.completionScreenMaterialID != nil {
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 110))], spacing: 10) {
+                                ForEach(WorkspaceStore.shared.screenMaterials) { material in
+                                    Button { change { $0.completionScreenMaterialID = material.id } } label: {
+                                        VStack(spacing: 8) {
+                                            Image(systemName: material.id == "cat" ? "cat.fill" : "play.rectangle.fill").font(.title2)
+                                            Text(material.name).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
+                                            if store.preferences.completionScreenMaterialID == material.id { Image(systemName: "checkmark.circle.fill") }
+                                        }.frame(maxWidth: .infinity, minHeight: 75).padding(8)
+                                            .background(.quaternary.opacity(store.preferences.completionScreenMaterialID == material.id ? 0.8 : 0.3), in: RoundedRectangle(cornerRadius: 12))
+                                    }.buttonStyle(.plain)
+                                }
+                            }
+                        } else {
+                            Label("在灵动岛显示提醒文字", systemImage: "capsule").foregroundStyle(.secondary).padding(20)
+                        }
+                    }.frame(maxWidth: .infinity)
+                }
+                Text("隐藏工具仍按这里的规则提醒；不使用的工具不读取任务状态。").font(.caption).foregroundStyle(.secondary)
             }
             IslandSettingsCard("轻提醒预览") {
                 Picker("情境",selection:$demo) {Text("需要确认").tag("attention");Text("任务完成").tag("complete");Text("正在工作").tag("start");Text("额度不足").tag("low")}.pickerStyle(.segmented)
@@ -72,6 +109,11 @@ struct UnifiedAgentSettings:View {
     private func mode(_ id:String)->String {store.preferences.visibleIDs.contains(id) ? "show" : store.preferences.isMonitoring(id) ? "alerts":"off"}
     private func setting(_ key:WritableKeyPath<AgentPreferences,Bool>)->Binding<Bool>{Binding(get:{store.preferences[keyPath:key]},set:{value in change{$0[keyPath:key]=value}})}
     private func change(_ action:(inout AgentPreferences)->Void) {var p=store.preferences;action(&p);do{try store.update(p);error="";undo=nil}catch{self.error=error.localizedDescription}}
+    private func moveVisible(_ id:String, by offset:Int) {
+        change { preferences in
+            preferences.moveVisibleID(id, by: offset)
+        }
+    }
     private func setMode(_ id:String,_ mode:String,replace:String?=nil) {
         if mode=="show",!store.preferences.visibleIDs.contains(id),store.preferences.visibleIDs.count==3,replace==nil {replacing=id;return}
         let old=store.preferences

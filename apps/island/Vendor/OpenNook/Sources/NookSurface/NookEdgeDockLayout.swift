@@ -8,6 +8,12 @@ import Foundation
 public struct NookEdgeDockLayout: Equatable, Sendable {
     public static let edgeHeight: CGFloat = 4
     public static let revealGap: CGFloat = 4
+    /// Screen coordinates (AppKit origin). This invisible target never extends below a notch.
+    public static func entryRect(screen: CGRect, notchWidth: CGFloat, notchHeight: CGFloat) -> CGRect {
+        let height = notchHeight > 0 ? notchHeight : edgeHeight
+        let width = notchHeight > 0 ? max(1, notchWidth) : 160
+        return CGRect(x: screen.midX - width / 2, y: screen.maxY - height, width: width, height: height)
+    }
     public let isRetracted: Bool
     public let contentOffset: CGFloat
     public let containerHeight: CGFloat
@@ -20,16 +26,17 @@ public struct NookEdgeDockLayout: Equatable, Sendable {
         peeking: Bool = false,
         contentHeight: CGFloat,
         shownTopInset: CGFloat,
-        physicalNotchHeight: CGFloat
+        physicalNotchHeight: CGFloat,
+        showRetractedEdge: Bool = false
     ) {
         let height = max(contentHeight, Self.edgeHeight)
         let notch = max(physicalNotchHeight, 0)
         isRetracted = state == .compact && !hovering && !peeking
         if isRetracted {
-            // A hardware notch cannot be hidden. Leave the lip immediately below it.
-            visibleTop = notch
-            visibleHeight = Self.edgeHeight
-            containerHeight = notch + Self.edgeHeight
+            // Keep a transparent pointer target at the camera (or screen edge).
+            visibleTop = 0
+            visibleHeight = notch > 0 ? notch + (showRetractedEdge ? Self.edgeHeight : 0) : Self.edgeHeight
+            containerHeight = visibleHeight
             contentOffset = containerHeight - height
         } else {
             contentOffset = max(shownTopInset, 0)

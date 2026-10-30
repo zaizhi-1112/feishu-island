@@ -10,6 +10,7 @@ struct HubPingShortcut: Codable, Equatable {
     var cardID = ""
     var title = ""
     var address = ""
+    var iconPNG: Data?
 }
 
 struct HubPingPreferences: Codable, Equatable {
@@ -25,6 +26,7 @@ struct HubPingDestination: Identifiable, Equatable {
     let title: String
     let url: URL?
     var opensSettings = false
+    var iconPNG: Data?
     var available: Bool { url != nil || opensSettings }
 }
 
@@ -125,6 +127,13 @@ final class UnifiedPlatformStore: ObservableObject {
 
     func destinations(cards: [HubCard], selectedIDs: [String], applications: [HubHomeApplication] = []) -> [HubPingDestination] {
         preferences.slots.enumerated().map { index, shortcut in
+            var destination = resolveDestination(index: index, shortcut: shortcut, cards: cards, applications: applications)
+            destination.iconPNG = shortcut.iconPNG
+            return destination
+        }
+    }
+
+    private func resolveDestination(index: Int, shortcut: HubPingShortcut, cards: [HubCard], applications: [HubHomeApplication]) -> HubPingDestination {
             switch shortcut.source {
             case .automatic:
                 let entry = HubBuiltinDestination.allCases[index]
@@ -142,7 +151,6 @@ final class UnifiedPlatformStore: ObservableObject {
             case .custom: return .init(id:index,title:shortcut.title,url:HubPingGeometry.safeURL(shortcut.address))
             case .empty: return .init(id:index,title:"空位",url:nil)
             }
-        }
     }
 
     @discardableResult func swapSlots(_ from: Int, _ to: Int) -> Bool {
@@ -150,7 +158,8 @@ final class UnifiedPlatformStore: ObservableObject {
         var next = preferences
         // Resolve automatic slots before moving, so the displayed destinations swap too.
         for i in [from, to] where next.slots[i].source == .automatic {
-            next.slots[i] = .init(source:.builtin,cardID:HubBuiltinDestination.allCases[i].rawValue)
+            next.slots[i].source = .builtin
+            next.slots[i].cardID = HubBuiltinDestination.allCases[i].rawValue
         }
         next.slots.swapAt(from,to); return persist(next)
     }
@@ -171,7 +180,7 @@ final class UnifiedPlatformStore: ObservableObject {
     }
 
     private static func valid(_ value: HubPingShortcut) -> Bool {
-        guard value.cardID.count <= 512, value.title.count <= 40,
+        guard value.iconPNG.map(HubShortcutIcon.valid) ?? true, value.cardID.count <= 512, value.title.count <= 40,
               !value.title.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { return false }
         switch value.source {
         case .custom: return !value.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && HubPingGeometry.safeURL(value.address) != nil

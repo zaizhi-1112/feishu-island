@@ -121,6 +121,7 @@ struct IslandSkinBackdrop: View {
         let moving=store.preferences.effectsEnabled && !reduceMotion && active && !(compact && store.preferences.quotaDisplayEnabled)
         GeometryReader { geometry in
             ZStack {
+                if skin == .virxact { Color(skinHex:palette.bg) } else {
                 LinearGradient(colors:[Color(skinHex:palette.surface),Color(skinHex:palette.bg)],startPoint:.topLeading,endPoint:.bottomTrailing)
                 RadialGradient(colors:[Color(skinHex:palette.glow).opacity(dark ? 0.10:0.07),.clear],center:.topTrailing,startRadius:0,endRadius:geometry.size.width*0.85)
                 if skin == .claude {
@@ -136,7 +137,8 @@ struct IslandSkinBackdrop: View {
                         flow.draw(context:&context,size:size,time:moving ? clock.date.timeIntervalSinceReferenceDate:17,color:Color(skinHex:palette.glow),strong:skin == .virxact,compact:compact,pointer:pointer,moving:moving)
                     }
                 }
-                if completionPulse { Color(skinHex:palette.glow).opacity(0.08) }
+                }
+                if completionPulse && skin != .virxact { Color(skinHex:palette.glow).opacity(0.08) }
                 if compact && notched { Color.black }
             }
             .onContinuousHover { phase in

@@ -11,6 +11,8 @@ func check(_ result: @autoclosure () -> Bool, _ label: String, line: Int = #line
 }
 
 Task { @MainActor in
+    checkTodoOrder()
+    let customIcon = checkShortcutIcons()
     checkHubPingGestures()
     for index in 0..<8 {
         let angle = (Double(index) * 45 - 90) * Double.pi / 180
@@ -26,7 +28,7 @@ Task { @MainActor in
         let radians = (angle - 90) * Double.pi / 180
         check(HubPingGeometry.slice(dx: cos(radians) * 100, dy: sin(radians) * 100) == expected, "boundary \(angle)")
     }
-    for url in ["https://virxact.net/", "https://example.com/dashboard?tab=weekly#summary"] {
+    for url in ["https://hub.example.invalid/", "https://example.com/dashboard?tab=weekly#summary"] {
         check(HubPingGeometry.safeURL(url) != nil, "safe navigation accepted")
     }
     for url in ["javascript:alert(1)", "file:///tmp/secret", "https://user:pass@example.com", "http://example.com", "https://example.com?access_token=private", "https://example.com?code=private", "https://example.com\n/path", "", "https://"] {
@@ -42,7 +44,7 @@ Task { @MainActor in
     ]
     var destinations = store.destinations(cards: cards, selectedIDs: ["two"])
     check(destinations.count == 8, "exactly eight slots")
-    check(destinations[0].url?.host == "virxact.net", "home is explicit URL")
+    check(destinations[0].url?.host == "hub.example.invalid", "home is explicit URL")
     check(destinations.map(\.title) == ["首页", "OKR", "资料", "数据", "异常项", "应用", "Skill", "审批"], "defaults match eight hub destinations")
     check(destinations[7].url?.host == "applink.feishu.cn", "approval follows the real hub link")
     check(destinations.allSatisfy(\.available), "default wheel works without a connected card account")
@@ -101,6 +103,7 @@ Task { @MainActor in
         let output = URL(fileURLWithPath: CommandLine.arguments[index + 1])
         let app = NSApplication.shared; app.setActivationPolicy(.accessory)
         let previewDefaults = UnifiedPlatformStore(root: root.appendingPathComponent("default-preview"))
+        _ = previewDefaults.setSlot(0, .init(source: .custom, title: "我的入口", address: "https://example.com", iconPNG: customIcon))
         let view = NSHostingView(rootView: HubPingWheel(destinations: previewDefaults.destinations(cards:[],selectedIDs:[]), gesture: HubPingGesture(), activate: { _ in true })
             .frame(width: 400, height: 400).preferredColorScheme(.dark))
         let window = NSWindow(contentRect: NSRect(x: -2000, y: -2000, width: 400, height: 400), styleMask: [.borderless], backing: .buffered, defer: false)
@@ -150,6 +153,25 @@ Task { @MainActor in
         print("Real shortcut registered and removed; no keyboard event was synthesized. Wheel invocation still requires an unlocked Mac.")
     }
     print("PASS \(passed) platform checks")
+    if CommandLine.arguments.contains("--editor-preview") {
+        precondition(IslandRuntime.isSkinPreview)
+        NSApplication.shared.setActivationPolicy(.regular)
+        let preview = UnifiedPlatformStore(root: root.appendingPathComponent("editor-preview"))
+        let workspace = WorkspaceStore(root: root.appendingPathComponent("editor-workspace"), startTimers: false)
+        let window = NSWindow(contentRect: NSRect(x: 150, y: 150, width: 780, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = "快捷入口图片验收（合成数据）"
+        window.isReleasedWhenClosed = false
+        _ = try! workspace.addTodo(title: "第一件事")
+        _ = try! workspace.addTodo(title: "第二件事")
+        _ = try! workspace.addTodo(title: "第三件事")
+        window.contentView = NSHostingView(rootView: TabView {
+            HubShortcutSettings(workspace: workspace, launcher: preview).padding(20).tabItem { Text("快捷入口") }
+            UnifiedTodoPanel(store: workspace).frame(width: 420).environment(\.nookResolvedTheme, NookResolvedTheme.resolve(theme: AgentStore.shared.selectedSkin.theme, preferences: .init(chromePalette: .light), effectiveColorScheme: .light, reduceTransparency: true)).tabItem { Text("待办排序") }
+        })
+        window.makeKeyAndOrderFront(nil)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        return
+    }
     exit(0)
 }
-RunLoop.main.run()
+if CommandLine.arguments.contains("--editor-preview") { NSApplication.shared.run() } else { RunLoop.main.run() }

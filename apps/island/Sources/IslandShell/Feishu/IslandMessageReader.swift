@@ -34,11 +34,13 @@ struct IslandMessageReader: View {
     var onOpen: () -> Void
     var initialPage = 0
     var onPageChange: (Int) -> Void = { _ in }
+    var connection: FeishuConnection? = nil
     @Environment(\.nookResolvedTheme) private var theme
     @State private var page = 0
     @State private var automatic = false
     @State private var remaining: TimeInterval = 12
     @State private var pages: [String] = []
+    @Environment(\.islandTextScale) private var textScale
     private let fontSize: CGFloat = 14
     var body: some View {
         let parts = pages.isEmpty ? [""] : pages
@@ -48,26 +50,29 @@ struct IslandMessageReader: View {
                     .buttonStyle(.plain).accessibilityIdentifier("feishu.reader.back")
                 Spacer()
                 // Conversation reminders are managed together in native settings.
-            }.font(.system(size: 11)).foregroundStyle(theme.secondaryLabel)
+            }.islandFont(size: 11).foregroundStyle(theme.secondaryLabel)
             HStack(alignment: .firstTextBaseline) {
-                Text(message.source).font(.system(size: 14, weight: .semibold)).lineLimit(1)
+                Text(message.source).islandFont(size: 14, weight: .semibold).lineLimit(1)
                 Spacer()
-                Text(message.created, style: .time).font(.system(size: 10)).foregroundStyle(theme.tertiaryLabel)
+                Text(message.created, style: .time).islandFont(size: 10).foregroundStyle(theme.tertiaryLabel)
             }
             if message.source != message.senderName {
-                Text(message.senderName).font(.system(size: 10)).foregroundStyle(theme.secondaryLabel)
+                Text(message.senderName).islandFont(size: 10).foregroundStyle(theme.secondaryLabel)
             }
-            Text(parts[min(page, parts.count - 1)]).font(.system(size: fontSize)).lineSpacing(4)
+            Text(parts[min(page, parts.count - 1)]).islandFont(size: fontSize).lineSpacing(4)
                 .foregroundStyle(theme.primaryLabel)
                 .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .topLeading).padding(12)
                 .background(theme.subtleFill, in: RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.subtleStroke, lineWidth: 0.8))
                 .accessibilityIdentifier("feishu.reader.body")
+            if message.hasImageContent, let connection {
+                FeishuImageGallery(message: message, connection: connection)
+            }
             HStack(spacing: 8) {
                 Button("上一页") { move(-1, count: parts.count) }
                     .disabled(page == 0).accessibilityIdentifier("feishu.reader.previous")
-                Text("\(page + 1) / \(parts.count)").font(.system(size: 10)).monospacedDigit()
+                Text("\(page + 1) / \(parts.count)").islandFont(size: 10).monospacedDigit()
                     .foregroundStyle(theme.secondaryLabel).accessibilityIdentifier("feishu.reader.page")
                 Button("下一页") { move(1, count: parts.count) }
                     .disabled(page + 1 >= parts.count).accessibilityIdentifier("feishu.reader.next")
@@ -87,8 +92,12 @@ struct IslandMessageReader: View {
         .foregroundStyle(theme.primaryLabel)
         .accessibilityIdentifier("feishu.reader")
         .onAppear {
-            if pages.isEmpty { pages = IslandReadingPages.split(message.text, fontSize: fontSize) }
+            if pages.isEmpty { pages = IslandReadingPages.split(message.displayText, fontSize: fontSize * textScale) }
             page = min(max(0, initialPage), pages.count - 1)
+        }
+        .onChange(of: textScale) { _, _ in
+            pages = IslandReadingPages.split(message.displayText, fontSize: fontSize * textScale)
+            page = min(page, max(0, pages.count - 1)); automatic = false
         }
         .onChange(of: page) { _, value in onPageChange(value) }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in

@@ -112,7 +112,7 @@ private struct AgentToolQuota:View {
                 Capsule().fill(theme.subtleFill).overlay(alignment:.leading){Capsule().fill(!fresh ? .gray : quota.remainingPercent<20 ? .orange:accent).frame(width:g.size.width*min(100,max(0,quota.remainingPercent))/100)}
             }.frame(height:6)
             if !fresh {Text("上次记录 · 待刷新").font(.system(size:10)).foregroundStyle(theme.secondaryLabel)}
-            else if let reset=quota.resetsAt {Text("重置 "+Date(timeIntervalSince1970:reset).formatted(.dateTime.month(.twoDigits).day(.twoDigits).hour().minute())).font(.system(size:10)).foregroundStyle(theme.secondaryLabel)}
+            else if let reset=quota.resetsAt {Text("重置 "+Date(timeIntervalSince1970:(reset / 60).rounded() * 60).formatted(.dateTime.month(.twoDigits).day(.twoDigits).hour().minute())).font(.system(size:10)).foregroundStyle(theme.secondaryLabel)}
             else {Text("更新于"+Date(timeIntervalSince1970:quota.updatedAt).formatted(date:.omitted,time:.shortened)).font(.system(size:10)).foregroundStyle(theme.secondaryLabel)}
         }
     }

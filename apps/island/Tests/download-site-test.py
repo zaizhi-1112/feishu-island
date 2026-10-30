@@ -45,6 +45,16 @@ class DownloadSiteChecks(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'upload budget'):
             m.validate(self.package,self.manifest,self.root)
 
+    def test_web_only_download_has_its_own_bounded_budget(self):
+        with self.package.open("wb") as file: file.truncate(m.MAX_DMG_BYTES+1)
+        self.manifest["sha256"] = hashlib.sha256(self.package.read_bytes()).hexdigest()
+        m.validate(self.package,self.manifest,self.root,web_only=True)
+        with self.assertRaisesRegex(ValueError,"upload budget"):
+            m.validate(self.package,self.manifest,self.root)
+        with self.package.open("wb") as file: file.truncate(m.MAX_REMOTE_DMG_BYTES+1)
+        with self.assertRaisesRegex(ValueError,"build download budget"):
+            m.validate(self.package,self.manifest,self.root,web_only=True)
+
     def test_rejects_changed_bundled_instructions(self):
         (self.root/'Distribution/开始使用.html').write_text('1.2.3 · build99 changed guide')
         with self.assertRaisesRegex(ValueError,'bundled'): m.validate(self.package,self.manifest,self.root)

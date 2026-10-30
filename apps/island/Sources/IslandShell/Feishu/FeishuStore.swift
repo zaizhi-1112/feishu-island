@@ -166,6 +166,7 @@ public final class FeishuStore: ObservableObject {
     public func updateConnection(_ value: FeishuConnection) -> Bool {
         guard value.valid, rulesConfigurationReadable else { return false }
         if value == connection { return true }
+        FeishuImagePreview.shared.close()
         saveHistory(force: true); archive = nil; archiveSnapshot = nil; pendingDesktop.removeAll()
         reader.stop(); enabled = false; defaults.set(false,forKey:"enabled")
         playback.resetAccount(); messages.removeAll(); pendingAlert?.cancel(); pendingAlert = nil; pendingCount = 0; activities?.end("messages")
@@ -223,8 +224,10 @@ public final class FeishuStore: ObservableObject {
     func showLocalAccountInfo() { openMessageConnection() }
     func beginCompanyConnection() { openMessageConnection() }
     func completeCompanyConnection() {
-        guard live, rulesConfigurationReadable, !connecting else { return }
         let company = CompanyConnection.shared
+        guard live else { company.reportReceiveConnectionFailure("飞书消息组件尚未就绪，请稍后重新核对连接。"); return }
+        guard rulesConfigurationReadable else { company.reportReceiveConnectionFailure("消息规则无法读取，请先在设置中检查规则。"); return }
+        guard !connecting else { return }
         let attempt = UUID(), priorConnection = connection
         connecting = true; connectionAttempt = attempt
         connectionHint = "正在核对飞书账号…"
@@ -233,11 +236,15 @@ public final class FeishuStore: ObservableObject {
             defer { if connectionAttempt == attempt { connecting = false; connectionTask = nil; connectionAttempt = nil } }
             do {
                 let credential = try await company.prepareReceive()
-                guard !Task.isCancelled, connectionAttempt == attempt, connection == priorConnection, !playback.suspended else { return }
+                guard !Task.isCancelled, connectionAttempt == attempt else { return }
+                guard connection == priorConnection else { company.reportReceiveConnectionFailure("连接设置已变化，请重新核对连接。"); return }
+                guard !playback.suspended else { company.reportReceiveConnectionFailure("Mac 会话已暂停，请解锁后重新核对连接。"); return }
                 if let bound = priorConnection.localAccount, bound.appID != credential.appID || bound.openID != credential.openID {
-                    connectionHint = "这次授权与当前账号不同。请先点“更换账号”，当前接收保持不变。"; return
+                    let message = "这次授权与当前账号不同。请先点“更换账号”，当前接收保持不变。"
+                    connectionHint = message
+                    company.reportReceiveConnectionFailure(message); return
                 }
-                if let conflict = receiveConflict { connectionHint = conflict; return }
+                if let conflict = receiveConflict { connectionHint = conflict; company.reportReceiveConnectionFailure(conflict); return }
                 let savedRules = rules, savedCustom = customRules
                 try company.activate(credential, purpose: .receive)
                 guard updateConnection(.init(cliPath: priorConnection.cliPath, profile: CompanyConnection.profile)) else { return }
@@ -250,7 +257,9 @@ public final class FeishuStore: ObservableObject {
                 account = credential.userName; connectionHint = "已连接飞书，正在接收新消息。"
                 await company.refreshAuthorizationStatus()
             } catch {
-                connectionHint = (error as? AccountFailure)?.detail ?? "连接未完成，请重试。"
+                let message = (error as? AccountFailure)?.detail ?? "连接未完成，请重试。"
+                connectionHint = message
+                company.reportReceiveConnectionFailure(message)
             }
         }
     }
@@ -352,7 +361,7 @@ public final class FeishuStore: ObservableObject {
         messages.sort { $0.created > $1.created }
         historyDirty = true
         if message.isImportant(followed: followed, rules: rules, custom: customRules) {
-            if !isMuted && !playback.suspended {
+            if !IslandOnboardingPolicy.isNewUser && !isMuted && !playback.suspended {
                 // The island and desktop are independent outputs of one read-only event.
                 // Opening the island must not suppress a short floating message.
                 if playback.enqueue(message) { pendingDesktop.insert(message.id) }
@@ -387,7 +396,7 @@ public final class FeishuStore: ObservableObject {
         } compactTrailing: {
             Text("\(self.readingQueue.count)条").font(.system(size: 10))
         } minimal: { IslandCompactGlyph(symbol: "paperplane.fill") }
-        activity.setExpanded { FeishuView(store:self) }
+        activity.setExpanded { FeishuView(store:self).islandTextSize() }
         activities?.start(activity)
     }
     var deliveryDiagnostics: [String: Any] {
@@ -566,7 +575,7 @@ public final class FeishuStore: ObservableObject {
         }
         // Keep the activity alive once opened so the timed alert cannot remove a reading view.
         activity.setExpanded {
-            FeishuView(store:self)
+            FeishuView(store:self).islandTextSize()
                 .onAppear { self.activities?.end("messages", after: .seconds(3600)) }
                 .onDisappear { self.activities?.end("messages") }
         }

@@ -30,7 +30,7 @@ final class FeishuModule: NookModule {
         let store = store
         config.setCompactLeading { IslandCompactGlyph(symbol: "paperplane.fill") }
         config.setCompactTrailing { FeishuCompactView(store: store) }
-        config.setHome { FeishuView(store:store) }
+        config.setHome { FeishuView(store:store).islandTextSize() }
         config.onReady = { [weak self] coordinator in
             guard let self else { return }
             IslandModuleNavigation.shared.bind(coordinator: coordinator)
@@ -50,7 +50,7 @@ final class FeishuModule: NookModule {
             store.beginAutomaticConnectionIfNeeded()
             if ProcessInfo.processInfo.arguments.contains("--open-feishu-settings") { UnifiedSettingsWindow.shared.open(section: .messages) }
             if ProcessInfo.processInfo.arguments.contains("--feishu-demo"), store.readingID != nil { store.onOpenReader() }
-            IslandOnboardingWindow.shared.showIfNeeded(appState: coordinator.appState, store: store)
+            IslandOnboardingWindow.shared.showIfNeeded(coordinator: coordinator, store: store)
             RuntimeVerification.startIfRequested(coordinator: coordinator)
             SkinVerification.startIfRequested(coordinator: coordinator)
         }

@@ -477,7 +477,7 @@ public final class AppCoordinator: ObservableObject {
         // app object is first materialized; a unit-test process that constructs the
         // coordinator without ever calling `NSApplication.shared.run()` traps on
         // `NSApp.setActivationPolicy`. The shared accessor materializes lazily.
-        NSApplication.shared.setActivationPolicy(.accessory)
+        NSApplication.shared.setActivationPolicy(.regular)
         if moduleHost.chromeBehavior.keyboard.installsEditMenu {
             NookEditMenu.installIfNeeded()
         }
@@ -840,6 +840,7 @@ public final class AppCoordinator: ObservableObject {
     /// Puts the hover intent on the surface: the host's, when its chrome behavior fixes one,
     /// otherwise the person's choice from Settings.
     func applyHoverIntent() {
+        surface.presentationAllowed = moduleHost.chromeBehavior.presentationAllowed
         surface.edgeDocked = moduleHost.chromeBehavior.edgeDocked
         let fixed = moduleHost.chromeBehavior.hoverIntent
         if appState.hostFixesHoverIntent != (fixed != nil) { appState.hostFixesHoverIntent = fixed != nil }
@@ -1573,6 +1574,8 @@ public final class AppCoordinator: ObservableObject {
     /// When this turns the hold off after the pointer left during it, the surface collapses
     /// then, as if the pointer had just left.
     func projectStaysExpanded() {
+        // Layering is independent of the lock: hover-open islands must remain visible.
+        surface.keepsExpandedWindowAboveApplications = true
         let stays = appState.keepNookOpen || presentationPinning.isPinned
         if surface.staysExpandedOnHoverExit != stays {
             surface.staysExpandedOnHoverExit = stays

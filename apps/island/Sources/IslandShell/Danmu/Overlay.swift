@@ -9,7 +9,9 @@ final class FlyingText: NSView {
     var motionPanel: PassThroughWindow?
     var motionMessage: DanmuMessage?
     var motionPages: [String] = []
+    var motionScreenWidth: CGFloat = 0
     var clickedPause = false
+    var imageAreaHeight: CGFloat = 0
     var motionOpen: (() -> Void)?
     private var tracking: NSTrackingArea?
     let openButton = CardPagingButton(title: "打开会话", target: nil, action: nil)
@@ -46,9 +48,18 @@ final class FlyingText: NSView {
             NSBezierPath(roundedRect: bounds, xRadius: corner, yRadius: corner).fill()
         }
         if let borderColor { borderColor.setStroke(); let edge = NSBezierPath(roundedRect:bounds.insetBy(dx:0.5,dy:0.5),xRadius:corner,yRadius:corner);edge.lineWidth=1;edge.stroke() }
-        if let message = motionMessage {
-            content.draw(with: NSRect(x: 14, y: 38, width: bounds.width - 28, height: bounds.height - 50), options: [.usesLineFragmentOrigin, .usesFontLeading])
-            let progress = motionPages.count > 1 ? "\(message.segment + 1)/\(motionPages.count) · " : ""
+        if motionMessage != nil {
+            let viewport = NSRect(x: 14, y: 38 + imageAreaHeight, width: bounds.width - 28, height: max(20, bounds.height - 50 - imageAreaHeight))
+            let textHeight = ceil(content.boundingRect(with: NSSize(width: viewport.width, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading]).height)
+            let overflow = max(0, textHeight - viewport.height)
+            // Scroll only while the complete panel is on screen, so the first
+            // and final lines remain visible during entry and exit.
+            let fraction = MotionTextLayout.scrollFraction(position:position, screenWidth:motionScreenWidth, panelWidth:bounds.width)
+            NSGraphicsContext.saveGraphicsState()
+            NSBezierPath(rect: viewport).addClip()
+            content.draw(with: NSRect(x: viewport.minX, y: viewport.minY - overflow * (1 - fraction), width: viewport.width, height: max(textHeight, viewport.height)), options: [.usesLineFragmentOrigin, .usesFontLeading])
+            NSGraphicsContext.restoreGraphicsState()
+            let progress = ""
             let hint = clickedPause ? "移开继续" : "点击停留"
             (progress + hint).draw(at: NSPoint(x: 14, y: 12), withAttributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: textColor.withAlphaComponent(0.8)])
         } else if card {
@@ -77,6 +88,7 @@ final class Overlay: NSObject {
     var grayRules: [String] = []
     var hiddenRules: [String] = []
     var laneCount = 4
+    var motionRowHeight: CGFloat = 0
     var paused = false
     var skinForeground: NSColor?
     var skinBackground: NSColor?
@@ -125,13 +137,14 @@ final class Overlay: NSObject {
         window.isReleasedWhenClosed = false
         if showsWindow { window.orderFrontRegardless() }
     }
-    func enqueue(_ text: String, demo: Bool = false, gray: Bool = false, createdAt: Date? = nil, receivedAt: Date? = nil, messageID: String? = nil) {
+    func enqueue(_ text: String, demo: Bool = false, gray: Bool = false, createdAt: Date? = nil, receivedAt: Date? = nil, messageID: String? = nil, sourceMessage: FeishuMessage? = nil) {
         let clean = text.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
 
         if queue.count >= 500 { let dropped = queue.removeFirst(); if let id = dropped.messageID { onFinished?(id) }; overflow += 1 }
         var message = DanmuMessage(text: clean, receivedAt: receivedAt ?? Date(), demo: demo, gray: gray, createdAt: createdAt)
         message.messageID = messageID; queue.append(message)
+        queue[queue.count - 1].sourceMessage = sourceMessage
         onChange?()
     }
     func clear() { queue.removeAll(); checking = nil; verified = nil; overflow = 0; flying.forEach { $0.motionPanel?.close(); $0.removeFromSuperview() }; flying.removeAll(); controlsWindow?.orderOut(nil); onChange?() }

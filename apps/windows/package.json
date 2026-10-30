@@ -1,0 +1,71 @@
+{
+  "name": "feishu-island-windows",
+  "productName": "一切在岛",
+  "version": "0.12.16",
+  "private": true,
+  "description": "把飞书消息、Agent 状态、待办日程和虚实中台放进 Windows 屏幕顶部的岛",
+  "main": "main/main.cjs",
+  "license": "MIT",
+  "author": "虚实传媒",
+  "scripts": {
+    "start": "electron .",
+    "demo": "electron . --demo",
+    "test": "node --test tests/*.test.cjs",
+    "fetch-cli": "node scripts/fetch-cli.cjs",
+    "pack:win": "node scripts/fetch-cli.cjs && electron-builder --win nsis --x64 && node scripts/verify-package.cjs"
+  },
+  "devDependencies": {
+    "@larksuite/cli": "1.0.96",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "resedit": "^2.0.3"
+  },
+  "build": {
+    "appId": "local.zaizhi.feishu-island.windows",
+    "productName": "一切在岛",
+    "buildVersion": "110",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main/**",
+      "core/**",
+      "renderer/**",
+      "assets/**",
+      "package.json",
+      "!assets/**/*.md",
+      "!assets/reminders/SOURCE.txt"
+    ],
+    "extraResources": [
+      {
+        "from": "vendor/win-x64",
+        "to": "cli",
+        "filter": [
+          "lark-cli.exe",
+          "LICENSE"
+        ]
+      }
+    ],
+    "asarUnpack": [
+      "assets/reminders/**"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "一切在岛",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "artifactName": "FeishuIsland-Setup-${version}-${arch}.${ext}"
+    },
+    "executableName": "FeishuIsland",
+    "afterPack": "scripts/after-pack.cjs"
+  }
+}

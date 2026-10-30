@@ -9,15 +9,15 @@ struct TodoRecordDetail:View {
     @Environment(\.nookResolvedTheme) private var theme
     var body:some View {
         VStack(alignment:.leading,spacing:20) {
-            HStack {Text("记录详情").font(.system(size:20,weight:.semibold));Spacer();Button("关闭",action:close).buttonStyle(TodoSettingsLinkStyle())}
+            HStack {Text("记录详情").islandFont(size:20,weight:.semibold);Spacer();Button("关闭",action:close).buttonStyle(TodoSettingsLinkStyle())}
             ScrollView {
                 VStack(alignment:.leading,spacing:16) {
-                    Text(title).font(.system(size:17,weight:.medium))
-                    if let completedAt {Text("已完成 · "+completedAt.formatted(date:.abbreviated,time:.shortened)).font(.system(size:13)).foregroundStyle(theme.secondaryLabel)}
-                    if !content.isEmpty,content != title {Text(content).font(.system(size:14)).lineSpacing(5)}
+                    Text(title).islandFont(size:17,weight:.medium)
+                    if let completedAt {Text("已完成 · "+completedAt.formatted(date:.abbreviated,time:.shortened)).islandFont(size:13).foregroundStyle(theme.secondaryLabel)}
+                    if !content.isEmpty,content != title {Text(content).islandFont(size:14).lineSpacing(5)}
                     if let receipt {
                         Divider()
-                        Text("旧归档记录").font(.system(size:16,weight:.semibold))
+                        Text("旧归档记录").islandFont(size:16,weight:.semibold)
                         Text(receipt.error.isEmpty ? "原回执保留，当前版本不会自动继续远程写入。" : receipt.error)
                         Text("操作编号："+receipt.operation.uuidString)
                         if let intent=receipt.intent {Text("待核对操作："+intent)}

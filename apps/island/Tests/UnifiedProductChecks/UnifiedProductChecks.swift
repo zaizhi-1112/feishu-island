@@ -22,6 +22,15 @@ import SwiftUI
     @MainActor static func runChecks() async throws {
         let app=NSApplication.shared
         app.setActivationPolicy(CommandLine.arguments.contains("--interactive") ? .accessory:.prohibited)
+        if CommandLine.arguments.contains("--live-agent-quota-diagnostic") {
+            let quotas = try await CodexReader.quotas()
+            print("Codex live quota windows: \(quotas.count); remaining: \(quotas.map { $0.remainingPercent }); fresh: \(quotas.allSatisfy { $0.isFresh(now: Date().timeIntervalSince1970) })")
+            let claude = ClaudeDesktopReader.snapshot(now: Date().timeIntervalSince1970)
+            print("Claude Code quota windows: \(claude.quotas.count); fresh: \(claude.quotas.filter { $0.isFresh(now: Date().timeIntervalSince1970) }.count)")
+            return
+        }
+        if CommandLine.arguments.contains("--dismiss-review") { showReminderDismissReview(); return }
+        if CommandLine.arguments.contains("--guide-review") { showGuideReview(); return }
         if CommandLine.arguments.contains("--queue-timer-review") {try await runScreenQueueTimerReview();return}
         if CommandLine.arguments.contains("--audit-probes") {try runSystemAuditProbes();return}
         if CommandLine.arguments.contains("--audit-review") {try showSystemAuditReview();return}
@@ -29,11 +38,22 @@ import SwiftUI
         if CommandLine.arguments.contains("--todo-review") {try showTodoReview();return}
         var count=0
         func check(_ value:Bool,_ label:String) { guard value else {fputs("FAIL: \(label)\n",stderr);exit(1)};count += 1 }
+        if CommandLine.arguments.contains("--text-size-only") {
+            try await runIslandTextSizeChecks(check: check)
+            print("PASS \(count) island text size checks; isolated synthetic data")
+            return
+        }
+        if CommandLine.arguments.contains("--authorization-only") {
+            try await runAuthorizationExperienceChecks(check: check)
+            print("PASS \(count) authorization checks; synthetic data only")
+            return
+        }
         try runMessageContinuityChecks(check: check)
         if CommandLine.arguments.contains("--message-continuity-only") { print("PASS \(count) message continuity checks"); return }
         try await runPlatformSettingsLayoutChecks(check: check)
         if CommandLine.arguments.contains("--platform-settings-only") { print("PASS \(count) platform settings checks; isolated data, no live accounts"); return }
         try await runOnboardingChecks(check: check)
+        try await runFirstRunSurfaceChecks(check: check)
         if CommandLine.arguments.contains("--onboarding-only") { print("PASS \(count) onboarding checks; isolated preferences, no live accounts"); return }
         try runDeepSeekChecks(check: check)
         if CommandLine.arguments.contains("--deepseek-only") { print("PASS \(count) DeepSeek checks; synthetic data only"); return }
@@ -55,6 +75,12 @@ import SwiftUI
         prefs.setVisibleIDs(["workbuddy",profile.id,"codex"])
         check(prefs.visibleProfiles.map(\.id)==["workbuddy",profile.id,"codex"],"display order respected")
         check(prefs.activeMonitorIDs.contains("claude"),"hiding retains monitoring")
+        let primaryBeforeReorder = prefs.primaryID
+        prefs.moveVisibleID("codex", by: -1)
+        check(prefs.visibleIDs == ["workbuddy", "codex", profile.id] && prefs.primaryID == primaryBeforeReorder && prefs.activeMonitorIDs.contains("claude"), "reordering visible Agents keeps primary and monitoring")
+        let ordered = try JSONDecoder().decode(AgentPreferences.self, from: JSONEncoder().encode(prefs))
+        check(ordered.visibleIDs == prefs.visibleIDs, "Agent display order survives persistence")
+
         prefs.visibleIDs.append("claude")
         check(prefs.validationError != nil,"fourth visible Agent rejected")
         prefs.setVisibleIDs([])
@@ -102,7 +128,7 @@ import SwiftUI
             _=try workspace.add(text:"和同事核对新版交互",minutes:30)
             workspace.complete(task)
             if CommandLine.arguments.contains("--archive-review") { workspace.archiveCompletedTodos() }
-            workspace.hub=HubSnapshot(connected:true,name:"合成体验",cards:[.init(id:"review",title:"工作周报",kind:"report",text:"仅用于界面验收的合成内容",href:"https://virxact.net/")],readAt:Date())
+            workspace.hub=HubSnapshot(connected:true,name:"合成体验",cards:[.init(id:"review",title:"工作周报",kind:"report",text:"仅用于界面验收的合成内容",href:"https://hub.example.invalid/")],readAt:Date())
             _ = workspace.mutate{$0.selectedCards=["review"]}
             if CommandLine.arguments.contains("--virxact-review") {AgentStore.shared.selectSkin("virxact");AgentStore.shared.setEffectsEnabled(true)}
             let model=UnifiedSettingsModel();model.appState=appState;model.visible=true
