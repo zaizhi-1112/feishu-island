@@ -9,6 +9,8 @@ import NookApp
     let store=WorkspaceStore(root:root,startTimers:false)
     check(store.screenMaterials.count==4 && store.restPlan.materialID=="cat","four bundled effects, walking cat is default")
     check(store.screenMaterials.first?.name=="猫咪走动" && !store.screenMaterials.contains{$0.name.contains("伸懒腰")},"old stretch removed")
+    check(store.screenMaterials.first{$0.id=="gemini-greeting"}?.name=="杰哥提醒","existing Gemini selection migrates to Jie reminder")
+    check(store.screenMaterials.first{$0.id=="what-a-day"}?.hasAlpha==false,"KUN uses original opaque video")
     for material in store.screenMaterials {
         let request=try store.screenReminderRequest(style:.init(materialID:material.id),title:"合成预览")
         let url=request.videoURL!

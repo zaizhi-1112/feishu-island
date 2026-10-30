@@ -28,7 +28,7 @@ REQUIRED_SKIN_FILES = {'skins.json', 'brand-geometry.json', 'brand-flow.json',
                        'avatar-virxact.png', 'virxact-logo.png', 'agent-codex.png', 'deepseek-icon.ico'}
 EXTENSION_FILES = set()
 LOL_FILES = {'THIRD_PARTY_NOTICES.md', 'push.png', 'pingwheel_enemyvisionrender.png', 'LICENSE.txt', 'omw.png', 'all_in.png', 'need_vision.png', 'enemy_missing.png', 'pingwheel_retreatrender.png', 'generic_ping.png', 'Base.wav', 'assist_me.png'}
-REMINDER_FILES = {'cat-walk.mov', 'rick-portal.mov', 'what-a-day-alpha.mov', 'gemini-greeting-alpha.mov', 'SOURCE.txt'}
+REMINDER_FILES = {'cat-walk.mov', 'rick-portal.mov', 'what-a-day.mp4', '杰哥提醒.mov', 'SOURCE.txt'}
 VOLUME_NAME = '一切在岛'
 VOLUME_METADATA = {'.background', '.DS_Store', '.fseventsd', '.Trashes', '.TemporaryItems', '.VolumeIcon.icns'}
 LAYOUT_DIR = ROOT/'scripts/dmg-layout'

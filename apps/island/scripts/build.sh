@@ -63,7 +63,7 @@ cp "$ROOT/Distribution/开始使用.html" "$APP/Contents/Resources/开始使用.
 cp "$ROOT/Resources/deepseek-balance.cjs" "$APP/Contents/Resources/deepseek-balance.cjs"
 cp "$ROOT/Resources/claude-desktop-usage.cjs" "$APP/Contents/Resources/claude-desktop-usage.cjs"
 mkdir -p "$APP/Contents/Resources/ScreenReminder"
-for asset in cat-walk.mov rick-portal.mov what-a-day-alpha.mov gemini-greeting-alpha.mov SOURCE.txt; do
+for asset in cat-walk.mov rick-portal.mov what-a-day.mp4 杰哥提醒.mov SOURCE.txt; do
     cp "$ROOT/Resources/ScreenReminder/$asset" "$APP/Contents/Resources/ScreenReminder/"
 done
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"

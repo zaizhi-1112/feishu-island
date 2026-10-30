@@ -19,8 +19,8 @@ struct ScreenReminderMaterial: Codable, Identifiable, Equatable, Sendable {
     static let builtins = [
         Self(id:"cat",name:"猫咪走动",durationSeconds:11,hasAlpha:true,bundledFilename:"cat-walk.mov"),
         Self(id:"rick",name:"瑞克传送门",durationSeconds:10,hasAlpha:true,bundledFilename:"rick-portal.mov"),
-        Self(id:"what-a-day",name:"KUN · What a Day",durationSeconds:60,hasAlpha:true,bundledFilename:"what-a-day-alpha.mov"),
-        Self(id:"gemini-greeting",name:"Gemini 人物视频",durationSeconds:10.005,hasAlpha:true,bundledFilename:"gemini-greeting-alpha.mov")
+        Self(id:"what-a-day",name:"KUN · What a Day",durationSeconds:60,hasAlpha:false,bundledFilename:"what-a-day.mp4"),
+        Self(id:"gemini-greeting",name:"杰哥提醒",durationSeconds:10,hasAlpha:true,bundledFilename:"杰哥提醒.mov")
     ]
 }
 

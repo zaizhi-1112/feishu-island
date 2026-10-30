@@ -1,14 +1,14 @@
-一切在岛 · 内置冲屏素材（build95）
+一切在岛 · 内置冲屏素材（build107）
 
 猫咪走动：用户提供 neko1.webm，并明确要求加入本应用内置素材。
 保留透明通道，转为 Mac 原生 HEVC Alpha，960×540、约11秒；保留音轨。
 原下载文件不变；本应用不宣称原创或转授素材版权。
 
 KUN · What a Day：用户提供的60秒已截取视频。
-内置副本经 Apple Vision 主体分离，720×360、15fps HEVC Alpha，保留完整60秒和原音轨；不改变原文件。
+按用户要求直接使用原 what-a-day.mp4，1280×640、60.01秒，保留原画面与音轨，不抠像。
 
-Gemini 人物视频：用户提供 gemini_generated_video_ca8f6c3a.mp4。
-内置副本经 Apple Vision 主体分离，404×720、15fps HEVC Alpha，保留约10秒完整时长与音轨。
+杰哥提醒：用户提供「口型对齐-连贯去嘿版.mp4」。
+内置副本经 Apple Vision 主体分离，404×720、15fps HEVC Alpha，保留完整10秒和音轨；原文件不变。旧 gemini-greeting 选择自动使用本素材。
 
 瑞克传送门：此前由用户提供的 Gemini 生成动作视频并要求内置。
 1280×720、10秒、24fps、静音 HEVC Alpha，沿用现有成品。
@@ -20,10 +20,10 @@ Gemini 人物视频：用户提供 gemini_generated_video_ca8f6c3a.mp4。
 素材全部删除时，既有提醒改为岛内文字；提醒时间和任务记录保留。
 播放采用透明窗口、鼠标穿透和可关闭提醒；3秒后可鼠标点击或按任意键关闭。跨应用键盘监听需本人授予系统权限。个人普通视频先在本机去除背景，处理失败不加入素材库。
 
-为符合中台带后台服务50 MB上传限制，压缩内置视频副本；用户提供的三个原文件均不改动。
+用户提供的原文件均不改动。旧素材仅保留在源码历史中，不加入本版安装包。
 
 包内文件 SHA-256：
 bee856c016667a7832cf90d05a05a484387c6994438621a6251db128d70d52af  cat-walk.mov
-bf02f9fd07490542f10b63e8b346b91fe4047821d2645730cd44b3bb9f132b4b  gemini-greeting-alpha.mov
 c3e31785fd74960637587b811ab7bc4a692f6bdb39cbb7c181b464ed26c361ea  rick-portal.mov
-0cd28f96ab4fefb62130c4283f56c9bc019c4e3a6841028d8def023072e4f2ab  what-a-day-alpha.mov
+afb8949535823a883d667e1733d51878f5b3b99f3ba5ebf59a1b866f491d9d1c  what-a-day.mp4
+57692b9723ff939453c9cb2f73e9397e7396f79d647f988ab213c4f49396043a  杰哥提醒.mov
