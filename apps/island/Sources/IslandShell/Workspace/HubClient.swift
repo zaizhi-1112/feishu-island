@@ -9,7 +9,7 @@ actor HubClient {
     func begin(callback: String) async throws -> URL {
         guard let url = URL(string:callback), url.scheme == "http", url.host == "127.0.0.1", url.path == "/oauth/virxact/callback" else { throw WorkError.message("授权回调地址无效。") }
         let value = try await transport.request("begin",payload:["callback":callback])
-        guard let raw = value["url"] as? String, let result = URL(string:raw), result.scheme == "https", result.host == "virxact.net" else { throw WorkError.message("中台授权地址无效。") }
+        guard let raw = value["url"] as? String, let result = URL(string:raw), result.scheme == "https", result.host == "hub.example.invalid" else { throw WorkError.message("中台授权地址无效。") }
         return result
     }
     func finish(query: [URLQueryItem]) async throws {

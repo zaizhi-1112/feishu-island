@@ -81,10 +81,10 @@ MainActor.assumeIsolated {
         await render(AnyView(UnifiedAgentIslandView(store:agents)),"agent-long",overflow:true)
         await render(AnyView(UnifiedTodoPanel(store:workspace)),"todo-empty")
         await render(AnyView(FeishuView(store:fs)),"messages-empty")
-        workspace.hub=HubSnapshot(connected:true,name:"合成",cards:[.init(id:"review",title:"工作周报",kind:"report",text:"本周完成产品交互调整。\n下周核对真实使用体验。",href:"https://virxact.net/")],readAt:Date())
+        workspace.hub=HubSnapshot(connected:true,name:"合成",cards:[.init(id:"review",title:"工作周报",kind:"report",text:"本周完成产品交互调整。\n下周核对真实使用体验。",href:"https://hub.example.invalid/")],readAt:Date())
         _=workspace.mutate{$0.selectedCards=["review"]}
         await render(AnyView(UnifiedPlatformPanel(workspace:workspace)),"platform")
-        workspace.hub=HubSnapshot(connected:true,name:"合成",cards:[.init(id:"review",title:"长卡片",kind:"report",text:String(repeating:"合成卡片完整正文，向下滚动查看。\n",count:80),href:"https://virxact.net/")],readAt:Date())
+        workspace.hub=HubSnapshot(connected:true,name:"合成",cards:[.init(id:"review",title:"长卡片",kind:"report",text:String(repeating:"合成卡片完整正文，向下滚动查看。\n",count:80),href:"https://hub.example.invalid/")],readAt:Date())
         await render(AnyView(UnifiedPlatformPanel(workspace:workspace)),"platform-long",overflow:true)
         fs.updateSettings(enabled:true,rules:fs.rules,custom:fs.customRules)
         fs.loadDemo()

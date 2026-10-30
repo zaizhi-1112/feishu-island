@@ -12,7 +12,7 @@ Mac 版是 1.7 万行 Swift/AppKit/SwiftUI，依赖 Mac 刘海区域（OpenNook�
 | --- | --- | --- |
 | 刘海灵动岛（OpenNook） | 屏幕顶部居中的悬浮胶囊窗口，悬停展开、移开收起 | 无刘海，形态改为顶部胶囊；保留四模块切换、锁定展开、5 秒新消息提示 |
 | 桌面弹幕 Overlay | 全屏透明、鼠标穿透的置顶窗口 | 只有弹幕本身区域接收点击（点击停留、移开继续、打开会话） |
-| WKWebView 公司登录 + /api/auth/access | Electron 持久分区窗口 + 同样的同源 POST | 只允许 feishu-island.virxact.net；令牌只在内存 |
+| WKWebView 公司登录 + /api/auth/access | Electron 持久分区窗口 + 同样的同源 POST | 只允许 island.example.invalid；令牌只在内存 |
 | 官方 lark-cli（Mac） | 官方 lark-cli.exe 1.0.96 windows-amd64 | 构建时下载并按官方 checksums.txt 核对 SHA-256 |
 | 钥匙串 | Electron safeStorage（DPAPI） | 中台 OAuth refresh token 等只以加密形式落盘 |
 | UserDefaults / Application Support | %APPDATA%\一切在岛\ 下 JSON | 消息历史按账号哈希文件隔离 |

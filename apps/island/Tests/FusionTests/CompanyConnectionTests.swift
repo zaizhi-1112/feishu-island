@@ -37,7 +37,7 @@ import Foundation
         XCTAssertEqual(env["LARKSUITE_CLI_STRICT_MODE"],"user");XCTAssertEqual(env["PATH"],"synthetic-path")
         XCTAssertFalse(env["LARKSUITE_CLI_CONFIG_DIR"] == "old-config")
         XCTAssertTrue(CompanyConnection.allowed(CompanyConnection.connectURL))
-        for url in ["http://feishu-island.virxact.net/connect.html","https://feishu-island.virxact.net.evil.test/connect.html","https://a@feishu-island.virxact.net/connect.html","https://feishu-island.virxact.net:444/connect.html"] {XCTAssertFalse(CompanyConnection.allowed(URL(string:url)))}
+        for url in ["http://island.example.invalid/connect.html","https://island.example.invalid.evil.test/connect.html","https://a@island.example.invalid/connect.html","https://island.example.invalid:444/connect.html"] {XCTAssertFalse(CompanyConnection.allowed(URL(string:url)))}
         let defaults=UserDefaults(suiteName:"local.company.synthetic."+UUID().uuidString)!
         let connection=CompanyConnection(defaults:defaults)
         XCTAssertFalse(connection.isEnabled(.receive));XCTAssertFalse(connection.isEnabled(.archive))

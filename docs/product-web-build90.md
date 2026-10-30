@@ -4,8 +4,8 @@
 
 2026-10-29 06:00（Asia/Taipei）延后任务开始后，核对了本机已安装的「一切在岛」0.11.1 build90、对应源码 `ba590a7` 和已上线的下载包。页面沿用首屏、下载区和整体排布，更新到当时最新应用实际存在的内容。随后按用户两张截图精简：右上角只保留反馈，去掉下载区兼容/安装文字、演示区版本号，以及原生设置预览至页尾的展示内容。当前页面只保留下载区、四模块演示和按需打开的反馈弹窗。曾按用户要求尝试淡黑背景；用户随后明确纠正为恢复白底，并将公司 Logo 放在首屏右侧，效果参照虚实中台首页。最新要求同步已发布安装包，主按钮必须直接下载，不能打开GitHub发布页。
 
-- 网页入口：https://virxact.net/apps/feishu-island/open
-- 应用地址：https://feishu-island.virxact.net
+- 网页入口：https://hub.example.invalid/apps/feishu-island/open
+- 应用地址：https://island.example.invalid
 - 独立开发分支：`codex/build90-product-web`，基于 `codex/build82-refinements`，不改动并行应用开发目录，不合并 main。
 - 当前下载源码已更新为0.12.0 build94，GitHub Release目标提交`2f18dbe`，本网页分支合入对应开发分支及验收记录`69c0f8a`。DMG为46,398,095 bytes，SHA-256 `c4822c9a9a355ec3bd6712e2648e9e425a3e162b53f08a6d13a48deedbbb3d4b`；本地审核包与GitHub资产元数据一致。本轮复用已发布包，不重新构建App；线上结果以最新发布记录为准。
 

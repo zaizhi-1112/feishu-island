@@ -251,7 +251,7 @@ function sectionNode(s) {
 function renderPlatform() {
   const hb = S.hub;
   if (!hb.connected) return [h('div.empty', h('div.sym', '▦'), h('div.t', '连接本人虚实中台'), h('div.d', '读取你的中台首页卡片与常用应用，只读，不修改任何数据。'), S.demo ? null : h('button.ibtn.pro', { onclick: () => call('hub.connect') }, '连接中台'), hb.error ? h('div.status.warn', hb.error) : null)];
-  const head = h('div.head', h('span.title', hb.name || '本人中台'), h('span', { style: { flex: 1 } }), h('button.ibtn', { onclick: () => call('open.url', 'https://virxact.net/') }, '打开中台'));
+  const head = h('div.head', h('span.title', hb.name || '本人中台'), h('span', { style: { flex: 1 } }), h('button.ibtn', { onclick: () => call('open.url', 'https://hub.example.invalid/') }, '打开中台'));
   const cards = hb.visible.length ? hb.visible.map(c => h('div.hubcard.card', h('h4', c.title === '工作周报' ? '工作计划' : c.title, c.href ? h('button.ibtn', { style: { marginLeft: 'auto', padding: '3px 8px' }, onclick: () => call('open.url', c.href) }, '查看') : null),
     h('div.sec', (c.sections && c.sections.length ? c.sections : [{ title: '', text: c.text, children: [] }]).map(sectionNode))))
     : h('div.empty', h('div.t', '还没有选择首页卡片'), h('div.d', '在设置的“中台”里选择要显示在岛上的卡片。'), h('button.ibtn.pro', { onclick: () => call('open.settings', 'platform') }, '选择卡片'));

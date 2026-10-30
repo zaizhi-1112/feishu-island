@@ -20,7 +20,7 @@ macOS 原生工作岛，以及正在测试的 Windows 版本。飞书消息与�
 | macOS 15+ · Apple 芯片 | **0.12.17 · build111** | [下载 Mac 版 DMG](https://github.com/zaizhi-1112/feishu-island/releases/download/v0.12.17-build111/feishu-island-0.12.17-build111-arm64.dmg) · [发布说明](https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.12.17-build111) | 已发布，尚未 Apple 公证 |
 | Windows 10/11 · x64 | **0.12.16 · 测试版** | [下载 Windows 安装包](https://github.com/zaizhi-1112/feishu-island/releases/download/v0.12.16-windows/FeishuIsland-Setup-0.12.16-x64.exe) · [发布说明](https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.12.16-windows) | Pre-release，未签名，尚未 Windows 真机验收 |
 
-[全部版本](https://github.com/zaizhi-1112/feishu-island/releases) · [公司产品页](https://feishu-island.virxact.net)（需要公司登录）
+[全部版本与安装包](https://github.com/zaizhi-1112/feishu-island/releases)
 
 Windows 使用独立版本号，目前未完整对齐 Mac build111。GitHub 的 Latest 当前指向 Mac 正式发布包；Windows 请使用上表入口。
 
@@ -97,4 +97,4 @@ bash scripts/check.sh island
 
 **项目自有代码和文档采用 [MIT 许可证](LICENSE)。** 允许修改、商用和再分发，须保留版权及许可声明。第三方代码保留原许可证；商标、角色、图片、音乐和视频不在本次 MIT 授权范围内，见 [许可范围](NOTICE.md)。来源与素材边界见 [来源与许可](docs/来源与许可.md)。
 
-源码、安装包和公司网站分别发布。当前整理在合并请求中准备，正式源码合入仍需两位负责人批准；不通过更换默认分支掩盖版本差异。
+源码与安装包分别发布。公开源码的公司连接地址已替换为`example.invalid`占位符，不能直接连接公司服务；自建部署需使用自己的服务地址并同步客户端与服务端的严格来源校验。已发布安装包与正在运行的公司服务不因源码整理而改变。开发说明见[公开地址与部署边界](docs/public-endpoints.md)。

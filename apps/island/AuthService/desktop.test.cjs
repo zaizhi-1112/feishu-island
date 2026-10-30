@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const {DesktopAccess}=require('./desktop.cjs');
 const {PURPOSES}=require('./core.cjs');
 const {createServer}=require('./server.cjs');
-const origin='https://feishu-island.virxact.net';
+const origin='https://island.example.invalid';
 const token=(extra={})=>({access:'synthetic-access',expires:3600000,scope:PURPOSES.archive.scope,...extra});
 const identity=(extra={})=>({r:{ok:true},j:{code:0,data:{open_id:'ou_synthetic_alice',name:'合成本人',...extra}}});
 const expectedKeys=['access','appId','expires','openId','scope','userId','userName'].sort();

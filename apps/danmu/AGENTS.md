@@ -27,7 +27,7 @@
 - Desktop/：Electron 同事版，Mac arm64/x64 与 Windows x64 安装包；本人凭证禁止打包，首次需个人只读应用配置与用户授权。release/site 为虚实中台纯下载页，发布走 get_app_guide/deploy_app。Windows 构建和 Windows 真机验收分开；没有签名/公证证书不得承诺无提示安装。
 - 构建保护：通常必须退出 App。DANMU_STAGED_BUILD=1 仅允许输出到本项目 .build/staged-*.app，且检查不能覆盖任何运行中的可执行文件；暂存构建不是已安装或已启动，替换桌面 App 和现场验收仍需退出旧版。
 
-- Web/：2026-10-14 首次引入免安装 Node 网页版，当前为 0.7.1，复用 Desktop 只读接收逻辑。用户同意服务器临时处理本人消息，正文与历史只在内存；官方 CLI 配置与授权凭证按中台身份隔离保存在 /data。无在线页面超过 2 分钟停止读取并清空服务器消息内存。已通过 virxact MCP 部署至 feishu-danmu.virxact.net，仅本人；线上页面和试播验证通过，专用应用配置已交接到 /data，真实飞书网页接入尚待本人授权验收。npm test --prefix Web；本地安全预览：DANMU_WEB_PREVIEW=1 PORT=8768 node Web/server.cjs。预览不读取真实账号；发布仅包含 Web/，禁止打包本机凭证。
+- Web/：2026-10-14 首次引入免安装 Node 网页版，当前为 0.7.1，复用 Desktop 只读接收逻辑。用户同意服务器临时处理本人消息，正文与历史只在内存；官方 CLI 配置与授权凭证按中台身份隔离保存在 /data。无在线页面超过 2 分钟停止读取并清空服务器消息内存。已通过 virxact MCP 部署至 danmu.example.invalid，仅本人；线上页面和试播验证通过，专用应用配置已交接到 /data，真实飞书网页接入尚待本人授权验收。npm test --prefix Web；本地安全预览：DANMU_WEB_PREVIEW=1 PORT=8768 node Web/server.cjs。预览不读取真实账号；发布仅包含 Web/，禁止打包本机凭证。
 
 - Web 0.6.0：授权成功和打开已授权网页自动接收；用户停止偏好以每账号布尔配置存 /data，刷新/服务重启不自动覆盖。隐藏标签页保持心跳，展示按实际经过时间推进；真实消息打断演示，短消息横移，长消息分页，已读跳过单独计数。外观仅经 appearance-schema.js 的白名单 JSON 导入，以账号隔离存 /data，不接受源码、脚本、CSS 或核心参数。0.6.0 的“复制给 Agent”是当时的手动导入流程，已由下述 0.7.1 本机 MCP 入口替代。scripts/web-autostart.swift 使用 macOS 公开应用启动事件打开网页，不识别飞书账号是否登录；本机 LaunchAgent local.zaizhi.feishu-danmu-web。
 

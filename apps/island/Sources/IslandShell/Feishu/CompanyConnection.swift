@@ -57,13 +57,13 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
     }
     static let profile="company"
     static let shared=CompanyConnection()
-    static let origin="https://feishu-island.virxact.net"
+    static let origin="https://island.example.invalid"
     static let connectURL=URL(string:origin+"/connect.html")!
     private static let storeID=UUID(uuidString:"0CEFF04D-8688-4341-ADBA-B069D6251F20")!
     private static func failure(_ text:String) -> AccountFailure { AccountFailure(detail:text) }
     static func allowed(_ url:URL?) -> Bool {
         guard let u=url else{return false}
-        return u.scheme == "https" && u.host == "feishu-island.virxact.net" && (u.port == nil || u.port == 443) && u.user == nil && u.password == nil
+        return u.scheme == "https" && u.host == "island.example.invalid" && (u.port == nil || u.port == 443) && u.user == nil && u.password == nil
     }
     private let lock=NSLock()
     private let defaults:UserDefaults
@@ -359,7 +359,7 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
         }
         let epoch = generation
         let code = """
-        if (location.origin !== 'https://feishu-island.virxact.net' || location.pathname !== '/connect.html') throw new Error('origin');
+        if (location.origin !== 'https://island.example.invalid' || location.pathname !== '/connect.html') throw new Error('origin');
         const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 16000);
         try {
           const response = await fetch('/api/auth/' + route, {method: payload ? 'POST' : 'GET', credentials: 'same-origin', cache: 'no-store', redirect: 'error', headers: payload ? {'Content-Type': 'application/json', 'X-Island-Auth': '1'} : {}, body: payload ? JSON.stringify(payload) : undefined, signal: controller.signal});
@@ -493,7 +493,7 @@ final class CompanyConnection: NSObject, ObservableObject, @unchecked Sendable {
         guard let web,Self.allowed(web.url),web.url?.path == "/connect.html" else {finish(p,.failure(Self.failure("公司登录已过期，请打开连接页完成登录。")));return}
         inflight.insert(p);let epoch=generation;let attempt=attempts[p]
         let code="""
-        if (location.origin !== 'https://feishu-island.virxact.net') throw new Error('origin');
+        if (location.origin !== 'https://island.example.invalid') throw new Error('origin');
         const controller = new AbortController(); const timer=setTimeout(()=>controller.abort(),16000);
         try { const r=await fetch('/api/auth/access',{method:'POST',credentials:'same-origin',cache:'no-store',redirect:'error',headers:{'Content-Type':'application/json','X-Island-Auth':'1'},body:JSON.stringify({purpose}),signal:controller.signal});
           if(!r.ok) {

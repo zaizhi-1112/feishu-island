@@ -28,7 +28,7 @@ Task { @MainActor in
         let radians = (angle - 90) * Double.pi / 180
         check(HubPingGeometry.slice(dx: cos(radians) * 100, dy: sin(radians) * 100) == expected, "boundary \(angle)")
     }
-    for url in ["https://virxact.net/", "https://example.com/dashboard?tab=weekly#summary"] {
+    for url in ["https://hub.example.invalid/", "https://example.com/dashboard?tab=weekly#summary"] {
         check(HubPingGeometry.safeURL(url) != nil, "safe navigation accepted")
     }
     for url in ["javascript:alert(1)", "file:///tmp/secret", "https://user:pass@example.com", "http://example.com", "https://example.com?access_token=private", "https://example.com?code=private", "https://example.com\n/path", "", "https://"] {
@@ -44,7 +44,7 @@ Task { @MainActor in
     ]
     var destinations = store.destinations(cards: cards, selectedIDs: ["two"])
     check(destinations.count == 8, "exactly eight slots")
-    check(destinations[0].url?.host == "virxact.net", "home is explicit URL")
+    check(destinations[0].url?.host == "hub.example.invalid", "home is explicit URL")
     check(destinations.map(\.title) == ["首页", "OKR", "资料", "数据", "异常项", "应用", "Skill", "审批"], "defaults match eight hub destinations")
     check(destinations[7].url?.host == "applink.feishu.cn", "approval follows the real hub link")
     check(destinations.allSatisfy(\.available), "default wheel works without a connected card account")

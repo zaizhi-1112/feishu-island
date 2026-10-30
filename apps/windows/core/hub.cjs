@@ -6,7 +6,7 @@ const crypto = require('node:crypto');
 
 const BUILTINS = [
   ['home', '首页'], ['okr', 'OKR'], ['library', '资料'], ['data', '数据'], ['exceptions', '异常项'], ['apps', '应用'], ['skills', 'Skill'], ['approval', '审批']
-].map(([id, title]) => ({ id, title, url: id === 'approval' ? 'https://applink.feishu.cn/client/mini_program/open?appId=cli_9cb844403dbb9108&mode=appCenter' : 'https://virxact.net/' + (id === 'home' ? '' : id) }));
+].map(([id, title]) => ({ id, title, url: id === 'approval' ? 'https://applink.feishu.cn/client/mini_program/open?appId=cli_9cb844403dbb9108&mode=appCenter' : 'https://hub.example.invalid/' + (id === 'home' ? '' : id) }));
 
 function safeURL(raw) {
   const value = String(raw || '').trim();
@@ -105,7 +105,7 @@ class HubClient {
   /** @param {{loadGrant:()=>object|null, saveGrant:(g:object)=>void, clearGrant:()=>void, fetch?:typeof fetch}} o */
   constructor(o) { this.o = o; this.fetch = o.fetch || fetch; this.pending = null; this.session = null; this.rpcID = 0; this.epoch = 0; }
   async http(url, { json, form, bearer, extra = {} } = {}) {
-    const u = new URL(url); if (u.protocol !== 'https:' || u.hostname !== 'virxact.net') throw new Error('中台地址不合法。');
+    const u = new URL(url); if (u.protocol !== 'https:' || u.hostname !== 'hub.example.invalid') throw new Error('中台地址不合法。');
     const headers = { Accept: 'application/json, text/event-stream', ...extra };
     let body;
     if (json) { body = JSON.stringify(json); headers['Content-Type'] = 'application/json'; }
@@ -122,13 +122,13 @@ class HubClient {
   async begin(callback) {
     const c = new URL(callback);
     if (c.protocol !== 'http:' || c.hostname !== '127.0.0.1' || c.pathname !== '/oauth/virxact/callback') throw new Error('授权回调地址无效。');
-    const { text } = await this.http('https://virxact.net/oauth/register', { json: { client_name: '一切在岛 Windows · 本机个人卡片', redirect_uris: [callback], grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'], token_endpoint_auth_method: 'none' } });
+    const { text } = await this.http('https://hub.example.invalid/oauth/register', { json: { client_name: '一切在岛 Windows · 本机个人卡片', redirect_uris: [callback], grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'], token_endpoint_auth_method: 'none' } });
     const client = JSON.parse(text).client_id; if (typeof client !== 'string') throw new Error('中台未返回客户端编号。');
     const state = b64url(crypto.randomBytes(32)), verifier = b64url(crypto.randomBytes(32));
     const challenge = b64url(crypto.createHash('sha256').update(verifier).digest());
     this.pending = { state, verifier, client, callback, date: Date.now() };
-    const url = new URL('https://virxact.net/oauth/authorize');
-    for (const [k, v] of Object.entries({ client_id: client, redirect_uri: callback, response_type: 'code', scope: 'hub', state, code_challenge: challenge, code_challenge_method: 'S256', resource: 'https://virxact.net/mcp' })) url.searchParams.set(k, v);
+    const url = new URL('https://hub.example.invalid/oauth/authorize');
+    for (const [k, v] of Object.entries({ client_id: client, redirect_uri: callback, response_type: 'code', scope: 'hub', state, code_challenge: challenge, code_challenge_method: 'S256', resource: 'https://hub.example.invalid/mcp' })) url.searchParams.set(k, v);
     return url.href;
   }
   async finish(params) {
@@ -138,7 +138,7 @@ class HubClient {
     if (state.length !== p.state.length || !crypto.timingSafeEqual(Buffer.from(state), Buffer.from(p.state))) throw new Error('授权校验未通过。');
     this.pending = null;
     const code = params.get('code'); if (!code) throw new Error('未完成中台授权。');
-    const { text } = await this.http('https://virxact.net/oauth/token', { form: { grant_type: 'authorization_code', client_id: p.client, code, redirect_uri: p.callback, code_verifier: p.verifier, resource: 'https://virxact.net/mcp' } });
+    const { text } = await this.http('https://hub.example.invalid/oauth/token', { form: { grant_type: 'authorization_code', client_id: p.client, code, redirect_uri: p.callback, code_verifier: p.verifier, resource: 'https://hub.example.invalid/mcp' } });
     if (generation !== this.epoch) throw new Error('连接已断开，授权未保存。');
     this.o.saveGrant(this.decode(text, p.client, null)); this.session = null; this.epoch++;
   }
@@ -154,7 +154,7 @@ class HubClient {
     if (!grant) throw new Error('请先连接本人虚实中台，读取你的飞书首页与数据。');
     if (grant.expires - Date.now() < 60000) {
       if (!grant.refresh) throw new Error('中台授权已过期，请重新连接。');
-      const { text } = await this.http('https://virxact.net/oauth/token', { form: { grant_type: 'refresh_token', client_id: grant.clientID, refresh_token: grant.refresh } });
+      const { text } = await this.http('https://hub.example.invalid/oauth/token', { form: { grant_type: 'refresh_token', client_id: grant.clientID, refresh_token: grant.refresh } });
       if (generation !== this.epoch) throw new Error('连接已断开。');
       grant = this.decode(text, grant.clientID, grant.refresh); this.o.saveGrant(grant);
     }
@@ -164,7 +164,7 @@ class HubClient {
     const id = ++this.rpcID;
     const object = { jsonrpc: '2.0', method, params }; if (!notification) object.id = id;
     const extra = { 'MCP-Protocol-Version': '2025-03-26' }; if (this.session) extra['Mcp-Session-Id'] = this.session;
-    const { text, headers } = await this.http('https://virxact.net/mcp', { json: object, bearer: token, extra });
+    const { text, headers } = await this.http('https://hub.example.invalid/mcp', { json: object, bearer: token, extra });
     const sid = headers.get('mcp-session-id'); if (sid) this.session = sid;
     if (notification) return {};
     let v;

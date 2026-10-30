@@ -1,6 +1,6 @@
 'use strict';
 // Pure parts of the company connection (see main/company.cjs). No Electron.
-const ORIGIN = 'https://feishu-island.virxact.net';
+const ORIGIN = 'https://island.example.invalid';
 const CONNECT_URL = ORIGIN + '/connect.html';
 const PURPOSES = {
   receive: { serviceKey: 'receive', appID: 'cli_aa217b534af89cdc', scopes: 'auth:user.id:read im:chat:read im:chat.user_setting:read im:message.group_msg:get_as_user im:message.p2p_msg:get_as_user im:message:readonly offline_access' },
@@ -12,7 +12,7 @@ const sameSet = (a, b) => a.size === b.size && [...a].every(x => b.has(x));
 class Failure extends Error {}
 
 function allowedURL(raw) {
-  try { const u = new URL(raw); return u.protocol === 'https:' && u.hostname === 'feishu-island.virxact.net' && (u.port === '' || u.port === '443') && !u.username && !u.password; }
+  try { const u = new URL(raw); return u.protocol === 'https:' && u.hostname === 'island.example.invalid' && (u.port === '' || u.port === '443') && !u.username && !u.password; }
   catch { return false; }
 }
 

@@ -10,7 +10,7 @@ enum HubBuiltinDestination: String, CaseIterable {
     }
     var url: URL {
         if self == .approval { return URL(string: "https://applink.feishu.cn/client/mini_program/open?appId=cli_9cb844403dbb9108&mode=appCenter")! }
-        return URL(string: "https://virxact.net/" + (self == .home ? "" : rawValue))!
+        return URL(string: "https://hub.example.invalid/" + (self == .home ? "" : rawValue))!
     }
 }
 

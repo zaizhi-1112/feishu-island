@@ -128,7 +128,7 @@ import SwiftUI
             _=try workspace.add(text:"和同事核对新版交互",minutes:30)
             workspace.complete(task)
             if CommandLine.arguments.contains("--archive-review") { workspace.archiveCompletedTodos() }
-            workspace.hub=HubSnapshot(connected:true,name:"合成体验",cards:[.init(id:"review",title:"工作周报",kind:"report",text:"仅用于界面验收的合成内容",href:"https://virxact.net/")],readAt:Date())
+            workspace.hub=HubSnapshot(connected:true,name:"合成体验",cards:[.init(id:"review",title:"工作周报",kind:"report",text:"仅用于界面验收的合成内容",href:"https://hub.example.invalid/")],readAt:Date())
             _ = workspace.mutate{$0.selectedCards=["review"]}
             if CommandLine.arguments.contains("--virxact-review") {AgentStore.shared.selectSkin("virxact");AgentStore.shared.setEffectsEnabled(true)}
             let model=UnifiedSettingsModel();model.appState=appState;model.visible=true
