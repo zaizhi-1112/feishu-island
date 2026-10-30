@@ -11,6 +11,7 @@ final class FlyingText: NSView {
     var motionPages: [String] = []
     var motionScreenWidth: CGFloat = 0
     var clickedPause = false
+    var imageAreaHeight: CGFloat = 0
     var motionOpen: (() -> Void)?
     private var tracking: NSTrackingArea?
     let openButton = CardPagingButton(title: "打开会话", target: nil, action: nil)
@@ -48,7 +49,7 @@ final class FlyingText: NSView {
         }
         if let borderColor { borderColor.setStroke(); let edge = NSBezierPath(roundedRect:bounds.insetBy(dx:0.5,dy:0.5),xRadius:corner,yRadius:corner);edge.lineWidth=1;edge.stroke() }
         if motionMessage != nil {
-            let viewport = NSRect(x: 14, y: 38, width: bounds.width - 28, height: bounds.height - 50)
+            let viewport = NSRect(x: 14, y: 38 + imageAreaHeight, width: bounds.width - 28, height: max(20, bounds.height - 50 - imageAreaHeight))
             let textHeight = ceil(content.boundingRect(with: NSSize(width: viewport.width, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading]).height)
             let overflow = max(0, textHeight - viewport.height)
             // Scroll only while the complete panel is on screen, so the first
@@ -87,6 +88,7 @@ final class Overlay: NSObject {
     var grayRules: [String] = []
     var hiddenRules: [String] = []
     var laneCount = 4
+    var motionRowHeight: CGFloat = 0
     var paused = false
     var skinForeground: NSColor?
     var skinBackground: NSColor?
@@ -135,13 +137,14 @@ final class Overlay: NSObject {
         window.isReleasedWhenClosed = false
         if showsWindow { window.orderFrontRegardless() }
     }
-    func enqueue(_ text: String, demo: Bool = false, gray: Bool = false, createdAt: Date? = nil, receivedAt: Date? = nil, messageID: String? = nil) {
+    func enqueue(_ text: String, demo: Bool = false, gray: Bool = false, createdAt: Date? = nil, receivedAt: Date? = nil, messageID: String? = nil, sourceMessage: FeishuMessage? = nil) {
         let clean = text.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
 
         if queue.count >= 500 { let dropped = queue.removeFirst(); if let id = dropped.messageID { onFinished?(id) }; overflow += 1 }
         var message = DanmuMessage(text: clean, receivedAt: receivedAt ?? Date(), demo: demo, gray: gray, createdAt: createdAt)
         message.messageID = messageID; queue.append(message)
+        queue[queue.count - 1].sourceMessage = sourceMessage
         onChange?()
     }
     func clear() { queue.removeAll(); checking = nil; verified = nil; overflow = 0; flying.forEach { $0.motionPanel?.close(); $0.removeFromSuperview() }; flying.removeAll(); controlsWindow?.orderOut(nil); onChange?() }

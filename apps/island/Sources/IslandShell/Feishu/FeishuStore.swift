@@ -166,6 +166,7 @@ public final class FeishuStore: ObservableObject {
     public func updateConnection(_ value: FeishuConnection) -> Bool {
         guard value.valid, rulesConfigurationReadable else { return false }
         if value == connection { return true }
+        FeishuImagePreview.shared.close()
         saveHistory(force: true); archive = nil; archiveSnapshot = nil; pendingDesktop.removeAll()
         reader.stop(); enabled = false; defaults.set(false,forKey:"enabled")
         playback.resetAccount(); messages.removeAll(); pendingAlert?.cancel(); pendingAlert = nil; pendingCount = 0; activities?.end("messages")

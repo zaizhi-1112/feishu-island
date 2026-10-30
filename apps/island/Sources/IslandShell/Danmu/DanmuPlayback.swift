@@ -86,7 +86,7 @@ public final class DanmuPlayback {
         }
         seen.insert(message.id); order.append(message.id)
         if order.count > 1000 { seen.remove(order.removeFirst()) }
-        overlay?.enqueue(message.danmuText,demo:demo,createdAt:message.created,messageID:demo ? nil : message.id)
+        overlay?.enqueue(message.danmuText,demo:demo,createdAt:message.created,messageID:demo ? nil : message.id,sourceMessage:message)
         accepted += 1
         return true
     }

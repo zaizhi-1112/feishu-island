@@ -11,6 +11,8 @@ let package = Package(
         .executableTarget(name: "YuIsland", dependencies: ["IslandShell"]),
         .executableTarget(name: "IslandLayoutChecks", dependencies: ["IslandShell"], path: "Tests/IslandLayoutChecks"),
         .executableTarget(name: "SurfaceInteractionChecks", dependencies: ["IslandShell"], path: "Tests/SurfaceInteractionChecks"),
+        .executableTarget(name: "UpdateWindowChecks", dependencies: ["IslandShell", .product(name: "Sparkle", package: "Sparkle")], path: "Tests/UpdateWindowChecks"),
+        .executableTarget(name: "RichMessageChecks", dependencies: ["IslandShell"], path: "Tests/RichMessageChecks", exclude: ["fake-cli.py"]),
         .executableTarget(name: "ExperienceMotionChecks", dependencies: ["IslandShell"], path: "Tests/ExperienceMotionChecks"),
         .executableTarget(name: "DockGeometryChecks", dependencies: ["IslandShell"], path: "Tests/DockGeometryChecks"),
         .executableTarget(name: "IslandChecks", dependencies: ["IslandShell"], path: "Tests/IslandChecks"),

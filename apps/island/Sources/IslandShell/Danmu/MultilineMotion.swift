@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 /// Pure text layout shared by the renderer and burst/continuation checks.
 enum MotionTextLayout {
@@ -48,7 +49,13 @@ extension Overlay {
         guard !queue.isEmpty else { return }
         let font = NSFont.systemFont(ofSize: fontSize, weight: heavy ? .bold : .medium)
         let textHeight = ceil(font.ascender - font.descender + font.leading) * 4 + 4
-        let rowHeight = textHeight + 56
+        let includesImages = queue.first?.sourceMessage?.hasImageContent == true || flying.contains { $0.imageAreaHeight > 0 }
+        let requiredHeight = textHeight + 56 + (includesImages ? 110 : 0)
+        // Keep a stable lane grid until the current wave clears. A taller image
+        // must not enter a compact text lane and overlap its neighbour.
+        if flying.isEmpty { motionRowHeight = requiredHeight }
+        guard requiredHeight <= motionRowHeight else { return }
+        let rowHeight = motionRowHeight
         let lanes = min(laneCount, max(1, Int((screen.height - 120) / rowHeight)))
         guard let lane = (0..<lanes).first(where: { candidate in !flying.contains { $0.lane == candidate && $0.position + $0.frame.width > screen.width - 60 } }) else { return }
         if let id = queue[0].messageID, let verifyUnread, verified != queue[0].identity {
@@ -85,8 +92,10 @@ extension Overlay {
         if !backdrop { attributes[.strokeColor] = NSColor.black; attributes[.strokeWidth] = -1.5 }
         view.content = NSAttributedString(string: message.segments[message.segment], attributes: attributes)
         let measured = view.content.boundingRect(with: NSSize(width: width - 28, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading])
-        let height = min(rowHeight - 6, ceil(measured.height) + 52)
-        let actualWidth = min(width, max(180, ceil(measured.width) + 28))
+        let hasImages = message.sourceMessage?.hasImageContent == true
+        let height = min(rowHeight - 6, ceil(measured.height) + 52 + (hasImages ? 110 : 0))
+        let actualWidth = min(width, max(hasImages ? 340 : 180, ceil(measured.width) + 28))
+        view.imageAreaHeight = hasImages ? 110 : 0
         let band = CGFloat(lanes) * rowHeight
         let top = position == 1 ? (screen.height + band) / 2 : position == 2 ? band + 32 : screen.height - 64
         view.frame = NSRect(x: screen.width, y: max(20, top - CGFloat(lane + 1) * rowHeight), width: actualWidth, height: height)
@@ -104,6 +113,17 @@ extension Overlay {
         panel.contentView = container
         let localFrame = view.frame
         view.frame.origin = .zero; container.addSubview(view)
+        if let source = message.sourceMessage, hasImages {
+            MainActor.assumeIsolated {
+                if let connection = FeishuStore.active?.connection {
+                    let gallery = FeishuImageGallery(message: source, connection: connection, compact: true)
+                        .onHover { [weak view] inside in view?.clickedPause = inside }
+                    let host = NSHostingView(rootView: gallery)
+                    host.frame = NSRect(x: 10, y: 36, width: actualWidth - 20, height: 104)
+                    view.addSubview(host)
+                }
+            }
+        }
         if let id = message.messageID {
             view.motionOpen = { [weak self] in self?.onOpenConversation?(id) }
             view.openButton.target = view; view.openButton.action = #selector(FlyingText.openMotionConversation)

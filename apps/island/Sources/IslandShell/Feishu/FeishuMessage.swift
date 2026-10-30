@@ -95,6 +95,7 @@ public struct FeishuMessage: Identifiable, Equatable, Sendable, Codable {
     public let created: Date
     public let mentionsMe: Bool
     public let mentionsAll: Bool
+    public var imageKeys: [String] = []
     public var viewed = false
     public var remindAt: Date?
     public var reminded = false
@@ -139,7 +140,26 @@ public struct FeishuMessage: Identifiable, Equatable, Sendable, Codable {
             }
         }
         text = body
+        imageKeys = accountMessageImageKeys(raw)
     }
+
+    enum CodingKeys: String, CodingKey {
+        case id, chatID, chatName, chatKind, senderName, senderID, text, created, mentionsMe, mentionsAll
+        case viewed, remindAt, reminded, imageKeys
+    }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id); chatID = try c.decode(String.self, forKey: .chatID)
+        chatName = try c.decode(String.self, forKey: .chatName); chatKind = try c.decode(String.self, forKey: .chatKind)
+        senderName = try c.decode(String.self, forKey: .senderName); senderID = try c.decode(String.self, forKey: .senderID)
+        text = try c.decode(String.self, forKey: .text); created = try c.decode(Date.self, forKey: .created)
+        mentionsMe = try c.decode(Bool.self, forKey: .mentionsMe); mentionsAll = try c.decode(Bool.self, forKey: .mentionsAll)
+        viewed = try c.decodeIfPresent(Bool.self, forKey: .viewed) ?? false
+        remindAt = try c.decodeIfPresent(Date.self, forKey: .remindAt)
+        reminded = try c.decodeIfPresent(Bool.self, forKey: .reminded) ?? false
+        imageKeys = (try c.decodeIfPresent([String].self, forKey: .imageKeys) ?? []).filter(validFeishuImageKey)
+    }
+    var hasImageContent: Bool { !imageKeys.isEmpty || text.contains("[图片]") }
 
     public func importanceReason(followed: Set<String>, rules: FeishuReminderRules = .init(), custom: FeishuCustomRules = .init()) -> String? {
         if custom.blocks(self) { return nil }

@@ -46,11 +46,17 @@ struct FeishuView: View {
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
                             IslandContentScroll(height: IslandHost.panelHeight - 2 * IslandHost.panelPadding - 28 - 24 - 20) {
-                            VStack(spacing: 8) {
+                            LazyVStack(spacing: 8) {
                                 ForEach(list) { message in
+                                    VStack(spacing: 5) {
                                     Button { store.openReader(message.id) } label: { row(message) }
                                         .buttonStyle(.plain)
                                         .accessibilityIdentifier("feishu.message.\(message.id)")
+                                    if message.hasImageContent {
+                                        FeishuImageGallery(message: message, connection: store.connection, compact: true)
+                                            .padding(.horizontal, 8).padding(.bottom, 5)
+                                    }
+                                    }
                                 }
                             }
                             if !store.status.hasPrefix("账号接收中") && !store.status.hasPrefix("演示模式") {
@@ -180,7 +186,7 @@ struct FeishuView: View {
                             onRemind: { store.remindLater(message.id); store.finishReading() },
                             onOpen: { store.open(message) },
                             initialPage: store.readingPages[message.id] ?? 0,
-                            onPageChange: { store.rememberReadingPage($0, for: message.id) })
+                            onPageChange: { store.rememberReadingPage($0, for: message.id) }, connection: store.connection)
             .id(message.id)
     }
 }

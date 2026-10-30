@@ -34,6 +34,7 @@ struct IslandMessageReader: View {
     var onOpen: () -> Void
     var initialPage = 0
     var onPageChange: (Int) -> Void = { _ in }
+    var connection: FeishuConnection? = nil
     @Environment(\.nookResolvedTheme) private var theme
     @State private var page = 0
     @State private var automatic = false
@@ -65,6 +66,9 @@ struct IslandMessageReader: View {
                 .background(theme.subtleFill, in: RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.subtleStroke, lineWidth: 0.8))
                 .accessibilityIdentifier("feishu.reader.body")
+            if message.hasImageContent, let connection {
+                FeishuImageGallery(message: message, connection: connection)
+            }
             HStack(spacing: 8) {
                 Button("上一页") { move(-1, count: parts.count) }
                     .disabled(page == 0).accessibilityIdentifier("feishu.reader.previous")
