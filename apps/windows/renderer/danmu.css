@@ -1,0 +1,14 @@
+html, body { background: transparent; overflow: hidden; height: 100%; user-select: none; }
+#stage { position: absolute; inset: 0; }
+.dm { position: absolute; left: 0; top: 0; will-change: transform; padding: 10px 14px 34px; color: #fff; font-weight: 500; line-height: 1.32; cursor: pointer; }
+.dm.single { padding-bottom: 10px; }
+.dm .vp { overflow: hidden; position: relative; }
+.dm .tx { white-space: pre-wrap; word-break: break-word; }
+.dm.outline .tx { -webkit-text-stroke: 1.5px rgba(0,0,0,.85); paint-order: stroke fill; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+.dm .hint { position: absolute; left: 14px; bottom: 10px; font-size: 11px; opacity: .8; }
+.dm.single .hint { display: none; }
+.dm .open { position: absolute; right: 12px; bottom: 6px; font-size: 12px; padding: 3px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,.35); background: rgba(0,0,0,.45); color: #fff; display: none; }
+.dm.paused .open { display: block; }
+.dm.paused.single { padding-bottom: 34px; }
+.dm.paused.single .hint { display: block; }
+.dm .demo { font-size: .7em; opacity: .7; margin-right: 6px; }

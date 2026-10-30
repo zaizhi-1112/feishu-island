@@ -1,0 +1,23 @@
+html, body { height: 100%; background: #f5f6f3; }
+:root[data-theme="dark"] body { background: #14171c; }
+header { height: 90px; display: flex; align-items: center; gap: 12px; padding: 0 24px; border-bottom: 1px solid var(--stroke); }
+header img { width: 42px; height: 42px; }
+header h1 { margin: 0 0 4px; font-size: 20px; }
+header .muted { font-size: 12px; }
+main { padding: 24px; overflow-y: auto; height: calc(100% - 90px); }
+main.login { padding: 10px 24px; height: auto; font-size: 13px; color: var(--label2); }
+h2 { font-size: 18px; margin: 0 0 18px; }
+.card { background: var(--surface); border: 1px solid var(--stroke); border-radius: 18px; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+.big { font-size: 38px; line-height: 1; color: var(--accent); }
+.big.ok { color: var(--ok); }
+.card h3 { margin: 0; font-size: 20px; }
+.card p { margin: 0; font-size: 13px; color: var(--label2); line-height: 1.55; }
+hr { border: 0; border-top: 1px solid var(--stroke); margin: 2px 0; width: 100%; }
+.feedback { font-size: 13px; line-height: 1.55; }
+.wait { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--label2); }
+.spin { width: 14px; height: 14px; border: 2px solid var(--stroke); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.buttons { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.btn.large { padding: 10px 18px; font-size: 14px; }
+.note { margin-top: 16px; font-size: 12px; color: var(--label2); }
+.center { text-align: center; padding: 48px 12px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
