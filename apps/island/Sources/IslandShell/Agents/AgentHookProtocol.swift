@@ -7,6 +7,7 @@ struct AgentHookRecord: Codable, Equatable {
     var state: String
     var updatedAt: Double
     var completionID: String?
+    var startID: String?
     var attentionID: String?
     var attentionReason: String?
     static func digest(_ value: String) -> String {
@@ -43,6 +44,7 @@ struct AgentHookRecord: Codable, Equatable {
         }
         let attention = state == "waiting" ? (previous?.state == "waiting" && previous?.attentionReason == reason ? previous?.attentionID : UUID().uuidString) : nil
         return Self(id: id, state: state, updatedAt: now, completionID: state == "completed" ? UUID().uuidString : previous?.completionID,
+                    startID: event == "UserPromptSubmit" ? UUID().uuidString : previous?.startID,
                     attentionID: attention, attentionReason: reason)
     }
 }
