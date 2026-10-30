@@ -51,7 +51,9 @@ Mac 版是 1.7 万行 Swift/AppKit/SwiftUI，依赖 Mac 刘海区域（OpenNook�
 - [ ] **真实飞书消息/日历/中台授权：未验证**，需本人在 Windows 上授权后测试。
 - [ ] **Claude Code 状态提醒（PowerShell 脚本）：未在 Windows 执行过**，只验证了设置文件的写入、保留与恢复。
 - [ ] 未签名：首次安装会出现 SmartScreen“未知发布者”提示。
-- [ ] GitHub Release / 中台部署：见 PR 说明。中台下载服务上限 50 MB，Windows 包需由 GitHub Release 资产直链提供；正式 Release 与 main 合并需宰治、柚子分别批准同一版本。
+- [x] 2026-10-30 按宰治要求发布 GitHub 预发布版 [v0.12.16-windows](https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.12.16-windows)（Pre-release，未设为 Latest）：安装包与 SHA256SUMS，公开下载核对 SHA-256 一致；Mac 的 Latest（build108）与 appcast 未变。
+- [ ] 正式 Release 与 main 合并：需宰治、柚子分别批准同一版本。
+- [ ] 中台产品页：已加 Windows 直链（中台下载服务 50 MB 上限放不下 131 MB 包），尚未部署，需在有 virxact 部署工具的环境执行。
 
 ## 常用命令
 

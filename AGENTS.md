@@ -37,3 +37,4 @@
 - 2026-10-30 Agent 提醒本机修复：基于 build110，IslandLocalPatch=agent-alerts-20261030；完成事件合并等待 2 秒，不等待其他任务；状态提醒主动申请 compact 展示。记录见 docs/agent-status-alerts.md。未包含另一工作区 build111 未提交改动，不覆盖其源码。
 
 - 2026-10-30 宰治要求做完整对齐的 Windows 版并同步 GitHub 与中台：源码在 apps/windows（规范见其 AGENTS.md 与 docs/windows-port.md），分支 codex/windows-port。macOS 交叉打包与合成测试已通过，Windows 真机、真实账号均未验证。正式 Release、main 合并仍需两位负责人分别批准；中台下载服务 50 MB 上限放不下 Windows 包，页面按钮直链 GitHub Release 资产。
+- 同日宰治批准先发 GitHub 预发布版：v0.12.16-windows 已发布（Pre-release，非 Latest）。此批准不等于正式版批准，也不代表柚子投票。
