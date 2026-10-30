@@ -82,17 +82,17 @@ actor CodexReader {
         let turn=payload["turn_id"] as? String
         if event == "task_started" {
             cursor.pendingAsyncInput=nil
-            cursor.turnID=turn;cursor.session=AgentSession(id:id,state:.working,updatedAt:time)
+            cursor.turnID=turn;cursor.session=AgentSession(id:id,state:.working,updatedAt:time,startID:turn ?? stamp)
             return
         }
         if let known=cursor.turnID,let turn,known != turn { return }
         if event == "task_complete",let pending=cursor.pendingAsyncInput {
-            cursor.session=AgentSession(id:id,state:.waiting,updatedAt:time,attentionID:pending,attentionReason:"input")
+            cursor.session=AgentSession(id:id,state:.waiting,updatedAt:time,attentionID:pending,attentionReason:"input",startID:cursor.session?.startID)
         } else if ["task_complete","turn_aborted"].contains(event) {
             cursor.pendingAsyncInput=nil
             cursor.session=AgentSession(id:id,state:event == "task_complete" ? .completed:.failed,updatedAt:time,completionID:event == "task_complete" ? (turn ?? stamp):nil)
         } else if ["request_user_input","exec_approval_request","apply_patch_approval_request","request_permissions","elicitation_request"].contains(event) {
-            cursor.session=AgentSession(id:id,state:.waiting,updatedAt:time,attentionID:(payload["call_id"] as? String) ?? (payload["id"] as? String) ?? stamp,attentionReason:event == "request_user_input" ? "input":"approval")
+            cursor.session=AgentSession(id:id,state:.waiting,updatedAt:time,attentionID:(payload["call_id"] as? String) ?? (payload["id"] as? String) ?? stamp,attentionReason:event == "request_user_input" ? "input":"approval",startID:cursor.session?.startID)
         } else if ["exec_command_begin","patch_apply_begin","user_message","elicitation_abandoned"].contains(event),cursor.session?.state == .waiting {
             cursor.session?.state = .working;cursor.session?.updatedAt=time;cursor.session?.attentionID=nil;cursor.session?.attentionReason=nil
         } else if cursor.session?.state == .working || cursor.session?.state == .waiting { cursor.session?.updatedAt=time }

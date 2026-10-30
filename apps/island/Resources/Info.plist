@@ -24,6 +24,8 @@
 	<string>0.12.17</string>
 	<key>CFBundleVersion</key>
 	<string>111</string>
+	<key>IslandLocalPatch</key>
+	<string>agent-alerts-20261030</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
 	<key>LSUIElement</key>

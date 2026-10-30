@@ -23,7 +23,7 @@ enum AgentStatusConnection {
         AgentHookFiles.read(provider: provider, root: root, now: now).compactMap { record in
             guard let state = AgentState(rawValue: record.state) else { return nil }
             return AgentSession(id: record.id, state: state, updatedAt: record.updatedAt, completionID: record.completionID,
-                                attentionID: record.attentionID, attentionReason: record.attentionReason)
+                                attentionID: record.attentionID, attentionReason: record.attentionReason, startID:record.startID)
         }
     }
     static func merge(database: [AgentSession], events: [AgentSession], now: Double) -> [AgentSession] {

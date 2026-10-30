@@ -350,6 +350,7 @@ final class AgentStore: ObservableObject {
         // Quota is content for the revealed pill, not a permanent reveal request.
         // Explicit selection feedback and task notices reveal briefly, without collapsing a locked/input panel.
         activity.keepsCompactVisible = completionNotice != nil || primarySwitchNotice != nil
+        if completionNotice != nil { activity.alert = .compact(.seconds(6)) }
         activity.setExpanded { AgentPersistentExpanded(store:self) }
         activities?.start(activity)
     }
