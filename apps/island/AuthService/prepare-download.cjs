@@ -4,11 +4,13 @@ const fs=require('node:fs/promises'),path=require('node:path');
 const {createHash}=require('node:crypto');
 const {constants}=require('node:fs');
 
+// This file is downloaded during build, not included in the 50 MB upload archive.
+// Keep a separate 100 MB cap; transfer concurrency and 1 MiB range bounds remain unchanged.
 function validateSource(source){
  const version=/^feishu-island-(\d+\.\d+\.\d+)-build(\d+)-arm64\.dmg$/.exec(source.package||'');
  const asset=/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/releases\/download\/([\w.-]+)\/([\w.-]+)$/.exec(source.url||'');
  if(!version||!asset||asset[1]!==`v${version[1]}-build${version[2]}`||asset[2]!==source.package||
-    !/^[a-f0-9]{64}$/.test(source.sha256||'')||!Number.isSafeInteger(source.size)||source.size<1||source.size>48000000)
+    !/^[a-f0-9]{64}$/.test(source.sha256||'')||!Number.isSafeInteger(source.size)||source.size<1||source.size>100000000)
   throw new Error('Invalid audited download metadata');
  if(source.assetUrl){
   let url;try{url=new URL(source.assetUrl);}catch{throw new Error('Invalid asset URL');}
