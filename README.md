@@ -6,6 +6,13 @@
 
 macOS 原生工作岛，以及正在测试的 Windows 版本。飞书消息与桌面弹幕、待办日程、Agent 状态和快捷入口，在一个小窗口里查看。
 
+**共同作者：[宰治（zaizhi-1112）](https://github.com/zaizhi-1112) · [柚子（shiyouzi970）](https://github.com/shiyouzi970)**
+
+| 宰治 | 柚子 |
+| :---: | :---: |
+| [<img src="https://avatars.githubusercontent.com/u/242229369?v=4" width="64" alt="宰治">](https://github.com/zaizhi-1112) | [<img src="https://avatars.githubusercontent.com/u/338694887?v=4" width="64" alt="柚子">](https://github.com/shiyouzi970) |
+| 飞书弹幕开发，共同推进融合应用 | 灵动岛开发，共同推进融合应用 |
+
 ## 下载
 
 | 平台 | 版本 | 安装包 | 当前状态 |
@@ -76,7 +83,14 @@ bash scripts/check.sh island
 
 报告问题请提供平台、版本、复现步骤与预期结果，并遮盖账号、聊天内容及凭据。普通问题使用 [Issues](https://github.com/zaizhi-1112/feishu-island/issues)；涉及凭据泄露或安全漏洞，先看 [安全反馈](SECURITY.md)。
 
-## 贡献、来源与许可
+## 感谢与借鉴
+
+- **[LOLPingYourAI · ChristianYang37](https://github.com/ChristianYang37/LOLPingYourAI)**：借鉴并移植八方向信号轮盘的角度判定、中心取消区及相关图标和音效，用于一切在岛的快捷轮盘。Mac端适配为SwiftUI实现，未接入原项目的AI代理、录屏或远程控制能力。具体移植范围见[平台来源记录](apps/island/Sources/IslandShell/Platform/SOURCE.md)。
+- **[lolPing · darrenprx](https://github.com/darrenprx/lolPing)**：LOLPingYourAI轮盘代码及部分资源的上游来源。代码许可与原版权声明继续保留，游戏图像和音效归Riot Games，不按本项目MIT许可证重新授权。
+
+上述致谢不表示原作者参与开发或为本项目背书。更多依赖和素材来源见[来源与许可](docs/来源与许可.md)。
+
+## 贡献与许可
 
 柚子开发灵动岛，宰治开发飞书弹幕，双方共同推进「一切在岛」。欢迎通过 Issue 描述问题，通过 Pull Request 提交改进；流程见 [贡献指南](CONTRIBUTING.md)。
 
