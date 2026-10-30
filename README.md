@@ -19,11 +19,11 @@ Windows 使用独立版本号，目前未完整对齐 Mac build111。GitHub 的 
 
 ## 开始使用
 
-**Mac：**打开 DMG，把「一切在岛」拖进 Applications，打开后完成首次引导。build94 及以后支持应用内检查更新，安装仍由你确认。安装及系统提示说明见 [Mac 使用说明](apps/island/Distribution/开始使用.html)。
+**Mac**：打开 DMG，把「一切在岛」拖进 Applications，打开后完成首次引导。build94 及以后支持应用内检查更新，安装仍由你确认。安装及系统提示说明见 [Mac 使用说明](apps/island/Distribution/开始使用.html)。
 
-**Windows：**下载并运行上表的 x64 安装程序。测试包没有代码签名，系统可能显示未知发布者提示。不要将测试版的交叉构建通过视为真机稳定性保证；已实现范围与未支持功能见 [Windows 说明](docs/windows-port.md)。
+**Windows**：下载并运行上表的 x64 安装程序。测试包没有代码签名，系统可能显示未知发布者提示。不要将测试版的交叉构建通过视为真机稳定性保证；已实现范围与未支持功能见 [Windows 说明](docs/windows-port.md)。
 
-**账号连接：**当前分发包的飞书和中台连接依赖虚实传媒的授权服务及账号权限，并非任意飞书用户都能直接接入。公开源码不开放公司的服务权限。开发者可以先运行 Windows 合成演示；自建授权服务参见 [AuthService 说明](apps/island/AuthService/README.md)，仍需自行配置合法的应用与授权，不能复用维护者凭据。
+**账号连接**：当前分发包的飞书和中台连接依赖虚实传媒的授权服务及账号权限，并非任意飞书用户都能直接接入。公开源码不开放公司的服务权限。开发者可以先运行 Windows 合成演示；自建授权服务参见 [AuthService 说明](apps/island/AuthService/README.md)，仍需自行配置合法的应用与授权，不能复用维护者凭据。
 
 ## 功能
 
