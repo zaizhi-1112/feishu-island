@@ -52,6 +52,10 @@ build94 支持应用内检查更新。发布新的安装包到 GitHub Release �
 
 检查、发布与未验证项见[当前验证记录](docs/验证记录.md)。本机已安装 build108；本轮不清空账号、待办和偏好，也不替同事授权。
 
+## Windows 测试版
+
+`apps/windows` 是用 Electron 移植的 Windows 10/11 版本：屏幕顶部悬浮岛、飞书消息与桌面弹幕、Agent 状态、待办与日程、虚实中台与信号轮盘、休息提醒和检查更新，规则与 Mac 版一致。安装包尚未在 Windows 真机验证、未签名；范围与验收见 [Windows 版说明](docs/windows-port.md)。
+
 ## 源码与开发
 
 | 目录 | 用途 |
@@ -59,6 +63,7 @@ build94 支持应用内检查更新。发布新的安装包到 GitHub Release �
 | [apps/island](apps/island) | 当前 macOS 原生应用：Swift / SwiftUI / AppKit、资源、测试、构建与更新发布脚本 |
 | [apps/island/AuthService](apps/island/AuthService) | 现有公司登录下的飞书业务授权与安装包下载服务 |
 | [apps/island/Distribution/site](apps/island/Distribution/site) | 已上线的产品网页、演示和下载入口 |
+| [apps/windows](apps/windows) | Windows 版（Electron）：主进程、纯逻辑、页面、合成测试与打包脚本 |
 | [apps/danmu](apps/danmu) | 历史飞书弹幕原生、Web 和 Electron 实现及合成检查 |
 | [docs](docs) | 当前验证、协作方式、版本记录和来源说明；历史文档保留原日期 |
 
