@@ -8,3 +8,9 @@
 - 不改个人偏好、不读取或记录正文、不新增 Agent 权限。DeepSeek Harness 的现有接入仅提供余额，没有任务事件源，本次不虚构其开始/完成状态。
 
 AgentChecks 已通过 758 项检查，包含 Codex / Claude Code / WorkBuddy 经 AgentStore 到 NookActivityCenter 的开始与完成提醒、compact 展示请求、去重、同聊天换轮和旧任务残留场景。读取本机 Codex 生命周期元数据可识别当前运行任务；Claude 与 WorkBuddy 的五项 hook 均指向实际安装路径。未读取或记录对话正文。被动 helper 另通过 79 项合成检查。已安装至 /Applications/一切在岛.app 并重启，包内 IslandLocalPatch 为 agent-alerts-20261030。主程序及 helper 的 SHA-256 与测试后的构建一致，深度签名校验通过；Agent 偏好 JSON 与安装前完全一致。原应用在本工作区 .build/local-backup/一切在岛-build110.app，偏好备份同目录，均只保留本机。原生顶边入口重新出现。未制造真实用户任务或截取聊天画面，三种工具的真实新任务提示和多日运行尚未逐一现场验收。正式 main 与下载发布不在本轮范围。
+
+## 真人现场确认 · 2026-10-30
+
+用户要求继续实测 Codex、Claude Code、WorkBuddy 的真实任务，随后明确回复：“测试OK了，都可以”。据此记录三种 Agent 的开始与结束提醒由本人现场确认可用。停止进一步测试，保留用户当前提醒设置。
+
+Agent 独立观察的边界：Codex 真实算术任务已完成；CLI Claude Code 的一次测试遇到配置中的转发服务 502，WorkBuddy 的一次测试遇到 Sidecar 启动失败。因此这两次失败尝试不计为 Agent 自动验收通过，最终可用结论来自用户现场确认，不代表这些外部服务错误已由本轮修复或多日稳定性已经验证。
