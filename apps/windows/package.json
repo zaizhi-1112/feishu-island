@@ -5,7 +5,7 @@
   "private": true,
   "description": "把飞书消息、Agent 状态、待办日程和虚实中台放进 Windows 屏幕顶部的岛",
   "main": "main/main.cjs",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "author": "虚实传媒",
   "scripts": {
     "start": "electron .",
