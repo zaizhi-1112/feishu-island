@@ -21,11 +21,13 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.12.17</string>
+	<string>0.12.21</string>
 	<key>CFBundleVersion</key>
-	<string>111</string>
+	<string>115</string>
 	<key>IslandLocalPatch</key>
 	<string>agent-alerts-20261030</string>
+	<key>IslandMemoryPatch</key>
+	<string>backfill-pool-20261104</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
 	<key>LSUIElement</key>

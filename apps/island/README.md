@@ -1,4 +1,6 @@
-# 一切在岛 0.12.17 build111
+# 一切在岛 0.12.21 build115
+
+build115 修复后台消息补读的临时对象积累，保留 build111 功能。经维护者明确批准替换中台 build114，不宣称包含 build112–114 的独立改动。
 
 build111 修复待办指定时间不能编辑时分，时间可直接输入为 `HH:mm`；弹幕和灵动岛接入飞书图片缩略图，点击展开大图；手动检查更新的进度、提示和错误窗口显示在灵动岛前，已打开或最小化的提示可以再次唤出。验证见 `../../docs/build111-update-window.md`。
 
@@ -26,6 +28,8 @@ bash scripts/build.sh
 ## 检查与打包
 
 ```sh
+# 后台补读内存回归：仅使用合成 CLI，不连接飞书
+bash scripts/check-account-memory.sh
 swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 UnifiedProductChecks --skin-preview
 swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 FusionChecks --skin-preview
 node --test AuthService/*.test.cjs

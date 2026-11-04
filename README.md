@@ -17,12 +17,12 @@ macOS 原生工作岛，以及正在测试的 Windows 版本。飞书消息与�
 
 | 平台 | 版本 | 安装包 | 当前状态 |
 | --- | --- | --- | --- |
-| macOS 15+ · Apple 芯片 | **0.12.17 · build111** | [下载 Mac 版 DMG](https://github.com/zaizhi-1112/feishu-island/releases/download/v0.12.17-build111/feishu-island-0.12.17-build111-arm64.dmg) · [发布说明](https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.12.17-build111) | 已发布，尚未 Apple 公证 |
+| macOS 15+ · Apple 芯片 | **0.12.21 · build115** | [下载 Mac 版 DMG](https://github.com/zaizhi-1112/feishu-island/releases/download/v0.12.21-build115/feishu-island-0.12.21-build115-arm64.dmg) · [发布说明](https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.12.21-build115) | 已发布，尚未 Apple 公证 |
 | Windows 10/11 · x64 | **0.12.16 · 测试版** | [下载 Windows 安装包](https://github.com/zaizhi-1112/feishu-island/releases/download/v0.12.16-windows/FeishuIsland-Setup-0.12.16-x64.exe) · [发布说明](https://github.com/zaizhi-1112/feishu-island/releases/tag/v0.12.16-windows) | Pre-release，未签名，尚未 Windows 真机验收 |
 
 [全部版本与安装包](https://github.com/zaizhi-1112/feishu-island/releases)
 
-Windows 使用独立版本号，目前未完整对齐 Mac build111。GitHub 的 Latest 当前指向 Mac 正式发布包；Windows 请使用上表入口。
+Windows 使用独立版本号，目前未完整对齐 Mac build115。GitHub 的 Latest 当前指向 Mac 正式发布包；Windows 请使用上表入口。
 
 ## 开始使用
 
@@ -42,7 +42,7 @@ Windows 使用独立版本号，目前未完整对齐 Mac build111。GitHub 的 
 | 快捷入口 | 八向轮盘、自定义 HTTPS 入口与图标 | 轮盘与入口编辑；目前使用组合快捷键 |
 | 数据保留 | 消息默认本机保留7天，可调整或关闭 | 同样按账号隔离保存，见 Windows 说明 |
 
-Mac build111 修复指定时间编辑和更新弹窗遮挡，增加消息图片显示。真实历史图片已在灵动岛点击展开并验证缩放；真实新图片进入桌面弹幕仍待现场观察。全部验证范围见 [验证记录](docs/验证记录.md)。
+Mac build115 修复后台补读长期积累临时对象的问题，基于 build111 功能，经维护者明确批准替换中台 build114。build111 曾修复指定时间编辑和更新弹窗遮挡，增加消息图片显示。真实历史图片已在灵动岛点击展开并验证缩放；真实新图片进入桌面弹幕仍待现场观察。全部验证范围见 [验证记录](docs/验证记录.md)。
 
 ## 开发
 

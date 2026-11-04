@@ -297,22 +297,32 @@ final class AccountReader {
     private func backfill(_ session: AccountSession) {
         var list: [AccountChat] = []; var cursor = 0; var refreshed = -Double.infinity
         while alive(session.token) {
-            do {
-                if ProcessInfo.processInfo.systemUptime - refreshed >= catalogInterval {
-                    let rows = try chats(session.token, excludeMuted: false, full: true)
-                    let ids = Set(try chats(session.token, excludeMuted: true, full: true).compactMap { $0["chat_id"] as? String })
-                    list = catalog(rows, unmuted: ids); refreshed = ProcessInfo.processInfo.systemUptime
-                    session.lock.lock(); session.catalogCount = list.count; session.selectedCount = list.filter { allowed($0) }.count; session.lock.unlock()
+            // The dispatch work item stays alive for the whole account session.
+            // Drain Foundation's temporary JSON/process objects after each turn,
+            // rather than retaining them until the reader is stopped.
+            let failed = autoreleasepool { () -> Bool in
+                do {
+                    if ProcessInfo.processInfo.systemUptime - refreshed >= catalogInterval {
+                        let rows = try chats(session.token, excludeMuted: false, full: true)
+                        let ids = Set(try chats(session.token, excludeMuted: true, full: true).compactMap { $0["chat_id"] as? String })
+                        list = catalog(rows, unmuted: ids); refreshed = ProcessInfo.processInfo.systemUptime
+                        session.lock.lock(); session.catalogCount = list.count; session.selectedCount = list.filter { allowed($0) }.count; session.lock.unlock()
+                    }
+                    if !list.isEmpty {
+                        let chat = list[cursor % list.count]; cursor += 1
+                        if allowed(chat) { try receive(chat, session) }
+                        else { session.lock.lock(); session.checkpoints[chat.id] = clock.now(); session.lock.unlock() }
+                    }
+                    session.lock.lock(); session.backgroundFailed = false; session.lock.unlock()
+                    return false
+                } catch {
+                    session.lock.lock(); session.backgroundFailed = true; session.lock.unlock()
+                    return true
                 }
-                if !list.isEmpty {
-                    let chat = list[cursor % list.count]; cursor += 1
-                    if allowed(chat) { try receive(chat, session) }
-                    else { session.lock.lock(); session.checkpoints[chat.id] = clock.now(); session.lock.unlock() }
-                }
-                session.lock.lock(); session.backgroundFailed = false; session.lock.unlock()
+            }
+            if !failed {
                 Thread.sleep(forTimeInterval: max(pageDelay, list.isEmpty ? 1 : 0))
-            } catch {
-                session.lock.lock(); session.backgroundFailed = true; session.lock.unlock()
+            } else {
                 // A slow or rate-limited backfill never holds the quick-check queue.
                 for _ in 0..<50 { if !alive(session.token) { return }; Thread.sleep(forTimeInterval:0.1) }
             }
