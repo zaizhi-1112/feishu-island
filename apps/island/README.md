@@ -26,6 +26,8 @@ bash scripts/build.sh
 ## 检查与打包
 
 ```sh
+# 后台补读内存回归：仅使用合成 CLI，不连接飞书
+bash scripts/check-account-memory.sh
 swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 UnifiedProductChecks --skin-preview
 swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 FusionChecks --skin-preview
 node --test AuthService/*.test.cjs
