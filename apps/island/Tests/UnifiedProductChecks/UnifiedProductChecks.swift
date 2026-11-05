@@ -38,6 +38,11 @@ import SwiftUI
         if CommandLine.arguments.contains("--todo-review") {try showTodoReview();return}
         var count=0
         func check(_ value:Bool,_ label:String) { guard value else {fputs("FAIL: \(label)\n",stderr);exit(1)};count += 1 }
+        if CommandLine.arguments.contains("--button-interactions-only") {
+            try await runButtonInteractionChecks(check: check)
+            print("PASS \(count) button interaction checks; hidden synthetic windows only")
+            return
+        }
         if CommandLine.arguments.contains("--text-size-only") {
             try await runIslandTextSizeChecks(check: check)
             print("PASS \(count) island text size checks; isolated synthetic data")

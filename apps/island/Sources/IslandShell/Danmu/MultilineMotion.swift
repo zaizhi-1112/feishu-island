@@ -32,7 +32,7 @@ extension Overlay {
         for lane in Set(flying.map(\.lane)) {
             var leading: FlyingText?
             for view in flying.filter({ $0.lane == lane }).sorted(by: { $0.position < $1.position }) {
-                var x = view.position - (view.clickedPause ? 0 : view.speed * dt)
+                var x = view.position - (view.motionPaused ? 0 : view.speed * dt)
                 if let leading { x = max(x, leading.position + leading.frame.width + 48) }
                 view.position = x
                 view.needsDisplay = true
@@ -94,7 +94,7 @@ extension Overlay {
         let measured = view.content.boundingRect(with: NSSize(width: width - 28, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading])
         let hasImages = message.sourceMessage?.hasImageContent == true
         let height = min(rowHeight - 6, ceil(measured.height) + 52 + (hasImages ? 110 : 0))
-        let actualWidth = min(width, max(hasImages ? 340 : 180, ceil(measured.width) + 28))
+        let actualWidth = min(width, max(hasImages ? 340 : 228, ceil(measured.width) + 28))
         view.imageAreaHeight = hasImages ? 110 : 0
         let band = CGFloat(lanes) * rowHeight
         let top = position == 1 ? (screen.height + band) / 2 : position == 2 ? band + 32 : screen.height - 64
@@ -117,7 +117,7 @@ extension Overlay {
             MainActor.assumeIsolated {
                 if let connection = FeishuStore.active?.connection {
                     let gallery = FeishuImageGallery(message: source, connection: connection, compact: true)
-                        .onHover { [weak view] inside in view?.clickedPause = inside }
+                        .onHover { [weak view] inside in view?.imageHovered = inside; view?.syncMotionActions() }
                     let host = NSHostingView(rootView: gallery)
                     host.frame = NSRect(x: 10, y: 36, width: actualWidth - 20, height: 104)
                     view.addSubview(host)
@@ -126,11 +126,11 @@ extension Overlay {
         }
         if let id = message.messageID {
             view.motionOpen = { [weak self] in self?.onOpenConversation?(id) }
-            view.openButton.target = view; view.openButton.action = #selector(FlyingText.openMotionConversation)
-            view.openButton.bezelStyle = .rounded; view.openButton.font = .systemFont(ofSize: 12)
-            view.openButton.frame = NSRect(x: actualWidth - 112, y: 6, width: 100, height: 26)
-            view.openButton.isHidden = true; view.addSubview(view.openButton)
         }
+        view.motionDismiss = { [weak self, weak view] in
+            guard let view else { return }; self?.dismissMotion(view)
+        }
+        view.configureMotionActions()
         view.motionPanel = panel
         // Desktop position is kept separately: view frames inside their panel stay local.
         view.motionY = localFrame.minY

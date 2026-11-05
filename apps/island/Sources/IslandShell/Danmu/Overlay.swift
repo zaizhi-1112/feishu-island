@@ -11,18 +11,53 @@ final class FlyingText: NSView {
     var motionPages: [String] = []
     var motionScreenWidth: CGFloat = 0
     var clickedPause = false
+    private(set) var pointerInside = false
+    var imageHovered = false
+    var motionPaused: Bool { clickedPause || pointerInside || imageHovered }
     var imageAreaHeight: CGFloat = 0
     var motionOpen: (() -> Void)?
+    var motionDismiss: (() -> Void)?
     private var tracking: NSTrackingArea?
     let openButton = CardPagingButton(title: "打开会话", target: nil, action: nil)
+    let dismissButton = CardPagingButton(title: "", target: nil, action: nil)
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func mouseDown(with event: NSEvent) {
         guard motionMessage != nil else { return }; clickedPause = true
-        openButton.isHidden = motionOpen == nil; needsDisplay = true
+        syncMotionActions()
+    }
+    override func mouseEntered(with event: NSEvent) {
+        guard motionMessage != nil else { return }
+        pointerInside = true; syncMotionActions()
     }
     override func mouseExited(with event: NSEvent) { resumeMotion() }
-    func resumeMotion() { clickedPause = false; openButton.isHidden = true; needsDisplay = true }
+    func resumeMotion() { clickedPause = false; pointerInside = false; imageHovered = false; syncMotionActions() }
+    func syncMotionActions() { openButton.isHidden = !motionPaused || motionOpen == nil; needsDisplay = true }
     @objc func openMotionConversation() { motionOpen?() }
+    @objc func dismissMotion() { motionDismiss?() }
+    func configureMotionActions() {
+        openButton.target = self; openButton.action = #selector(openMotionConversation)
+        openButton.bezelStyle = .rounded; openButton.font = .systemFont(ofSize: 12)
+        openButton.frame = NSRect(x: bounds.width - 148, y: 6, width: 102, height: 28)
+        openButton.setAccessibilityIdentifier("danmu.motion.open")
+        addSubview(openButton)
+        dismissButton.target = self; dismissButton.action = #selector(dismissMotion)
+        dismissButton.bezelStyle = .circular
+        dismissButton.isBordered = false; dismissButton.contentTintColor = textColor
+        if !backdrop {
+            dismissButton.wantsLayer = true
+            dismissButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.65).cgColor
+            dismissButton.layer?.cornerRadius = 15
+            dismissButton.contentTintColor = .white
+        }
+        dismissButton.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "关闭这条弹幕")
+        dismissButton.imagePosition = .imageOnly
+        dismissButton.frame = NSRect(x: bounds.width - 38, y: 5, width: 30, height: 30)
+        dismissButton.toolTip = "关闭这条弹幕"
+        dismissButton.setAccessibilityLabel("关闭这条弹幕")
+        dismissButton.setAccessibilityIdentifier("danmu.motion.dismiss")
+        addSubview(dismissButton)
+        syncMotionActions()
+    }
     override func updateTrackingAreas() {
         super.updateTrackingAreas(); if let tracking { removeTrackingArea(tracking) }
         let area = NSTrackingArea(rect: bounds, options: [.activeAlways, .mouseEnteredAndExited, .inVisibleRect], owner: self, userInfo: nil)
@@ -59,9 +94,8 @@ final class FlyingText: NSView {
             NSBezierPath(rect: viewport).addClip()
             content.draw(with: NSRect(x: viewport.minX, y: viewport.minY - overflow * (1 - fraction), width: viewport.width, height: max(textHeight, viewport.height)), options: [.usesLineFragmentOrigin, .usesFontLeading])
             NSGraphicsContext.restoreGraphicsState()
-            let progress = ""
-            let hint = clickedPause ? "移开继续" : "点击停留"
-            (progress + hint).draw(at: NSPoint(x: 14, y: 12), withAttributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: textColor.withAlphaComponent(0.8)])
+            let hint = motionPaused ? "移开继续" : "移入停留"
+            hint.draw(at: NSPoint(x: 14, y: 12), withAttributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: textColor.withAlphaComponent(0.8)])
         } else if card {
             content.draw(in: NSRect(x: 20, y: 78, width: bounds.width - 40, height: bounds.height - 100))
             let label = "\(pageIndex + 1) / \(pages.count) 页 · 完整正文"
@@ -155,6 +189,13 @@ final class Overlay: NSObject {
         checking = nil; verified = nil
     }
     func cancelVerification() { checking = nil; verified = nil; retryAt = 0 }
+    func dismissMotion(_ view: FlyingText) {
+        guard flying.contains(where: { $0 === view }) else { return }
+        flying.removeAll { $0 === view }
+        view.motionPanel?.close(); view.removeFromSuperview()
+        if let id = view.motionMessage?.messageID { onFinished?(id) }
+        onChange?()
+    }
     private var currentCard: FlyingText? { flying.first { $0.card } }
     @objc func previousPage() { turnPage(-1) }
     @objc func nextPage() { turnPage(1) }

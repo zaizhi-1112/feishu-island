@@ -1,4 +1,6 @@
-# 一切在岛 0.12.21 build115
+# 一切在岛 0.12.22 build116 候选
+
+build116 候选补齐顶部导航、小锁、设置及共用按钮的完整点击区域和按下反馈。桌面弹幕鼠标移入停留、移开继续，点击右下角 × 立即关闭当前一条。关闭不影响岛内消息与飞书已读状态。当前已通过合成检查，尚未替换本机应用或发布；见 `../../docs/build116-interactions.md`。
 
 build115 修复后台消息补读的临时对象积累，保留 build111 功能。经维护者明确批准替换中台 build114，不宣称包含 build112–114 的独立改动。
 
@@ -29,6 +31,7 @@ bash scripts/build.sh
 
 ```sh
 # 后台补读内存回归：仅使用合成 CLI，不连接飞书
+swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 UnifiedProductChecks --skin-preview --button-interactions-only
 bash scripts/check-account-memory.sh
 swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 UnifiedProductChecks --skin-preview
 swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 FusionChecks --skin-preview
