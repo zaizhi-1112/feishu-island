@@ -1,6 +1,6 @@
-# 一切在岛 0.12.22 build116 候选
+# 一切在岛 0.12.23 build117 候选
 
-build116 候选补齐顶部导航、小锁、设置及共用按钮的完整点击区域和按下反馈。桌面弹幕鼠标移入停留、移开继续，点击右下角 × 立即关闭当前一条。关闭不影响岛内消息与飞书已读状态。当前已安装到本人 Mac 并通过合成上屏点击点验，尚未发布新下载；见 `../../docs/build116-interactions.md`。
+build117 候选沿用顶部导航、小锁、设置及共用按钮的完整点击区域和按下反馈。桌面弹幕鼠标移入停留、移开继续，左上角 × 按下一次即关闭当前一条。冲屏使用 52pt 高、20pt 字号的动作按钮，并按实际播放到期时间显示剩余秒数；窄屏休息动作竖排。关闭不影响岛内消息与飞书已读状态。当前已安装到本人 Mac 并通过合成点验，尚未发布新下载；见 [本轮记录](../../docs/build117-interactions.md)。
 
 build115 修复后台消息补读的临时对象积累，保留 build111 功能。经维护者明确批准替换中台 build114，不宣称包含 build112–114 的独立改动。
 
@@ -30,8 +30,10 @@ bash scripts/build.sh
 ## 检查与打包
 
 ```sh
-# 后台补读内存回归：仅使用合成 CLI，不连接飞书
+# 交互检查与离屏渲染：仅使用合成数据，不连接飞书
 swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 UnifiedProductChecks --skin-preview --button-interactions-only
+swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 UnifiedProductChecks --skin-preview --screen-controls-only
+# 后台补读内存回归：仅使用合成 CLI
 bash scripts/check-account-memory.sh
 swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 UnifiedProductChecks --skin-preview
 swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 FusionChecks --skin-preview

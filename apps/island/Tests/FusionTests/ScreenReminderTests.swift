@@ -63,7 +63,8 @@ extension FusionTests {
         XCTAssertTrue(hidden.verificationWindows.first!.ignoresMouseEvents)
         XCTAssertFalse(hidden.verificationWindows.last!.ignoresMouseEvents)
         XCTAssertEqual(hidden.verificationWindows.first!.backgroundColor,.clear)
-        XCTAssertLessThan(hidden.verificationWindows.last!.frame.width,150)
+        XCTAssertTrue(hidden.verificationWindows.last!.frame.width<=680)
+        XCTAssertGreaterThanOrEqual(hidden.verificationWindows.last!.frame.height,ScreenReminderRules.actionHeight)
         hidden.dismiss(); XCTAssertEqual(hidden.verificationWindows.count,0)
         let locked=ScreenReminderPresenter(displaysWindows:false,sessionIsLocked:{true})
         do { try locked.present(request,testFrame:CGRect(x:0,y:0,width:800,height:600)); XCTAssertTrue(false) } catch { XCTAssertEqual(locked.verificationWindows.count,0) }

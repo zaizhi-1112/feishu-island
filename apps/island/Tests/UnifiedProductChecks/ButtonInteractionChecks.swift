@@ -27,6 +27,9 @@ import SwiftUI
     check(first.motionPaused && first.position == heldX && !first.openButton.isHidden, "hover freezes the panel before choosing an action")
     check(follower.position >= first.position + first.frame.width + 48, "hover pause keeps following messages from overlapping")
     check(first.dismissButton.frame.width >= 30 && first.dismissButton.frame.height >= 30, "close has a full 30pt pointer target")
+    check(first.dismissButton.frame.minX == 8 && first.bounds.maxY-first.dismissButton.frame.maxY == 8, "close stays in the upper-left corner")
+    check(first.dismissButton.frame.maxX <= 40, "close enters the screen within the first 40pt of a long message")
+    check(first.motionTextViewport.maxY < first.dismissButton.frame.minY, "the close header never covers the message text")
     check(first.bounds.contains(first.dismissButton.frame) && !first.openButton.frame.intersects(first.dismissButton.frame), "actions fit within the panel without overlapping")
     let edge = NSPoint(x: first.dismissButton.frame.minX + 1, y: first.dismissButton.frame.minY + 1)
     check(first.hitTest(edge) === first.dismissButton, "the close target receives clicks near its edge")
@@ -50,7 +53,14 @@ import SwiftUI
         }
     }
     overlay.enqueue("排队的消息", messageID: "queued")
-    first.dismissButton.performClick(nil)
+    first.resumeMotion()
+    let motionPanel=first.motionPanel!
+    let pressPoint=first.dismissButton.convert(NSPoint(x:15,y:15),to:nil)
+    let press=NSEvent.mouseEvent(with:.leftMouseDown,location:pressPoint,modifierFlags:[],timestamp:time,
+                                windowNumber:motionPanel.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:1)!
+    check(!motionPanel.isKeyWindow && !first.motionPaused, "first-press regression starts with a moving non-key panel")
+    motionPanel.sendEvent(press)
+    check(finished == ["close-first"], "one mouse-down closes immediately without waiting for focus or a mouse-up")
     check(!overlay.flying.contains { $0 === first } && overlay.flying.contains { $0 === follower }, "close immediately removes only its own message")
     check(overlay.queue.map(\.messageID) == ["queued"] && finished == ["close-first"], "close completes this playback and preserves the queue")
     check(first.superview == nil && first.motionPanel?.isVisible == false, "closed panel releases its content and remains offscreen")
@@ -70,6 +80,9 @@ import SwiftUI
     let demo = overlay.flying.first!
     demo.mouseEntered(with: event)
     check(demo.openButton.isHidden && !demo.dismissButton.isHidden, "demo and Agent-style notices remain closable without a conversation")
+    demo.dismissButton.isEnabled=false;demo.dismissButton.mouseDown(with:event)
+    check(overlay.flying.contains{$0 === demo},"a disabled close button ignores the first press")
+    demo.dismissButton.isEnabled=true
     demo.dismissButton.performClick(nil)
     check(overlay.flying.isEmpty && finished == ["close-first", "close-next"], "closing an anonymous demo never fabricates a message ID")
     check(overlay.window.ignoresMouseEvents && !overlay.window.canBecomeKey && !overlay.window.isVisible,

@@ -3,8 +3,26 @@ import Cocoa
 final class PassThroughWindow: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .leftMouseDown,
+           let button = (contentView?.superview ?? contentView)?.hitTest(event.locationInWindow) as? MotionDismissButton {
+            button.mouseDown(with: event)
+            return
+        }
+        super.sendEvent(event)
+    }
+}
+/// Display dismissal is reversible. Deliver the first press before AppKit starts
+/// mouse-up tracking or a moving panel can leave the pointer.
+final class MotionDismissButton: NSButton {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) {
+        guard isEnabled else { return }
+        _ = sendAction(action, to: target)
+    }
 }
 final class FlyingText: NSView {
+    static let motionHeaderHeight: CGFloat = 40
     var motionY: CGFloat = 0
     var motionPanel: PassThroughWindow?
     var motionMessage: DanmuMessage?
@@ -19,7 +37,7 @@ final class FlyingText: NSView {
     var motionDismiss: (() -> Void)?
     private var tracking: NSTrackingArea?
     let openButton = CardPagingButton(title: "打开会话", target: nil, action: nil)
-    let dismissButton = CardPagingButton(title: "", target: nil, action: nil)
+    let dismissButton = MotionDismissButton(title: "", target: nil, action: nil)
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func mouseDown(with event: NSEvent) {
         guard motionMessage != nil else { return }; clickedPause = true
@@ -51,7 +69,7 @@ final class FlyingText: NSView {
         }
         dismissButton.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "关闭这条弹幕")
         dismissButton.imagePosition = .imageOnly
-        dismissButton.frame = NSRect(x: bounds.width - 38, y: 5, width: 30, height: 30)
+        dismissButton.frame = NSRect(x: 8, y: bounds.height - 38, width: 30, height: 30)
         dismissButton.toolTip = "关闭这条弹幕"
         dismissButton.setAccessibilityLabel("关闭这条弹幕")
         dismissButton.setAccessibilityIdentifier("danmu.motion.dismiss")
@@ -84,7 +102,7 @@ final class FlyingText: NSView {
         }
         if let borderColor { borderColor.setStroke(); let edge = NSBezierPath(roundedRect:bounds.insetBy(dx:0.5,dy:0.5),xRadius:corner,yRadius:corner);edge.lineWidth=1;edge.stroke() }
         if motionMessage != nil {
-            let viewport = NSRect(x: 14, y: 38 + imageAreaHeight, width: bounds.width - 28, height: max(20, bounds.height - 50 - imageAreaHeight))
+            let viewport = motionTextViewport
             let textHeight = ceil(content.boundingRect(with: NSSize(width: viewport.width, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading]).height)
             let overflow = max(0, textHeight - viewport.height)
             // Scroll only while the complete panel is on screen, so the first
@@ -101,6 +119,10 @@ final class FlyingText: NSView {
             let label = "\(pageIndex + 1) / \(pages.count) 页 · 完整正文"
             label.draw(at: NSPoint(x: 20, y: 52), withAttributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.lightGray])
         } else { content.draw(at: NSPoint(x: 14, y: 8)) }
+    }
+    var motionTextViewport: NSRect {
+        NSRect(x: 14, y: 38 + imageAreaHeight, width: bounds.width - 28,
+               height: max(20, bounds.height - 50 - Self.motionHeaderHeight - imageAreaHeight))
     }
 }
 final class CardPagingButton: NSButton {

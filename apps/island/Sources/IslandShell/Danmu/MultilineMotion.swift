@@ -50,7 +50,7 @@ extension Overlay {
         let font = NSFont.systemFont(ofSize: fontSize, weight: heavy ? .bold : .medium)
         let textHeight = ceil(font.ascender - font.descender + font.leading) * 4 + 4
         let includesImages = queue.first?.sourceMessage?.hasImageContent == true || flying.contains { $0.imageAreaHeight > 0 }
-        let requiredHeight = textHeight + 56 + (includesImages ? 110 : 0)
+        let requiredHeight = textHeight + 56 + FlyingText.motionHeaderHeight + (includesImages ? 110 : 0)
         // Keep a stable lane grid until the current wave clears. A taller image
         // must not enter a compact text lane and overlap its neighbour.
         if flying.isEmpty { motionRowHeight = requiredHeight }
@@ -93,7 +93,7 @@ extension Overlay {
         view.content = NSAttributedString(string: message.segments[message.segment], attributes: attributes)
         let measured = view.content.boundingRect(with: NSSize(width: width - 28, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading])
         let hasImages = message.sourceMessage?.hasImageContent == true
-        let height = min(rowHeight - 6, ceil(measured.height) + 52 + (hasImages ? 110 : 0))
+        let height = min(rowHeight - 6, ceil(measured.height) + 52 + FlyingText.motionHeaderHeight + (hasImages ? 110 : 0))
         let actualWidth = min(width, max(hasImages ? 340 : 228, ceil(measured.width) + 28))
         view.imageAreaHeight = hasImages ? 110 : 0
         let band = CGFloat(lanes) * rowHeight
