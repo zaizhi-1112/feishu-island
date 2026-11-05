@@ -13,7 +13,7 @@
 
 ## 已验证
 
-使用独立 `--skin-preview` 偏好、合成消息及未上屏的原生窗口；未读真实消息，未退出或重启飞书。
+离屏与上屏检查均使用独立 `--skin-preview` 偏好和合成消息；没有截图或输出真实聊天，飞书未退出或重启。实际账号接收只在本人本轮批准安装后恢复。
 
 ```sh
 cd apps/island
@@ -31,12 +31,18 @@ swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 UnifiedProductChecks \
 - 生产副本的 272 个 Swift 文件逐项核对，只有三个未改动的连接文件使用上一生产版本的服务地址。
 - 深浅两种弹幕外观及导航栏离屏渲染已查看。交互测试日志和图片保留于本 worktree 的 `apps/island/.build/`，不上传。
 
-## 候选与边界
+## 本机安装与边界
 
 候选输出位于本 worktree 的 `.build/interaction-candidate/一切在岛.app`。生产副本只在被忽略的 `.build/interaction-production/` 中保留上一已安装版本的三个连接源文件；公开源码继续使用占位地址。官方 CLI、中台 helper 和 Agent helper 复用当前 build115 的相同文件，避免本次交互改动触及既有连接组件。
 
 本机 build115 应用回退副本已保存于本 worktree 的 `.build/local-install-backups/interactions-20261105/一切在岛-build115.app`，深度签名验证通过；没有移动当前应用或读取个人消息文件。
 
-截至记录时，本机仍运行 `/Applications/一切在岛.app` build115。未安装候选，未主动启动新一轮真实账号接收，未新建登录项、发布 GitHub Release 或修改中台，未合并 main。开发分支同步依照已有授权执行；不代表正式上线批准。
+本人本轮明确回复“允许安装并验证”。已正常退出 build115，经 Finder 将旧 App 移入废纸篓，安装 0.12.22 build116 至原 `/Applications/一切在岛.app` 并重新打开。安装文件逐项匹配候选。工作区、快捷入口及 15 个设置域在启动前与备份一致；启动后仅 `feishuSchedule.lastSync` 和 `SULastCheckTime` 正常更新。两条当前待办、回收、完成历史、排序、配方、卡片与提醒字段保持一致；三个连接组件字节未变，未导出钥匙串凭据。已观察到官方 CLI 后台接收请求继续运行。
 
-离屏事件投递探针不能触发 SwiftUI 的实际点击，已移除该探针；没有把它当作按钮实机验收。顶部整块按钮、跨应用第一下点击、弹幕移入到 × 的完整鼠标路径，需要安装后在实际窗口验证。真实新消息与长期运行仍待实际观察。
+本机状态和设置备份位于 `.build/local-install-backups/interactions-20261105/state/`，权限 0700/0600；比较只输出字段与数量，不输出个人内容。安装证据在 `.build/installation116/`。未新建登录项、发布 GitHub Release、修改中台或合并 main；开发分支同步不代表正式上线批准。
+
+上屏使用 `Tests/UnifiedProductChecks/ButtonInteractionReview.swift`，只加载合成内容，不启动账号读取。四个栏目、小锁、对应设置窗口与按钮边缘点击已通过原生 UI 操作核对。关闭点验单独显示真实渲染器的小面板，并隐藏无内容的透明锚点窗口，便于工具定位控件；没有使用不透明全屏背景。
+
+移动弹幕从半屏位置开始，实际点“关闭这条弹幕”后，原生回调记录 `manualCloses=1`、完成回调一次、剩余面板零；关闭时 x=1752.58pt，屏宽3440pt，排除了自然退出屏幕。关闭后工具无法继续查询已消失的窗口，故回读原生手动关闭回调及面板集合确认结果，没有重复点击。证据在 `.build/native-interaction-review/native-result.json`；点验进程已停止。
+
+复验需显式运行 `UnifiedProductChecks --skin-preview --interactive --button-interactions-review /absolute/output`。离屏事件探针已移除，不以它替代上屏结果。本轮未完整覆盖跨应用第一下物理鼠标点击、全部悬停路径、真实新消息与长期运行。
