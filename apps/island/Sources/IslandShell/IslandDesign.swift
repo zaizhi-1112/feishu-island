@@ -43,6 +43,7 @@ struct IslandButtonStyle: ButtonStyle {
             .foregroundStyle(prominent ? theme.accent : theme.secondaryLabel)
             .background(prominent ? theme.accent.opacity(0.12) : theme.subtleFill, in: RoundedRectangle(cornerRadius: 7))
             .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(prominent ? theme.accent.opacity(0.24) : theme.subtleStroke, lineWidth: 0.8))
+            .contentShape(Rectangle())
             .opacity(!isEnabled ? 0.4 : configuration.isPressed ? 0.7 : 1)
     }
 }

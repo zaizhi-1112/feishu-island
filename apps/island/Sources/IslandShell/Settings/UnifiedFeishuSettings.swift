@@ -313,7 +313,7 @@ struct UnifiedFeishuSettingsContent: View {
                 HStack(spacing: 15) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("同时显示桌面弹幕").font(.system(size: 14, weight: .medium))
-                        Text("长短消息都能飘过；点击停留，移开继续。").font(.system(size: 12)).foregroundStyle(theme.secondaryLabel)
+                        Text("移入停留，移开继续；点 × 关闭这条弹幕。").font(.system(size: 12)).foregroundStyle(theme.secondaryLabel)
                     }
                     Spacer()
                     Toggle("同时显示桌面弹幕", isOn: Binding(get: { store.danmu.enabled }, set: { value in

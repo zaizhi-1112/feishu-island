@@ -1,4 +1,36 @@
-# Agent 运行与完成提醒修复 · 2026-10-30
+# 主对话完成后再提醒 · build118 · 2026-11-06
+
+用户反馈 Codex 侧栏仍在加载时，多次弹出“本轮工作已结束”。本轮只读核对生命周期元数据：对应主对话的最新事件仍为 `task_started`，8 个直属子任务中最近一小时出现了 4 次完成事件。旧 `CodexReader` 将每个 rollout 都当作独立用户对话，子任务完成因此触发误报；没有读取或记录对话正文用于诊断。
+
+本轮修正：
+
+- 在读取生命周期前核对 rollout 的 `session_meta`，排除 `source.subagent`、父线程或子 Agent 路径明确标识的内部任务。长于 4 MiB 的文件也先读真实文件头，子任务继承的父对话历史不能产生提醒；内部任务不占最多 80 个主对话的发现名额。
+- 用主对话 ID 合并同一聊天的多份 rollout，最新的运行轮次覆盖旧完成状态。用户自己创建的分叉聊天仍独立监测。
+- 只有主对话匹配当前轮次的 `task_complete` 才产生完成事件；工具步骤结束、中断或等待输入均不视为完成。完成事件按对话和轮次去重，再核对最新状态；同一对话继续时撤销候选提醒，其他独立对话运行不会阻止已经完成的对话提醒。
+- 岛内提示和冲屏队列保留对应的完成身份。排队、解锁恢复和显示期间都会核对；对话继续运行时丢弃待发提醒或关闭正在显示的旧完成提醒。普通待办和休息冲屏沿用原规则。
+- 随包 HTML 已纠正旧的“全部会话结束并稳定 20 秒”文案。当前版本为 0.12.24 build118，保留 build117 的弹幕关闭和冲屏倒计时。
+
+验证入口：
+
+```sh
+cd apps/island
+export ISLAND_SDK="$(xcrun --sdk macosx --show-sdk-path)"
+swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 AgentChecks --skin-preview
+swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 UnifiedProductChecks --skin-preview
+swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 FusionChecks --skin-preview --screen-reminder-check
+```
+
+800 项 Agent 检查已通过。新增检查覆盖 85 个内部子任务不会挤掉主对话、不同层级元数据、超过 4 MiB 的长对话、同一聊天多份 rollout、子任务/工具结束保持运行、主轮结束只计一次、同一聊天继续后撤销提醒、排队及正在显示的冲屏失效、解锁后不回放失效完成提醒。使用隔离偏好、合成文件与不上屏的原生窗口。
+
+514 项产品合成检查和 48 项离屏冲屏断言也已通过。随包说明在桌面实际截图核对完成；390px 窄屏的 23px 字号、完整文案和无横向溢出已通过页面回读检查，窄屏截图捕获超时，未计作视觉验收。
+
+生产构建和深度签名通过，最终候选在本 worktree 的 `.build/agent118-candidate/一切在岛.app`。相对 build117 仅主程序、Info.plist、随包说明及签名四个文件变化，没有增删文件；三个连接组件逐字节相同。公开源码继续使用占位地址，本机私有生产副本沿用三个未改连接源文件。
+
+按本人本轮既有安装授权，正常退出 build117 并备份，经 Finder 移走旧 App，将 build118 安装到原 `/Applications/一切在岛.app` 并重新打开。旧应用与私有状态备份位于 `.build/local-install-backups/agent118-20261106/`，状态权限 0700/0600。安装文件逐项匹配候选；工作区、快捷配置和 15 个设置域启动前一致。启动后待办、历史、排序、配方、卡片、提醒字段及偏好保持，只见日历 `lastSync` 正常更新，观察到三个不同的官方 CLI 后台请求进程。没有读取或导出钥匙串凭据。
+
+本机安装回执在 `.build/installation118/`；只包含聚合结果的生命周期核对在 `.build/agent118/lifecycle-audit.json`，日志在 `apps/island/.build/agent118-*.log`。这些本机证据、备份、截图与个人状态不上传。源码同步现有开发分支和 PR #17，未发布新 Release、更新中台或合并 main。真实长对话自然结束后的冲屏仍需随本人正常使用观察，未通过发送任务或强制终止主对话制造验收。
+
+# Agent 运行与完成提醒修复 · 2026-10-30（历史）
 
 本分支从本机 build110 对应源码 eac1e0f 独立修复，未包含另一工作区尚未提交的 build111 改动。
 

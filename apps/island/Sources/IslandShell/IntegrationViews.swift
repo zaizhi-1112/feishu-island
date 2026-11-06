@@ -21,6 +21,7 @@ struct IntegrationTopBar: View {
                                 .foregroundStyle(switcher.activeID==module.id ? theme.accent:theme.secondaryLabel)
                                 .background(switcher.activeID==module.id ? theme.accent.opacity(0.14):.clear,in:Capsule())
                                 .overlay(alignment:.topTrailing) { if attention.hints[module.id] != nil { Circle().fill(theme.accent).frame(width:4,height:4) } }
+                                .contentShape(Rectangle())
                         }.help(module.displayName).accessibilityLabel(module.displayName).accessibilityIdentifier("unified.module."+module.id)
                     }
                 }
@@ -30,6 +31,7 @@ struct IntegrationTopBar: View {
                         .frame(width:26,height:IslandHost.navigationHeight)
                         .foregroundStyle(bar.isKeepOpen ? theme.accent : theme.secondaryLabel)
                         .background(bar.isKeepOpen ? theme.accent.opacity(0.14) : .clear,in:RoundedRectangle(cornerRadius:7))
+                        .contentShape(Rectangle())
                 }.help(bar.isKeepOpen ? "解锁，恢复自动收起" : "锁定，保持展开")
                     .accessibilityLabel(bar.isKeepOpen ? "解锁灵动岛" : "锁定灵动岛")
                     .accessibilityValue(bar.isKeepOpen ? "已锁定" : "未锁定")
@@ -44,10 +46,20 @@ struct IntegrationTopBar: View {
                     default: section = .messages
                     }
                     UnifiedSettingsWindow.shared.open(section: section)
-                } label: { Image(systemName:"gearshape").frame(width:26,height:IslandHost.navigationHeight) }
+                } label: { Image(systemName:"gearshape").frame(width:26,height:IslandHost.navigationHeight).contentShape(Rectangle()) }
                     .help("打开当前栏目的设置").accessibilityLabel("打开设置").accessibilityIdentifier("unified.openSettings")
             }
-        }.buttonStyle(.plain).foregroundStyle(theme.secondaryLabel)
+        }.buttonStyle(IslandNavigationButtonStyle()).foregroundStyle(theme.secondaryLabel)
+    }
+}
+
+/// Keep the hit target still while providing immediate press feedback.
+struct IslandNavigationButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .contentShape(Rectangle())
+            .opacity(!isEnabled ? 0.4 : configuration.isPressed ? 0.6 : 1)
     }
 }
 struct UnifiedIslandPeek: View, Sendable {

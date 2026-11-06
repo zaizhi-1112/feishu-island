@@ -47,6 +47,12 @@ struct ScreenReminderRequest: Equatable, Sendable {
 }
 
 enum ScreenReminderRules {
+    static let actionHeight: CGFloat = 52
+    static func controlsSize(in size: CGSize, isRest: Bool) -> CGSize {
+        let width = max(1, min(isRest ? 680 : 520, size.width - 32))
+        let stacked = isRest && width < 540
+        return CGSize(width: width, height: 134 + (stacked ? actionHeight * 3 + 20 : actionHeight))
+    }
     static func validate(_ style: ScreenReminderStyle, materials: [ScreenReminderMaterial]) throws {
         guard (2...120).contains(style.durationSeconds),
               let material=materials.first(where:{$0.id == style.materialID}),
@@ -72,10 +78,12 @@ enum ScreenReminderRules {
     static func playbackSeconds(_ request: ScreenReminderRequest) -> TimeInterval {
         min(120,max(Double(request.style.durationSeconds),ceil(request.material.durationSeconds)+1))
     }
-    static func visualFrame(in size: CGSize, hasAlpha: Bool) -> CGRect {
+    static func visualFrame(in size: CGSize, hasAlpha: Bool, controlsHeight: CGFloat = 0) -> CGRect {
+        let reserved = controlsHeight > 0 ? controlsHeight + 32 : 0
+        let availableHeight = max(1,size.height-reserved)
         let factor: CGFloat = hasAlpha ? 0.72 : 0.48
-        let width = max(1,min(size.width*factor,1100)), height = max(1,min(size.height*factor,720))
-        return CGRect(x:(size.width-width)/2,y:(size.height-height)/2,width:width,height:height)
+        let width = max(1,min(size.width*factor,1100)), height = max(1,min(availableHeight*factor,720))
+        return CGRect(x:(size.width-width)/2,y:reserved+(availableHeight-height)/2,width:width,height:height)
     }
 }
 
@@ -131,6 +139,7 @@ enum ScreenReminderMedia {
         var request:ScreenReminderRequest
         var screen:NSScreen?
         var testFrame:CGRect?
+        var shouldPresent: () -> Bool
     }
     private var pending:[Entry]=[]
     private var current:Entry?
@@ -144,8 +153,13 @@ enum ScreenReminderMedia {
     private var windows: [NSPanel] = []
     private var player: AVPlayer?
     private var expiry: Timer?
+    private var countdownTimer: Timer?
+    private var automaticDismissAt: TimeInterval?
+    private var countdownLabel: NSTextField?
+    private(set) var remainingSeconds = 0
     private var dismissalWatchdog: DispatchWorkItem?
     private var interactionStarted: TimeInterval = 0
+    private let uptime: () -> TimeInterval
     private var localEscape: Any?
     private var globalEscape: Any?
     private var lockObserver: NSObjectProtocol?
@@ -153,25 +167,26 @@ enum ScreenReminderMedia {
     private(set) var presentationCount = 0
     private(set) var lastPresentedAt: Date?
     var diagnostics: [String: Any] {
-        ["isPresenting": isPresenting, "presentationCount": presentationCount, "pendingCount":pending.count,
+        ["isPresenting": isPresenting, "presentationCount": presentationCount, "pendingCount":pending.count, "remainingSeconds":remainingSeconds,
          "lastPresentedAt": lastPresentedAt.map { ISO8601DateFormatter().string(from:$0) } ?? "",
          "windows": windows.map { ["visible":$0.isVisible,"opaque":$0.isOpaque,"mousePassThrough":$0.ignoresMouseEvents,"canBecomeKey":$0.canBecomeKey,"width":$0.frame.width,"height":$0.frame.height,"x":$0.frame.minX,"y":$0.frame.minY] as [String:Any] }]
     }
     /// Tests construct and inspect real windows without ordering them on screen.
     let displaysWindows: Bool
     private let sessionIsLocked: () -> Bool
-    init(displaysWindows: Bool = true, sessionIsLocked: @escaping () -> Bool = { ScreenReminderSession.isLocked }) {
-        self.displaysWindows=displaysWindows; self.sessionIsLocked=sessionIsLocked; super.init()
+    init(displaysWindows: Bool = true, sessionIsLocked: @escaping () -> Bool = { ScreenReminderSession.isLocked }, uptime: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
+        self.displaysWindows=displaysWindows; self.sessionIsLocked=sessionIsLocked; self.uptime=uptime; super.init()
         if displaysWindows {
             sleepObservers.append(NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.willSleepNotification,object:nil,queue:.main) {[weak self] _ in Task { @MainActor in self?.sleeping=true;self?.suspendForLock() }})
             sleepObservers.append(NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.didWakeNotification,object:nil,queue:.main) {[weak self] _ in Task { @MainActor in self?.sleeping=false;self?.resumePending() }})
         }
     }
 
-    func present(_ request: ScreenReminderRequest, screen: NSScreen? = nil, testFrame: CGRect? = nil) throws {
+    func present(_ request: ScreenReminderRequest, screen: NSScreen? = nil, testFrame: CGRect? = nil, shouldPresent: @escaping () -> Bool = { true }) throws {
+        guard shouldPresent() else { return }
         guard !deliveryPaused else {throw WorkError.message("锁屏期间暂停冲屏提醒。")}
         try validateDelivery(request)
-        let entry=Entry(request:request,screen:screen,testFrame:testFrame)
+        let entry=Entry(request:request,screen:screen,testFrame:testFrame,shouldPresent:shouldPresent)
         if current != nil || !pending.isEmpty {
             guard pending.count < 32 else {throw WorkError.message("屏幕提醒较多，已改为岛内提示。")}
             pending.append(entry)
@@ -196,49 +211,72 @@ enum ScreenReminderMedia {
         panel.collectionBehavior=[.canJoinAllSpaces,.fullScreenAuxiliary,.ignoresCycle]
         let root=NSView(frame:CGRect(origin:.zero,size:bounds.size)); root.wantsLayer=true
         root.layer?.backgroundColor=NSColor.clear.cgColor; panel.contentView=root
-        let frame=ScreenReminderRules.visualFrame(in:bounds.size,hasAlpha:request.material.hasAlpha)
+        let controlsSize = ScreenReminderRules.controlsSize(in: bounds.size, isRest: request.isRest)
+        let frame=ScreenReminderRules.visualFrame(in:bounds.size,hasAlpha:request.material.hasAlpha,controlsHeight:controlsSize.height)
         guard let url=request.videoURL else { throw WorkError.message("提醒视频不可用，请重新选择素材。") }
         let view=ScreenReminderVideoView(frame:frame), media=AVPlayer(url:url)
         media.isMuted = !request.sound; media.actionAtItemEnd = .pause; view.videoLayer.player=media
         root.addSubview(view); player=media
         if displaysWindows { media.play() }
-        let caption=NSTextField(wrappingLabelWithString:request.title)
-        caption.isSelectable=false; caption.alignment = .center
-        caption.font = .systemFont(ofSize:min(32,max(18,bounds.width/45)),weight:.semibold)
-        caption.textColor = .white; caption.drawsBackground=false
-        let shadow=NSShadow(); shadow.shadowColor=NSColor.black.withAlphaComponent(0.8); shadow.shadowBlurRadius=5
-        caption.attributedStringValue=NSAttributedString(string:request.title,attributes:[.font:caption.font!,.foregroundColor:NSColor.white,.shadow:shadow])
-        caption.frame=CGRect(x:bounds.width*0.15,y:24,width:bounds.width*0.7,height:72)
-        root.addSubview(caption)
-        let close=ScreenReminderPanel(contentRect:CGRect(x:bounds.maxX-146,y:bounds.maxY-50,width:130,height:34),styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
+        let close=ScreenReminderPanel(contentRect:CGRect(x:bounds.midX-controlsSize.width/2,y:bounds.minY+16,width:controlsSize.width,height:controlsSize.height),styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
         close.title="一切在岛冲屏关闭"
         close.isReleasedWhenClosed=false; close.level = .floating; close.isOpaque=false
         close.backgroundColor = .clear; close.hidesOnDeactivate=false
         close.collectionBehavior=panel.collectionBehavior
-        let button=NSButton(title:"关闭提醒 ×",target:self,action:#selector(dismiss)); button.bezelStyle = .rounded
-        button.frame=CGRect(origin:.zero,size:close.frame.size); button.setAccessibilityLabel("关闭冲屏提醒")
-        close.contentView=button
-        if request.isRest {
-            close.setFrame(CGRect(x:bounds.midX-215,y:bounds.minY+16,width:430,height:36),display:false)
-            let actions=NSStackView();actions.orientation = .horizontal;actions.spacing=8
-            for (title,selector) in [("开始休息",#selector(restDone)),("10分钟后提醒",#selector(restLater)),("跳过本次",#selector(dismiss))] {let b=NSButton(title:title,target:self,action:selector);b.bezelStyle = .rounded;actions.addArrangedSubview(b)}
-            close.contentView=actions
+        let controls=NSView(frame:CGRect(origin:.zero,size:controlsSize));controls.wantsLayer=true
+        controls.layer?.backgroundColor=NSColor(calibratedWhite:0.055,alpha:0.96).cgColor
+        controls.layer?.cornerRadius=16;controls.layer?.borderWidth=1
+        controls.layer?.borderColor=NSColor.white.withAlphaComponent(0.3).cgColor
+        close.contentView=controls
+        let caption=NSTextField(wrappingLabelWithString:request.title)
+        caption.isSelectable=false;caption.alignment = .center;caption.maximumNumberOfLines=2
+        caption.font = .systemFont(ofSize:22,weight:.semibold);caption.textColor = .white
+        caption.frame=CGRect(x:16,y:controlsSize.height-70,width:controlsSize.width-32,height:54)
+        controls.addSubview(caption)
+        let countdown=NSTextField(labelWithString:"")
+        countdown.alignment = .center;countdown.font = .monospacedDigitSystemFont(ofSize:20,weight:.semibold)
+        countdown.textColor = .white;countdown.frame=CGRect(x:16,y:controlsSize.height-106,width:controlsSize.width-32,height:26)
+        countdown.setAccessibilityIdentifier("screen.reminder.countdown")
+        controls.addSubview(countdown);countdownLabel=countdown
+        let actions: [(String,Selector,String)] = request.isRest
+            ? [("开始休息",#selector(restDone),"restDone"),("10分钟后提醒",#selector(restLater),"restLater"),("跳过本次",#selector(dismiss),"dismiss")]
+            : [("关闭提醒 ×",#selector(dismiss),"dismiss")]
+        let stacked=request.isRest && controlsSize.width<540
+        for (index,action) in actions.enumerated() {
+            let primary=index==0
+            let button=ScreenReminderActionButton(title:action.0,target:self,action:action.1)
+            button.isBordered=false;button.controlSize = .large;button.wantsLayer=true
+            button.font = .systemFont(ofSize:20,weight:.semibold)
+            button.attributedTitle=NSAttributedString(string:action.0,attributes:[.font:button.font!,.foregroundColor:primary ? NSColor.black:NSColor.white])
+            button.layer?.backgroundColor=(primary ? NSColor.white:NSColor(calibratedWhite:0.18,alpha:1)).cgColor
+            button.layer?.cornerRadius=11;button.layer?.borderWidth=1
+            button.layer?.borderColor=NSColor.white.withAlphaComponent(primary ? 1:0.45).cgColor
+            let width=stacked ? controlsSize.width-32:(controlsSize.width-32-CGFloat(actions.count-1)*12)/CGFloat(actions.count)
+            let x=stacked ? 16:16+CGFloat(index)*(width+12)
+            let y=stacked ? 16+CGFloat(actions.count-1-index)*62:16
+            button.frame=CGRect(x:x,y:y,width:width,height:ScreenReminderRules.actionHeight)
+            button.setAccessibilityLabel(action.0);button.setAccessibilityIdentifier("screen.reminder."+action.2)
+            controls.addSubview(button)
         }
         windows=[panel,close];current=entry
+        interactionStarted=uptime()
+        automaticDismissAt=interactionStarted+ScreenReminderRules.playbackSeconds(request)
+        refreshCountdown()
         deliveredTitles.append(request.title)
         if deliveredTitles.count>64 {deliveredTitles.removeFirst()}
         if displaysWindows {
             panel.orderFrontRegardless(); close.orderFrontRegardless(); isPresenting=true
-            presentationCount += 1; lastPresentedAt=Date(); interactionStarted=ProcessInfo.processInfo.systemUptime
+            presentationCount += 1; lastPresentedAt=Date()
+            countdownTimer=Timer(timeInterval:0.2,repeats:true) { [weak self] _ in Task { @MainActor in self?.refreshCountdown() } }
+            if let countdownTimer { RunLoop.main.add(countdownTimer,forMode:.common) }
             expiry=Timer.scheduledTimer(withTimeInterval:ScreenReminderRules.playbackSeconds(request),repeats:false) { [weak self] _ in Task { @MainActor in guard self?.current?.id == entry.id else{return};self?.dismiss() } }
             if let expiry { RunLoop.main.add(expiry,forMode:.common) }
             let watchdog=DispatchWorkItem { [weak self] in guard self?.current?.id == entry.id else{return};self?.dismiss() }
             dismissalWatchdog=watchdog
             DispatchQueue.main.asyncAfter(deadline:.now()+ScreenReminderRules.playbackSeconds(request)+1,execute:watchdog)
             localEscape=NSEvent.addLocalMonitorForEvents(matching:[.keyDown,.flagsChanged,.leftMouseDown,.rightMouseDown,.otherMouseDown]) { [weak self] event in
-                guard let self, self.current?.id == entry.id, ScreenReminderRules.canDismiss(elapsed:ProcessInfo.processInfo.systemUptime-self.interactionStarted) else { return event }
-                if event.window === self.windows.last { return event } // Keep the explicit rest actions usable.
-                self.dismiss(); return nil
+                guard let self, self.current?.id == entry.id else { return event }
+                return self.handleLocalDismissalEvent(event)
             }
             // Global key monitoring may be unavailable without system permission. The
             // visible close control and bounded timeout do not depend on that permission.
@@ -253,6 +291,22 @@ enum ScreenReminderMedia {
     @objc private func restDone(){WorkspaceStore.shared.changeRest{$0.restart(now:Date())};dismiss()}
     @objc private func restLater(){WorkspaceStore.shared.postponeRest()}
     var verificationWindows: [NSPanel] { windows }
+    func handleLocalDismissalEvent(_ event: NSEvent) -> NSEvent? {
+        guard current != nil, ScreenReminderRules.canDismiss(elapsed:uptime()-interactionStarted) else { return event }
+        if event.window === windows.last { return event }
+        let pointer = event.type == .leftMouseDown || event.type == .rightMouseDown || event.type == .otherMouseDown
+        dismiss()
+        // Closing the reminder must not consume a click intended for another
+        // island control or message. Keyboard dismissal retains its old behavior.
+        return pointer ? event : nil
+    }
+    func refreshCountdown() {
+        if let current, !current.shouldPresent() { dismiss(); return }
+        guard let automaticDismissAt else { return }
+        remainingSeconds=max(0,Int(ceil(automaticDismissAt-uptime())))
+        let label=remainingSeconds>0 ? "\(remainingSeconds) 秒后自动关闭":"即将自动关闭"
+        if countdownLabel?.stringValue != label { countdownLabel?.stringValue=label }
+    }
     @objc func dismiss() {
         clearCurrent()
         showNext()
@@ -281,6 +335,7 @@ enum ScreenReminderMedia {
         guard !deliveryPaused else {suspendForLock();return}
         while !pending.isEmpty {
             let entry=pending.removeFirst()
+            guard entry.shouldPresent() else { continue }
             do {try display(entry);return} catch {deliveryFailed(entry.request,error)}
         }
     }
@@ -291,6 +346,7 @@ enum ScreenReminderMedia {
     private func clearCurrent() {
         current=nil
         expiry?.invalidate(); expiry=nil; dismissalWatchdog?.cancel(); dismissalWatchdog=nil
+        countdownTimer?.invalidate();countdownTimer=nil;automaticDismissAt=nil;countdownLabel=nil;remainingSeconds=0
         player?.pause(); player=nil
         if let localEscape { NSEvent.removeMonitor(localEscape) }; localEscape=nil
         if let globalEscape { NSEvent.removeMonitor(globalEscape) }; globalEscape=nil
@@ -302,6 +358,9 @@ enum ScreenReminderMedia {
 final class ScreenReminderPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
+}
+final class ScreenReminderActionButton: NSButton {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 final class ScreenReminderVideoView: NSView {
     let videoLayer=AVPlayerLayer()

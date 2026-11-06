@@ -10,7 +10,7 @@ import SwiftUI
             Task { @MainActor in
                 do {
                     try await runChecks()
-                    if !CommandLine.arguments.contains("--interactive") { exit(0) }
+                    if !CommandLine.arguments.contains("--interactive") && Bundle.main.object(forInfoDictionaryKey: "ButtonInteractionReview") as? Bool != true { exit(0) }
                 } catch {
                     fputs("FAIL: \(error)\n", stderr); exit(1)
                 }
@@ -22,6 +22,8 @@ import SwiftUI
     @MainActor static func runChecks() async throws {
         let app=NSApplication.shared
         app.setActivationPolicy(CommandLine.arguments.contains("--interactive") ? .accessory:.prohibited)
+        if CommandLine.arguments.contains("--screen-controls-review") || Bundle.main.object(forInfoDictionaryKey:"ScreenControlsReview") as? Bool == true { try showScreenControlsLiveReview(); return }
+        if CommandLine.arguments.contains("--button-interactions-review") || Bundle.main.object(forInfoDictionaryKey: "ButtonInteractionReview") as? Bool == true { try await showButtonInteractionReview(); return }
         if CommandLine.arguments.contains("--live-agent-quota-diagnostic") {
             let quotas = try await CodexReader.quotas()
             print("Codex live quota windows: \(quotas.count); remaining: \(quotas.map { $0.remainingPercent }); fresh: \(quotas.allSatisfy { $0.isFresh(now: Date().timeIntervalSince1970) })")
@@ -38,6 +40,13 @@ import SwiftUI
         if CommandLine.arguments.contains("--todo-review") {try showTodoReview();return}
         var count=0
         func check(_ value:Bool,_ label:String) { guard value else {fputs("FAIL: \(label)\n",stderr);exit(1)};count += 1 }
+        try runReminderControlsChecks(check:check)
+        if CommandLine.arguments.contains("--screen-controls-only") { print("PASS \(count) screen control checks; isolated synthetic data"); return }
+        if CommandLine.arguments.contains("--button-interactions-only") {
+            try await runButtonInteractionChecks(check: check)
+            print("PASS \(count) button interaction checks; hidden synthetic windows only")
+            return
+        }
         if CommandLine.arguments.contains("--text-size-only") {
             try await runIslandTextSizeChecks(check: check)
             print("PASS \(count) island text size checks; isolated synthetic data")

@@ -25,6 +25,10 @@ public struct AgentSession: Codable, Equatable, Sendable {
         self.id = id; self.state = state; self.updatedAt = updatedAt; self.completionID = completionID
         self.attentionID=attentionID;self.attentionReason=attentionReason;self.startID=startID
     }
+    var completionIdentity: String { completionID ?? startID ?? String(updatedAt) }
+    func isSameCompletion(as other: AgentSession) -> Bool {
+        id == other.id && state == .completed && other.state == .completed && completionIdentity == other.completionIdentity
+    }
 }
 
 public struct AgentQuota: Codable, Equatable, Identifiable, Sendable {
@@ -226,13 +230,16 @@ public struct AgentAlertTracker {
     private var monitoringStartedAt = 0.0
     public init() {}
     public mutating func completions(_ sessions: [AgentSession], now: Double) -> Int {
+        completionEvents(sessions, now: now).count
+    }
+    public mutating func completionEvents(_ sessions: [AgentSession], now: Double) -> [AgentSession] {
         defer { previousSessions = Dictionary(sessions.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new }); initialized = true; previousCheckAt = now }
         seenCompletions=seenCompletions.filter { now-$0.value < 900 }
-        func key(_ session:AgentSession)->String { session.id+"/"+(session.completionID ?? String(session.updatedAt)) }
+        func key(_ session:AgentSession)->String { session.id+"/"+session.completionIdentity }
         guard initialized else {
             monitoringStartedAt = now
             for session in sessions where session.state == .completed { seenCompletions[key(session)]=now }
-            return 0
+            return []
         }
         return sessions.filter { session in
             guard seenCompletions[key(session)] == nil else {return false}
@@ -243,7 +250,7 @@ public struct AgentAlertTracker {
             guard session.updatedAt > old.updatedAt else { return false }
             return old.state == .working || old.state == .waiting
                 || (session.completionID != nil && session.completionID != old.completionID && session.updatedAt > previousCheckAt)
-        }.count
+        }
     }
     public mutating func attentionRequests(_ sessions:[AgentSession],now:Double)->[AgentSession] {
         let waiting=sessions.filter{$0.state == .waiting && now-$0.updatedAt<900 && $0.updatedAt<=now+60}
@@ -270,16 +277,23 @@ public struct AgentAlertTracker {
 
 /// Briefly coalesce confirmed completions without waiting for unrelated work.
 struct AgentCompletionBatch {
-    private var pending=0
-    private var firstCompletionAt:Double?
-    mutating func ingest(count:Int,sessions:[AgentSession],now:Double)->Int {
-        // Count comes only from verified, deduplicated completion events. Other chats,
-        // missing reads and abandoned sessions must never veto an actual completion.
-        if count > 0 {
-            if pending == 0 { firstCompletionAt=now }
-            pending += count
+    private struct Pending { let session: AgentSession; let queuedAt: Double }
+    private var pending: [String: Pending] = [:]
+    mutating func ingest(completions: [AgentSession], sessions: [AgentSession], now: Double) -> [AgentSession] {
+        let current = Dictionary(sessions.map { ($0.id, $0) }, uniquingKeysWith: { $0.updatedAt > $1.updatedAt ? $0 : $1 })
+        for session in completions where session.state == .completed {
+            pending[session.id] = Pending(session: session, queuedAt: now)
         }
-        guard pending > 0, now-(firstCompletionAt ?? now)>=2 else {return 0}
-        let result=pending;pending=0;firstCompletionAt=nil;return result
+        var ready: [AgentSession] = []
+        for (id, candidate) in pending {
+            guard now - candidate.queuedAt < 60 else { pending[id] = nil; continue }
+            // Only this chat can invalidate its own completion. Unrelated active
+            // chats must not block it, while an unavailable latest read cannot confirm it.
+            guard let latest = current[id] else { continue }
+            if latest.isSameCompletion(as: candidate.session) {
+                if now - candidate.queuedAt >= 2 { ready.append(candidate.session); pending[id] = nil }
+            } else if latest.updatedAt >= candidate.session.updatedAt { pending[id] = nil }
+        }
+        return ready.sorted { $0.id < $1.id }
     }
 }
