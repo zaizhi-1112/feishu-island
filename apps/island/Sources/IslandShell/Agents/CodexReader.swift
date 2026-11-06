@@ -1,12 +1,17 @@
 import Foundation
 
 actor CodexReader {
+    struct Origin {
+        var threadID: String
+        var isSubagent: Bool
+    }
     struct Cursor {
         var offset: UInt64 = 0
         var tail = Data()
         var session: AgentSession?
         var turnID: String?
         var pendingAsyncInput:String?
+        var origin: Origin?
     }
     private var cursors: [String: Cursor] = [:]
     private var lastDiscovery = Date.distantPast
@@ -29,18 +34,34 @@ actor CodexReader {
                     candidates.append((file, modified))
                 }
             }
-            files = candidates.sorted { $0.1 > $1.1 }.prefix(80).map { $0.0 }
+            // Child agents must not consume the user-chat discovery budget.
+            files = candidates.sorted { $0.1 > $1.1 }.map { $0.0 }
             let paths = Set(files.map(\.path)); cursors = cursors.filter { paths.contains($0.key) }
         }
+        var latest: [String: AgentSession] = [:], rootCount = 0
         for file in files {
+            guard rootCount < 80 else { break }
             guard let handle = try? FileHandle(forReadingFrom: file) else { continue }
             defer { try? handle.close() }
             var cursor = cursors[file.path] ?? Cursor()
             guard let size = try? handle.seekToEnd() else { continue }
             if size < cursor.offset { cursor = Cursor() }
+            // Read the actual header even when a long rollout is initially tailed.
+            // A child's copied parent history is never a user-visible completion.
+            if cursor.origin == nil { cursor.origin = readOrigin(handle: handle, fallbackID: file.lastPathComponent) }
+            guard let origin = cursor.origin else { continue }
+            if origin.isSubagent {
+                cursor.session = nil; cursor.tail = Data(); cursor.offset = size
+                cursors[file.path] = cursor
+                continue
+            }
+            rootCount += 1
             // Read only recent records on initial attachment; never infer a start from a running process.
             if size - cursor.offset > 4 * 1024 * 1024 {
-                if cursor.session == nil { cursor = seedCursor(handle: handle, size: size, id: file.lastPathComponent) }
+                if cursor.session == nil {
+                    cursor = seedCursor(handle: handle, size: size, id: origin.threadID)
+                    cursor.origin = origin
+                }
                 cursor.offset = size - 4 * 1024 * 1024; cursor.tail = Data()
                 try? handle.seek(toOffset: cursor.offset)
                 if let bytes = try? handle.readToEnd(), let first = bytes.firstIndex(of: 10) {
@@ -52,11 +73,40 @@ actor CodexReader {
             }
             while let newline = cursor.tail.firstIndex(of: 10) {
                 let line = Data(cursor.tail[..<newline]); cursor.tail.removeSubrange(...newline)
-                consume(line,id:file.lastPathComponent,cursor:&cursor)
+                consume(line,id:origin.threadID,cursor:&cursor)
             }
             cursors[file.path] = cursor
+            if let session = cursor.session {
+                let old = latest[session.id]
+                if old == nil || session.updatedAt > old!.updatedAt
+                    || (session.updatedAt == old!.updatedAt && old!.state == .completed && session.state != .completed) {
+                    latest[session.id] = session
+                }
+            }
         }
-        return cursors.values.compactMap(\.session)
+        return latest.values.sorted { $0.id < $1.id }
+    }
+    private func readOrigin(handle: FileHandle, fallbackID: String) -> Origin? {
+        try? handle.seek(toOffset: 0)
+        var header = Data()
+        while header.count < 1_048_576 {
+            guard let chunk = try? handle.read(upToCount: 16_384), !chunk.isEmpty else { break }
+            header.append(chunk)
+            if let end = header.firstIndex(of: 10) { header = Data(header[..<end]); break }
+        }
+        guard let record = try? JSONSerialization.jsonObject(with: header) as? [String: Any] else { return nil }
+        guard record["type"] as? String == "session_meta", let metadata = record["payload"] as? [String: Any] else {
+            // Older event-only logs have no hierarchy metadata.
+            return Origin(threadID: fallbackID, isSubagent: false)
+        }
+        let source = metadata["source"]
+        let parent = metadata["parent_thread_id"] as? String
+        let path = metadata["agent_path"] as? String
+        let child = (source as? [String: Any])?["subagent"] != nil
+            || source as? String == "subagent" || parent?.isEmpty == false
+            || (path?.hasPrefix("/root/") == true)
+        let id = metadata["id"] as? String
+        return Origin(threadID: id.flatMap { !$0.isEmpty && $0.count <= 200 ? $0 : nil } ?? fallbackID, isSubagent: child)
     }
     /// Only lifecycle metadata is retained. Never store prompts, tool arguments or responses.
     private func consume(_ line:Data,id:String,cursor:inout Cursor) {
@@ -90,7 +140,7 @@ actor CodexReader {
             cursor.session=AgentSession(id:id,state:.waiting,updatedAt:time,attentionID:pending,attentionReason:"input",startID:cursor.session?.startID)
         } else if ["task_complete","turn_aborted"].contains(event) {
             cursor.pendingAsyncInput=nil
-            cursor.session=AgentSession(id:id,state:event == "task_complete" ? .completed:.failed,updatedAt:time,completionID:event == "task_complete" ? (turn ?? stamp):nil)
+            cursor.session=AgentSession(id:id,state:event == "task_complete" ? .completed:.failed,updatedAt:time,completionID:event == "task_complete" ? (turn ?? stamp):nil,startID:cursor.session?.startID)
         } else if ["request_user_input","exec_approval_request","apply_patch_approval_request","request_permissions","elicitation_request"].contains(event) {
             cursor.session=AgentSession(id:id,state:.waiting,updatedAt:time,attentionID:(payload["call_id"] as? String) ?? (payload["id"] as? String) ?? stamp,attentionReason:event == "request_user_input" ? "input":"approval",startID:cursor.session?.startID)
         } else if ["exec_command_begin","patch_apply_begin","user_message","elicitation_abandoned"].contains(event),cursor.session?.state == .waiting {

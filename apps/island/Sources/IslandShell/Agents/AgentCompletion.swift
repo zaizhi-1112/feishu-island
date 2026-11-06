@@ -9,11 +9,14 @@ struct AgentCompletionNotice: Identifiable, Sendable {
     let stillWorking: Bool
     var attention:String? = nil
     var quotaMessage:String? = nil
+    var completedSessions: [AgentSession] = []
     var isQuota:Bool { attention == "quota" }
     var isRunning: Bool { attention == "running" || stillWorking }
     var status: String { if isQuota {return "额度不足"}; if let attention { return attention == "running" ? "正在运行" : attention == "input" ? "等你输入" : "等你确认" }; return stillWorking ? "正在运行" : "本轮工作已结束" }
     var message: String { quotaMessage ?? name+" · "+status }
-
+    func isCurrentCompletion(in sessions: [AgentSession]) -> Bool {
+        completedSessions.isEmpty || completedSessions.contains { completed in sessions.contains { $0.isSameCompletion(as: completed) } }
+    }
 }
 
 /// One soft ring, then a steady light. Never loops while the island is idle.

@@ -1,6 +1,8 @@
-# 一切在岛 0.12.23 build117 候选
+# 一切在岛 0.12.24 build118 候选
 
-build117 候选沿用顶部导航、小锁、设置及共用按钮的完整点击区域和按下反馈。桌面弹幕鼠标移入停留、移开继续，左上角 × 按下一次即关闭当前一条。冲屏使用 52pt 高、20pt 字号的动作按钮，并按实际播放到期时间显示剩余秒数；窄屏休息动作竖排。关闭不影响岛内消息与飞书已读状态。当前已安装到本人 Mac 并通过合成点验，尚未发布新下载；见 [本轮记录](../../docs/build117-interactions.md)。
+build118 候选只将 Codex 主对话当前轮次的完成作为结束提醒，排除内部子任务，并在继续运行时撤销候选、排队或已经显示的旧完成提醒。800 项 Agent 检查、514 项产品检查和 48 项冲屏断言通过；已安装到本人 Mac，尚未发布新下载。见 [本轮记录](../../docs/agent-status-alerts.md)。
+
+保留 build117 的顶部导航、小锁、设置及共用按钮点击修复。桌面弹幕鼠标移入停留、移开继续，左上角 × 按下一次即关闭当前一条。冲屏使用 52pt 高、20pt 字号的动作按钮，并按实际播放到期时间显示剩余秒数；窄屏休息动作竖排。关闭不影响岛内消息与飞书已读状态，见 [交互记录](../../docs/build117-interactions.md)。
 
 build115 修复后台消息补读的临时对象积累，保留 build111 功能。经维护者明确批准替换中台 build114，不宣称包含 build112–114 的独立改动。
 
@@ -31,6 +33,7 @@ bash scripts/build.sh
 
 ```sh
 # 交互检查与离屏渲染：仅使用合成数据，不连接飞书
+swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 AgentChecks --skin-preview
 swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 UnifiedProductChecks --skin-preview --button-interactions-only
 swift run --disable-sandbox --sdk "$ISLAND_SDK" -j 2 UnifiedProductChecks --skin-preview --screen-controls-only
 # 后台补读内存回归：仅使用合成 CLI

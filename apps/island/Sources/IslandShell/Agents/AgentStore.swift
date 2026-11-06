@@ -252,11 +252,13 @@ final class AgentStore: ObservableObject {
     func ingestSnapshots(_ values: [String:AgentSnapshot], now: Double) {
         guard !sessionIsLocked(), preferences.enabled else { return }
         for (id,value) in values where preferences.isMonitoring(id) && value.validationError == nil { snapshots[id]=value }
+        pendingNotices.removeAll { !allowsNotice($0) }
+        if let notice = completionNotice, !allowsNotice(notice) { finishNotice(notice.id) }
         for profile in preferences.profiles where preferences.isMonitoring(profile.id) && values[profile.id]?.validationError == nil && values[profile.id] != nil {
             var tracker = trackers[profile.id] ?? .init()
             let sessions=snapshots[profile.id]?.sessions ?? []
             let started = tracker.starts(sessions, now: now)
-            let count = tracker.completions(sessions, now: now)
+            let completions = tracker.completionEvents(sessions, now: now)
             let attention=tracker.attentionRequests(sessions,now:now)
             trackers[profile.id] = tracker
             if started > 0, preferences.startAlerts, preferences.activeMonitorIDs.contains(profile.id) {
@@ -264,9 +266,9 @@ final class AgentStore: ObservableObject {
             }
             if preferences.completionAlerts, preferences.activeMonitorIDs.contains(profile.id) {
                 var batch=completionBatches[profile.id] ?? .init()
-                let settled=batch.ingest(count:count,sessions:sessions,now:now)
+                let settled=batch.ingest(completions:completions,sessions:sessions,now:now)
                 completionBatches[profile.id]=batch
-                if settled > 0 { presentCompletion(profileID:profile.id,count:settled,stillWorking:false) }
+                if !settled.isEmpty { presentCompletion(profileID:profile.id,count:settled.count,stillWorking:false,completedSessions:settled) }
             }
             if let pending=attention.first,preferences.attentionAlerts,preferences.activeMonitorIDs.contains(profile.id) {
                 presentCompletion(profileID:profile.id,count:attention.count,stillWorking:false,attention:pending.attentionReason ?? "approval")
@@ -354,17 +356,18 @@ final class AgentStore: ObservableObject {
         activity.setExpanded { AgentPersistentExpanded(store:self) }
         activities?.start(activity)
     }
-    private func presentCompletion(profileID: String, count: Int, stillWorking: Bool, attention:String? = nil) {
+    private func presentCompletion(profileID: String, count: Int, stillWorking: Bool, attention:String? = nil, completedSessions:[AgentSession] = []) {
         guard !sessionIsLocked(), preferences.isMonitoring(profileID), let profile=preferences.profiles.first(where:{$0.id==profileID}) else { return }
         if attention != "running" { unviewedCompletionProfiles.insert(profileID) }
-        let notice=AgentCompletionNotice(profileID:profileID,name:profile.name,count:count,stillWorking:stillWorking,attention:attention)
+        let notice=AgentCompletionNotice(profileID:profileID,name:profile.name,count:count,stillWorking:stillWorking,attention:attention,completedSessions:completedSessions)
         enqueueNotice(notice)
     }
     private func enqueueNotice(_ notice:AgentCompletionNotice) {
+        guard allowsNotice(notice) else { return }
         if let material = preferences.completionScreenMaterialID, allowsLiveReads, !IslandRuntime.isSkinPreview, !sessionIsLocked() {
             do {
                 let request = try WorkspaceStore.shared.screenReminderRequest(style: ScreenReminderStyle(materialID: material), title: notice.message)
-                try ScreenReminderPresenter.shared.present(request)
+                try ScreenReminderPresenter.shared.present(request, shouldPresent: { [weak self] in self?.allowsNotice(notice) == true })
                 lastAlert = notice.message
                 return
             } catch { lastAlert = "屏幕动效暂不可用，已改用灵动岛提醒。" }
@@ -376,7 +379,8 @@ final class AgentStore: ObservableObject {
         } else { showNotice(notice) }
     }
     private func allowsNotice(_ notice:AgentCompletionNotice) -> Bool {
-        preferences.isMonitoring(notice.profileID) && (notice.isQuota ? preferences.quotaAlerts : notice.attention == "running" ? preferences.startAlerts : notice.attention != nil ? preferences.attentionAlerts : preferences.completionAlerts)
+        preferences.isMonitoring(notice.profileID) && notice.isCurrentCompletion(in: snapshots[notice.profileID]?.sessions ?? [])
+            && (notice.isQuota ? preferences.quotaAlerts : notice.attention == "running" ? preferences.startAlerts : notice.attention != nil ? preferences.attentionAlerts : preferences.completionAlerts)
     }
     private func showNotice(_ notice:AgentCompletionNotice) {
         completionTask?.cancel()

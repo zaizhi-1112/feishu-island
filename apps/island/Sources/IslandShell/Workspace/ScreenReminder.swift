@@ -139,6 +139,7 @@ enum ScreenReminderMedia {
         var request:ScreenReminderRequest
         var screen:NSScreen?
         var testFrame:CGRect?
+        var shouldPresent: () -> Bool
     }
     private var pending:[Entry]=[]
     private var current:Entry?
@@ -181,10 +182,11 @@ enum ScreenReminderMedia {
         }
     }
 
-    func present(_ request: ScreenReminderRequest, screen: NSScreen? = nil, testFrame: CGRect? = nil) throws {
+    func present(_ request: ScreenReminderRequest, screen: NSScreen? = nil, testFrame: CGRect? = nil, shouldPresent: @escaping () -> Bool = { true }) throws {
+        guard shouldPresent() else { return }
         guard !deliveryPaused else {throw WorkError.message("锁屏期间暂停冲屏提醒。")}
         try validateDelivery(request)
-        let entry=Entry(request:request,screen:screen,testFrame:testFrame)
+        let entry=Entry(request:request,screen:screen,testFrame:testFrame,shouldPresent:shouldPresent)
         if current != nil || !pending.isEmpty {
             guard pending.count < 32 else {throw WorkError.message("屏幕提醒较多，已改为岛内提示。")}
             pending.append(entry)
@@ -299,6 +301,7 @@ enum ScreenReminderMedia {
         return pointer ? event : nil
     }
     func refreshCountdown() {
+        if let current, !current.shouldPresent() { dismiss(); return }
         guard let automaticDismissAt else { return }
         remainingSeconds=max(0,Int(ceil(automaticDismissAt-uptime())))
         let label=remainingSeconds>0 ? "\(remainingSeconds) 秒后自动关闭":"即将自动关闭"
@@ -332,6 +335,7 @@ enum ScreenReminderMedia {
         guard !deliveryPaused else {suspendForLock();return}
         while !pending.isEmpty {
             let entry=pending.removeFirst()
+            guard entry.shouldPresent() else { continue }
             do {try display(entry);return} catch {deliveryFailed(entry.request,error)}
         }
     }
